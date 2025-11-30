@@ -1,0 +1,31 @@
+{
+  "name": "Launch Checklist",
+  "title": "Launch Checklist",
+  "loading": "Loading...",
+  "noProduct": "No product selected",
+  "notScanned": "Not scanned yet",
+  "scanToCheck": "Scan this product to check if it's ready for launch.",
+  "scanNow": "Scan Product",
+  "ready": "Ready to Launch",
+  "needsWork": "{{count}} items need attention",
+  "checksPassed": "checks passed",
+  "openInApp": "Open in App",
+  "viewInApp": "View in App",
+  "fixInApp": "Open the app to fix issues with AI assistance.",
+  "fixInApp_button": "Fix in App",
+  "rescan": "Rescan",
+  "andMore": "+{{count}} more items",
+  "close": "Close",
+  "checks": {
+    "title": "Title is descriptive (10+ chars)",
+    "description": "Has description (50+ chars)",
+    "images": "Has 3+ product images",
+    "imageAlt": "All images have alt text",
+    "seoTitle": "SEO title is set",
+    "seoDescription": "SEO description (80+ chars)",
+    "collections": "Added to a collection",
+    "productType": "Product type is set",
+    "vendor": "Vendor/brand is set",
+    "tags": "Has product tags"
+  }
+}

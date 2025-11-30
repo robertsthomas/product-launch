@@ -1,0 +1,31 @@
+{
+  "name": "Liste de lancement",
+  "title": "Liste de lancement",
+  "loading": "Chargement...",
+  "noProduct": "Aucun produit sélectionné",
+  "notScanned": "Pas encore analysé",
+  "scanToCheck": "Analysez ce produit pour vérifier s'il est prêt pour le lancement.",
+  "scanNow": "Analyser",
+  "ready": "Prêt pour le lancement",
+  "needsWork": "{{count}} éléments nécessitent attention",
+  "checksPassed": "vérifications réussies",
+  "openInApp": "Ouvrir dans l'app",
+  "viewInApp": "Voir dans l'app",
+  "fixInApp": "Ouvrez l'application pour corriger les problèmes avec l'assistance IA.",
+  "fixInApp_button": "Corriger dans l'app",
+  "rescan": "Réanalyser",
+  "andMore": "+{{count}} autres éléments",
+  "close": "Fermer",
+  "checks": {
+    "title": "Titre descriptif (10+ chars)",
+    "description": "A une description (50+ chars)",
+    "images": "A 3+ images produit",
+    "imageAlt": "Toutes les images ont un texte alt",
+    "seoTitle": "Titre SEO défini",
+    "seoDescription": "Description SEO (80+ chars)",
+    "collections": "Ajouté à une collection",
+    "productType": "Type de produit défini",
+    "vendor": "Fournisseur/marque défini",
+    "tags": "A des tags produit"
+  }
+}
