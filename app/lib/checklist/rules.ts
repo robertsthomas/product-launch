@@ -241,3 +241,4 @@ export const rulesMap: Record<string, ChecklistRule> = {
   has_tag_pattern: hasTagPatternRule,
 };
 
+
