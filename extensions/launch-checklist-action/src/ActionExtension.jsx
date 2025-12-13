@@ -247,10 +247,10 @@ function Extension() {
 
   const handleOpenInApp = () => {
     if (productId) {
-      const encodedId = encodeURIComponent(productId);
-      window.open(`/apps/product-launch-2/app/products/${encodedId}`, "_top");
+      // Don't encode - the browser/React Router will handle encoding
+      window.open(`/apps/product-launch/app/products/${productId}`, "_top");
     } else {
-      window.open("/apps/product-launch-2", "_top");
+      window.open("/apps/product-launch", "_top");
     }
     close();
   };

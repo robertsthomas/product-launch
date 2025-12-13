@@ -6,13 +6,15 @@ import { createId } from "@paralleldrive/cuid2";
 
 /**
  * Run an audit on a single product
+ * @param skipMetafieldUpdate - If true, skips updating the product metafield (to avoid webhook loops)
  */
 export async function auditProduct(
   shopDomain: string,
   productId: string,
   adminGraphql: {
     graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response>;
-  }
+  },
+  skipMetafieldUpdate = false
 ) {
   // Get shop and default template
   const shop = await getOrCreateShop(shopDomain);
@@ -102,56 +104,59 @@ export async function auditProduct(
   }
 
   // Save audit results to product metafield for extensions to read
-  const metafieldData = {
-    status: result.overallStatus,
-    passedCount: result.passedCount,
-    failedCount: result.failedCount,
-    totalCount: result.totalCount,
-    updatedAt: new Date().toISOString(),
-    items: result.items.map((item) => {
-      const checklistItem = template.items.find(i => i.id === item.itemId);
-      return {
-        key: checklistItem?.key ?? item.itemId,
-        label: checklistItem?.label ?? "Unknown check",
-        status: item.status,
-        details: item.details,
-      };
-    }),
-  };
+  // Skip this during batch scans or webhook processing to avoid triggering more webhooks
+  if (!skipMetafieldUpdate) {
+    const metafieldData = {
+      status: result.overallStatus,
+      passedCount: result.passedCount,
+      failedCount: result.failedCount,
+      totalCount: result.totalCount,
+      updatedAt: new Date().toISOString(),
+      items: result.items.map((item) => {
+        const checklistItem = template.items.find(i => i.id === item.itemId);
+        return {
+          key: checklistItem?.key ?? item.itemId,
+          label: checklistItem?.label ?? "Unknown check",
+          status: item.status,
+          details: item.details,
+        };
+      }),
+    };
 
-  try {
-    await adminGraphql.graphql(
-      `#graphql
-      mutation SetAuditMetafield($input: ProductInput!) {
-        productUpdate(input: $input) {
-          product {
-            id
+    try {
+      await adminGraphql.graphql(
+        `#graphql
+        mutation SetAuditMetafield($input: ProductInput!) {
+          productUpdate(input: $input) {
+            product {
+              id
+            }
+            userErrors {
+              field
+              message
+            }
           }
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
-      {
-        variables: {
-          input: {
-            id: product.id,
-            metafields: [
-              {
-                namespace: "launch_checklist",
-                key: "audit",
-                type: "json",
-                value: JSON.stringify(metafieldData),
-              },
-            ],
+        }`,
+        {
+          variables: {
+            input: {
+              id: product.id,
+              metafields: [
+                {
+                  namespace: "launch_checklist",
+                  key: "audit",
+                  type: "json",
+                  value: JSON.stringify(metafieldData),
+                },
+              ],
+            },
           },
-        },
-      }
-    );
-  } catch (error) {
-    console.error("Failed to save audit to metafield:", error);
-    // Don't fail the whole operation if metafield save fails
+        }
+      );
+    } catch (error) {
+      console.error("Failed to save audit to metafield:", error);
+      // Don't fail the whole operation if metafield save fails
+    }
   }
 
   // Return the full audit with items

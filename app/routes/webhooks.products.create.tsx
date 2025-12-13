@@ -28,8 +28,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     console.log(`Running audit for product ${productGid}`);
 
-    // Run the audit
-    await auditProduct(shop, productGid, admin);
+    // Run the audit - skip metafield update to avoid triggering update webhooks
+    await auditProduct(shop, productGid, admin, true);
 
     console.log(`Audit completed for product ${productGid}`);
   } catch (error) {

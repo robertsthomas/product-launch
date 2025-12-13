@@ -110,74 +110,206 @@ export default function Settings() {
   };
 
   return (
-    <s-page heading="Settings" backAction={{ onAction: () => navigate("/app") }}>
-      
-      {/* Automation */}
-      <s-section heading="Automation">
-        <s-card>
-          <s-box padding="base">
-            <s-stack direction="block" gap="base">
-              <s-checkbox
-                label="Scan new products automatically"
-                checked={shop.autoRunOnCreate}
-                onChange={(checked: boolean) => updateSetting("autoRunOnCreate", checked)}
-              />
-              <s-checkbox
-                label="Re-scan when products are updated"
-                checked={shop.autoRunOnUpdate}
-                onChange={(checked: boolean) => updateSetting("autoRunOnUpdate", checked)}
-              />
-            </s-stack>
-          </s-box>
-        </s-card>
-      </s-section>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* Page Header */}
+      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <button
+          type="button"
+          onClick={() => navigate("/app")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "36px",
+            height: "36px",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--color-border)",
+            background: "var(--color-surface)",
+            color: "var(--color-muted)",
+            cursor: "pointer",
+            transition: "all var(--transition-fast)",
+            flexShrink: 0,
+          }}
+          title="Back to dashboard"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <h1
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: "var(--text-2xl)",
+            fontWeight: 500,
+            color: "var(--color-text)",
+            margin: 0,
+          }}
+        >
+          Settings
+        </h1>
+      </div>
 
-      {/* Default Collection */}
-      <s-section heading="Auto-fix Settings">
-        <s-card>
-          <s-box padding="base">
-            <s-select
-              label="Default collection for auto-add"
-              options={[
-                { label: "Select a collection", value: "" },
-                ...collections.map((c: { id: string; title: string }) => ({ label: c.title, value: c.id })),
-              ]}
-              value={shop.defaultCollectionId ?? ""}
-              onChange={(value: string) => updateSetting("defaultCollectionId", value)}
-            />
-          </s-box>
-        </s-card>
-      </s-section>
+      {/* Two Column Layout */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", alignItems: "start" }}>
+        {/* Left Column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          {/* Automation */}
+          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "50ms", animationFillMode: "both" }}>
+            <h2 style={{ 
+              margin: "0 0 20px", 
+              fontFamily: "var(--font-heading)",
+              fontSize: "var(--text-xl)", 
+              fontWeight: 500,
+              color: "var(--color-text)",
+            }}>
+              Automation
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={shop.autoRunOnCreate}
+                  onChange={(e) => updateSetting("autoRunOnCreate", e.target.checked)}
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    cursor: "pointer",
+                    accentColor: "var(--color-primary)",
+                  }}
+                />
+                <span style={{ fontSize: "var(--text-base)", color: "var(--color-text)" }}>
+                  Scan new products automatically
+                </span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={shop.autoRunOnUpdate}
+                  onChange={(e) => updateSetting("autoRunOnUpdate", e.target.checked)}
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    cursor: "pointer",
+                    accentColor: "var(--color-primary)",
+                  }}
+                />
+                <span style={{ fontSize: "var(--text-base)", color: "var(--color-text)" }}>
+                  Re-scan when products are updated
+                </span>
+              </label>
+            </div>
+          </div>
 
-      {/* Checklist Rules */}
-      {template && (
-        <s-section heading="Checklist Rules">
-          <s-card>
-            {template.items.map((item, index) => (
-              <s-box
-                key={item.id}
-                padding="base"
-                borderBlockEndWidth={index < template.items.length - 1 ? "base" : undefined}
+          {/* Default Collection */}
+          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
+            <h2 style={{ 
+              margin: "0 0 20px", 
+              fontFamily: "var(--font-heading)",
+              fontSize: "var(--text-xl)", 
+              fontWeight: 500,
+              color: "var(--color-text)",
+            }}>
+              Auto-fix Settings
+            </h2>
+            <div>
+              <label style={{ 
+                display: "block",
+                fontSize: "var(--text-sm)", 
+                fontWeight: 600, 
+                color: "var(--color-text)",
+                marginBottom: "8px",
+              }}>
+                Default collection for auto-add
+              </label>
+              <select
+                value={shop.defaultCollectionId ?? ""}
+                onChange={(e) => updateSetting("defaultCollectionId", e.target.value)}
+                className="input-elevated"
               >
-                <s-stack direction="inline" gap="base" blockAlign="center">
-                  <s-checkbox
-                    label=""
+                <option value="">Select a collection</option>
+                {collections.map((c: { id: string; title: string }) => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Checklist Rules */}
+        {template && (
+          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "150ms", animationFillMode: "both" }}>
+            <h2 style={{ 
+              margin: "0 0 20px", 
+              fontFamily: "var(--font-heading)",
+              fontSize: "var(--text-xl)", 
+              fontWeight: 500,
+              color: "var(--color-text)",
+            }}>
+              Checklist Rules
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
+              {template.items.map((item) => (
+                <label
+                  key={item.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "14px 16px",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--color-border)",
+                    background: item.isEnabled ? "var(--color-surface)" : "var(--color-surface-strong)",
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.boxShadow = "var(--shadow-soft)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-border)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <input
+                    type="checkbox"
                     checked={item.isEnabled}
-                    onChange={(checked: boolean) => toggleRule(item.id, checked)}
+                    onChange={(e) => toggleRule(item.id, e.target.checked)}
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      cursor: "pointer",
+                      accentColor: "var(--color-primary)",
+                      flexShrink: 0,
+                    }}
                   />
-                  <s-stack direction="inline" gap="tight" blockAlign="center">
-                    <s-text>{item.label}</s-text>
-                    {item.autoFixable && (
-                      <s-badge tone="info" size="small">Auto-fix</s-badge>
-                    )}
-                  </s-stack>
-                </s-stack>
-              </s-box>
-            ))}
-          </s-card>
-        </s-section>
-      )}
-    </s-page>
+                  <span style={{ 
+                    fontSize: "var(--text-sm)", 
+                    color: item.isEnabled ? "var(--color-text)" : "var(--color-muted)", 
+                    flex: 1,
+                    fontWeight: 500,
+                  }}>
+                    {item.label}
+                  </span>
+                  {item.autoFixable && (
+                    <span style={{
+                      padding: "4px 10px",
+                      borderRadius: "var(--radius-full)",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 600,
+                      backgroundColor: "var(--color-primary-soft)",
+                      color: "var(--color-primary)",
+                    }}>
+                      Auto-fix
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

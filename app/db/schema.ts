@@ -32,6 +32,21 @@ export const shops = sqliteTable("shops", {
   autoRunOnCreate: integer("auto_run_on_create", { mode: "boolean" }).default(true).notNull(),
   autoRunOnUpdate: integer("auto_run_on_update", { mode: "boolean" }).default(true).notNull(),
   defaultCollectionId: text("default_collection_id"),
+  // Billing fields
+  plan: text("plan", { enum: ["free", "starter", "pro"] }).default("free").notNull(),
+  subscriptionId: text("subscription_id"), // Shopify AppSubscription GID
+  subscriptionStatus: text("subscription_status", { 
+    enum: ["active", "pending", "cancelled", "expired", "frozen"] 
+  }),
+  trialEndsAt: integer("trial_ends_at", { mode: "timestamp" }),
+  currentPeriodEnd: integer("current_period_end", { mode: "timestamp" }),
+  isDevStore: integer("is_dev_store", { mode: "boolean" }).default(false).notNull(),
+  // AI usage tracking
+  aiCreditsUsed: integer("ai_credits_used").default(0).notNull(),
+  aiCreditsResetAt: integer("ai_credits_reset_at", { mode: "timestamp" }),
+  // Audit limits (for free tier)
+  auditsThisMonth: integer("audits_this_month").default(0).notNull(),
+  auditsResetAt: integer("audits_reset_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });

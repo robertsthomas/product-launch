@@ -11,7 +11,16 @@ import {
   isAIAvailable,
   type ProductContext,
 } from "../lib/ai";
+import { checkAIGate, consumeAICredit } from "../lib/billing";
 
+/**
+ * AI suggestion endpoint.
+ *
+ * Billing/abuse protections:
+ * - Requires Pro plan (unless dev store bypass is enabled in DB)
+ * - Enforces a hard credit cap (trial vs paid)
+ * - Credits are decremented ONLY after a successful AI response
+ */
 export type SuggestionType = 
   | "title"
   | "seo_title" 
@@ -21,8 +30,8 @@ export type SuggestionType =
   | "image_alt_text";
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const productId = decodeURIComponent(params.id!);
+  const { admin, session } = await authenticate.admin(request);
+  const productId = decodeURIComponent(params.id ?? "");
   
   const formData = await request.formData();
   const type = formData.get("type") as SuggestionType;
@@ -32,6 +41,20 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     return Response.json(
       { error: "AI is not configured. Please set OPENAI_API_KEY." },
       { status: 503 }
+    );
+  }
+
+  // Enforce Pro-plan + credit limits BEFORE calling OpenAI.
+  const aiGate = await checkAIGate(session.shop);
+  if (!aiGate.allowed) {
+    return Response.json(
+      { 
+        error: aiGate.message, 
+        errorCode: aiGate.errorCode,
+        creditsRemaining: aiGate.creditsRemaining,
+        creditsLimit: aiGate.creditsLimit,
+      },
+      { status: 403 }
     );
   }
 
@@ -83,7 +106,15 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         return Response.json({ error: "Invalid suggestion type" }, { status: 400 });
     }
 
-    return Response.json({ suggestion, type });
+    // Decrement credits only after a successful generation.
+    const creditResult = await consumeAICredit(session.shop);
+
+    return Response.json({ 
+      suggestion, 
+      type,
+      creditsRemaining: creditResult.creditsRemaining,
+      creditsLimit: creditResult.creditsLimit,
+    });
   } catch (error) {
     console.error("AI suggestion error:", error);
     return Response.json(
