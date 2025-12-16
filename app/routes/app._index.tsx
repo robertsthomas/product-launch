@@ -594,7 +594,7 @@ export default function Dashboard() {
             Product Audits
           </h1>
           <p style={{ color: "var(--color-muted)", fontSize: "var(--text-sm)", margin: "4px 0 0" }}>
-            {stats.totalAudited === 0 
+            {stats.totalAudited === 0
               ? "Scan your products to check launch readiness"
               : stats.readyCount === stats.totalAudited
                 ? "All products are ready for launch"
@@ -602,47 +602,6 @@ export default function Dashboard() {
             }
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setIsScanning(true);
-            fetcher.submit({ intent: "scan_all" }, { method: "POST" });
-          }}
-          disabled={isScanning}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "10px 20px",
-            background: isScanning ? "var(--color-surface-strong)" : "var(--color-primary)",
-            color: isScanning ? "var(--color-muted)" : "#fff",
-            border: isScanning ? "1px solid var(--color-border)" : "none",
-            borderRadius: "var(--radius-full)",
-            fontSize: "var(--text-sm)",
-            fontWeight: 600,
-            cursor: isScanning ? "not-allowed" : "pointer",
-            transition: "all var(--transition-fast)",
-          }}
-        >
-          {isScanning ? (
-            <>
-              <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
-              Scanning...
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                <path d="M21 3v5h-5" />
-              </svg>
-              Scan All Products
-            </>
-          )}
-        </button>
       </div>
 
       {/* Two Column Layout */}
@@ -943,8 +902,8 @@ export default function Dashboard() {
         </div>
 
         {/* Right Column - Sticky Stats */}
-        <div 
-          style={{ 
+        <div
+          style={{
             position: "sticky",
             top: "80px",
             display: "flex",
@@ -952,6 +911,51 @@ export default function Dashboard() {
             gap: "16px",
           }}
         >
+          {/* Scan All Products Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsScanning(true);
+              fetcher.submit({ intent: "scan_all" }, { method: "POST" });
+            }}
+            disabled={isScanning}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              padding: "12px 20px",
+              background: isScanning ? "var(--color-surface-strong)" : "var(--color-primary)",
+              color: isScanning ? "var(--color-muted)" : "#fff",
+              border: isScanning ? "1px solid var(--color-border)" : "none",
+              borderRadius: "var(--radius-lg)",
+              fontSize: "var(--text-sm)",
+              fontWeight: 600,
+              cursor: isScanning ? "not-allowed" : "pointer",
+              transition: "all var(--transition-fast)",
+              width: "100%",
+            }}
+          >
+            {isScanning ? (
+              <>
+                <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+                Scanning...
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
+                Scan All Products
+              </>
+            )}
+          </button>
+
           {/* Progress Card */}
           <div 
             className="card"

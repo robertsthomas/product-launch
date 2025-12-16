@@ -227,9 +227,13 @@ function getNextMonthReset(): Date {
 }
 
 function getDevPlanOverride(): PlanType | null {
+  console.log("ai-gating getDevPlanOverride - NODE_ENV:", process.env.NODE_ENV);
+  console.log("ai-gating getDevPlanOverride - BILLING_DEV_PLAN:", process.env.BILLING_DEV_PLAN);
   if (process.env.NODE_ENV === "production") return null;
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim();
+  console.log("ai-gating getDevPlanOverride - raw:", raw);
   if (raw === "free" || raw === "starter" || raw === "pro") return raw as PlanType;
   return null;
 }
+
 

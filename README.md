@@ -95,6 +95,8 @@ Create a `.env` file with:
 ```bash
 # Required for AI suggestions
 OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_IMAGE_MODEL=gpt-4o-mini
 
 # Shopify (auto-configured by CLI)
 SHOPIFY_API_KEY=...

@@ -69,9 +69,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 function getDevPlanOverride(): PlanType | null {
+  console.log("BILLING STATUS getDevPlanOverride - NODE_ENV:", process.env.NODE_ENV);
+  console.log("BILLING STATUS getDevPlanOverride - BILLING_DEV_PLAN:", process.env.BILLING_DEV_PLAN);
   if (process.env.NODE_ENV === "production") return null;
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim();
-  if (raw === "free" || raw === "starter" || raw === "pro") return raw as PlanType;
+  console.log("BILLING STATUS getDevPlanOverride - raw:", raw);
+  if (raw === "free" || raw === "starter" || raw === "pro") {
+    console.log("BILLING STATUS getDevPlanOverride - returning:", raw);
+    return raw as PlanType;
+  }
+  console.log("BILLING STATUS getDevPlanOverride - returning null");
   return null;
 }
+
 

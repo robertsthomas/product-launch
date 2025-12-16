@@ -1,11 +1,11 @@
 // Plan identifiers
-export const PLANS = {
-  FREE: "free",
-  STARTER: "starter",
-  PRO: "pro",
-} as const;
+export enum PLANS {
+  FREE = "free",
+  STARTER = "starter",
+  PRO = "pro",
+}
 
-export type PlanType = (typeof PLANS)[keyof typeof PLANS];
+export type PlanType = PLANS;
 
 // Pricing configuration
 export const PLAN_CONFIG = {
@@ -72,4 +72,5 @@ export const SUBSCRIPTION_STATUS = {
   EXPIRED: "EXPIRED",
   FROZEN: "FROZEN",
 } as const;
+
 

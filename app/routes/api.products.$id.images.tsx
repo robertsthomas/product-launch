@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { auditProduct } from "../lib/services/audit.server";
-import { generateImageAltText, isAIAvailable } from "../lib/ai";
+import { generateImageAltText, generateProductImage, isAIAvailable } from "../lib/ai";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
@@ -163,7 +163,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
   // Generate alt text with AI
   if (intent === "generate_alt") {
-    const imageId = formData.get("imageId") as string;
+    formData.get("imageId"); // imageId passed but not needed for generation
     const imageIndex = parseInt(formData.get("imageIndex") as string, 10);
 
     if (!isAIAvailable()) {
@@ -194,6 +194,160 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     );
 
     return Response.json({ altText });
+  }
+
+  // Generate image with AI
+  if (intent === "generate_image") {
+    if (!isAIAvailable()) {
+      return Response.json(
+        { error: "AI is not configured" },
+        { status: 503 }
+      );
+    }
+
+    // Fetch product for context
+    const productResponse = await admin.graphql(PRODUCT_QUERY, {
+      variables: { id: productId },
+    });
+    const productJson = await productResponse.json();
+    const product = productJson.data?.product as Product | null;
+
+    if (!product) {
+      return Response.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    try {
+      // Generate image URL from DALL-E
+      const customPrompt = formData.get("customPrompt") as string;
+      const imageUrl = await generateProductImage({
+        title: product.title,
+        descriptionHtml: product.descriptionHtml,
+        productType: product.productType,
+        vendor: product.vendor,
+        existingImages: product.images?.nodes || [],
+        customPrompt: customPrompt || undefined,
+      });
+
+      // Download the image
+      const imageResponse = await fetch(imageUrl);
+      const imageBuffer = await imageResponse.arrayBuffer();
+      const filename = `${product.title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-ai-generated.png`;
+
+      // Step 1: Create staged upload
+      const stagedUploadResponse = await admin.graphql(
+        `#graphql
+        mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
+          stagedUploadsCreate(input: $input) {
+            stagedTargets {
+              url
+              resourceUrl
+              parameters {
+                name
+                value
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }`,
+        {
+          variables: {
+            input: [{
+              filename,
+              mimeType: "image/png",
+              httpMethod: "POST",
+              resource: "IMAGE",
+            }],
+          },
+        }
+      );
+
+      const stagedJson = await stagedUploadResponse.json();
+      const stagedTarget = stagedJson.data?.stagedUploadsCreate?.stagedTargets?.[0];
+
+      if (!stagedTarget) {
+        const errors = stagedJson.data?.stagedUploadsCreate?.userErrors;
+        console.error("Staged upload error:", errors);
+        return Response.json(
+          { error: errors?.[0]?.message || "Failed to create staged upload" },
+          { status: 400 }
+        );
+      }
+
+      // Step 2: Upload to staged URL
+      const uploadFormData = new FormData();
+      for (const param of stagedTarget.parameters) {
+        uploadFormData.append(param.name, param.value);
+      }
+      uploadFormData.append("file", new Blob([imageBuffer], { type: "image/png" }), filename);
+
+      const uploadResponse = await fetch(stagedTarget.url, {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        console.error("Upload to staged URL failed:", uploadResponse.status);
+        return Response.json(
+          { error: "Failed to upload image to Shopify" },
+          { status: 400 }
+        );
+      }
+
+      // Step 3: Create product media using the staged resource URL
+      const createMediaResponse = await admin.graphql(
+        `#graphql
+        mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+          productCreateMedia(productId: $productId, media: $media) {
+            media {
+              ... on MediaImage {
+                id
+                image {
+                  url
+                }
+                alt
+              }
+            }
+            mediaUserErrors {
+              field
+              message
+            }
+          }
+        }`,
+        {
+          variables: {
+            productId,
+            media: [{
+              originalSource: stagedTarget.resourceUrl,
+              mediaContentType: "IMAGE",
+            }],
+          },
+        }
+      );
+
+      const createMediaJson = await createMediaResponse.json();
+      const mediaErrors = createMediaJson.data?.productCreateMedia?.mediaUserErrors;
+
+      if (mediaErrors?.length > 0) {
+        console.error("Product media creation error:", mediaErrors);
+        return Response.json({ error: mediaErrors[0].message }, { status: 400 });
+      }
+
+      await auditProduct(shop, productId, admin);
+
+      return Response.json({
+        success: true,
+        image: createMediaJson.data?.productCreateMedia?.media?.[0],
+      });
+    } catch (error) {
+      console.error("Image generation error:", error);
+      return Response.json(
+        { error: "Failed to generate image" },
+        { status: 500 }
+      );
+    }
   }
 
   // Delete image
@@ -239,13 +393,17 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
     const response = await admin.graphql(
       `#graphql
-      mutation productUpdate($input: ProductInput!) {
+      mutation productUpdate($input: ProductUpdateInput!) {
         productUpdate(input: $input) {
           product {
             id
-            featuredImage {
-              id
-              url
+            featuredMedia {
+              ... on MediaImage {
+                id
+                image {
+                  url
+                }
+              }
             }
           }
           userErrors {
