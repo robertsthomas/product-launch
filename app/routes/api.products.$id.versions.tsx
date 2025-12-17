@@ -1,14 +1,25 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { db } from "../db";
-import { productFieldVersions } from "../db/schema";
-import { eq, desc } from "drizzle-orm";
+import { productFieldVersions, shops } from "../db/schema";
+import { eq, desc, and } from "drizzle-orm";
 
-export const loader = async ({ params }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(new Request(""));
+export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
   const productId = decodeURIComponent(params.id ?? "");
 
   try {
+    // Get shop ID from domain
+    const [shop] = await db
+      .select({ id: shops.id })
+      .from(shops)
+      .where(eq(shops.shopDomain, session.shop))
+      .limit(1);
+
+    if (!shop) {
+      return Response.json({ versions: {} });
+    }
+
     // Get all versions for this product, grouped by field
     const versions = await db
       .select({
@@ -19,14 +30,18 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
         createdAt: productFieldVersions.createdAt,
       })
       .from(productFieldVersions)
-      .where(eq(productFieldVersions.productId, productId))
-      .where(eq(productFieldVersions.shopId, session.shop))
+      .where(
+        and(
+          eq(productFieldVersions.productId, productId),
+          eq(productFieldVersions.shopId, shop.id)
+        )
+      )
       .orderBy(desc(productFieldVersions.version));
 
     // Group by field
     const groupedVersions: Record<string, Array<{ version: number; createdAt: Date; source: string }>> = {};
 
-    versions.forEach((version) => {
+    for (const version of versions) {
       if (!groupedVersions[version.field]) {
         groupedVersions[version.field] = [];
       }
@@ -35,7 +50,7 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
         createdAt: version.createdAt,
         source: version.source,
       });
-    });
+    }
 
     return Response.json({ versions: groupedVersions });
   } catch (error) {

@@ -47,6 +47,8 @@ export const shops = sqliteTable("shops", {
   // Audit limits (for free tier)
   auditsThisMonth: integer("audits_this_month").default(0).notNull(),
   auditsResetAt: integer("audits_reset_at", { mode: "timestamp" }),
+  // Version history settings
+  versionHistoryEnabled: integer("version_history_enabled", { mode: "boolean" }).default(true).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });

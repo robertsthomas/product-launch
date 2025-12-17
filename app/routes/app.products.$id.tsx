@@ -4,11 +4,12 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useLoaderData, useFetcher, useNavigate } from "react-router";
+import { useLoaderData, useFetcher, useNavigate, useBlocker } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getProductAudit, auditProduct, getNextIncompleteProduct, getIncompleteProductCount } from "../lib/services/audit.server";
+import { getShopSettings } from "../lib/services/shop.server";
 import { isAIAvailable } from "../lib/ai";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
 
@@ -80,6 +81,10 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const nextProduct = await getNextIncompleteProduct(shop, productId);
   const incompleteCount = await getIncompleteProductCount(shop);
 
+  // Get shop settings for default collection
+  const shopSettings = await getShopSettings(shop);
+  const defaultCollectionId = shopSettings?.defaultCollectionId || null;
+
   return {
     product: {
       id: shopifyProduct.id,
@@ -132,6 +137,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       nextProduct,
       incompleteCount,
     },
+    defaultCollectionId,
   };
 };
 
@@ -190,6 +196,41 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
   if (intent === "open_product") {
     return { openProduct: productId };
+  }
+
+  if (intent === "add_to_collection") {
+    const collectionId = formData.get("collectionId") as string;
+    if (!collectionId) {
+      return { success: false, error: "No default collection configured" };
+    }
+
+    try {
+      const response = await admin.graphql(`#graphql
+        mutation AddProductToCollection($id: ID!, $productIds: [ID!]!) {
+          collectionAddProducts(id: $id, productIds: $productIds) {
+            collection { id }
+            userErrors { field message }
+          }
+        }
+      `, {
+        variables: {
+          id: collectionId,
+          productIds: [productId],
+        },
+      });
+      const data = await response.json();
+
+      if (data.data?.collectionAddProducts?.userErrors?.length > 0) {
+        return { success: false, error: data.data.collectionAddProducts.userErrors[0].message };
+      }
+
+      // Re-audit the product after adding to collection
+      await auditProduct(shop, productId, admin);
+      return { success: true, message: "Added to collection!" };
+    } catch (error) {
+      console.error("Error adding to collection:", error);
+      return { success: false, error: "Failed to add to collection" };
+    }
   }
 
   if (intent === "rescan") {
@@ -1070,14 +1111,18 @@ function AIGenerateDropdown({
         {isGenerating && generatingMode ? (
           <>
             <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-              <span></span>
-              <span></span>
-              <span></span>
+              <span/>
+              <span/>
+              <span/>
             </span>
-            {generatingMode === "expand" && "Expanding"}
-            {generatingMode === "improve" && "Improving"}
-            {generatingMode === "replace" && "Replacing"}
-            {!generatingMode && "Generating"}
+            {/* Show "Generating" if field was empty, otherwise show mode-specific text */}
+            {!hasContent ? "Generating" : (
+              <>
+                {generatingMode === "expand" && "Expanding"}
+                {generatingMode === "improve" && "Improving"}
+                {generatingMode === "replace" && "Replacing"}
+              </>
+            )}
           </>
         ) : (
           <>
@@ -1201,6 +1246,8 @@ function EditableField({
   onRevert,
   field,
   productId,
+  canInlineRevert,
+  onInlineRevert,
 }: {
   label: string;
   value: string;
@@ -1217,6 +1264,8 @@ function EditableField({
   onRevert?: (field: string, version: number) => void;
   field?: string;
   productId?: string;
+  canInlineRevert?: boolean;
+  onInlineRevert?: () => void;
 }) {
   const [isFocused, setIsFocused] = useState(false);
   const inputId = `input-${label.toLowerCase().replace(/\s+/g, "-")}-${Math.random().toString(36).substr(2, 9)}`;
@@ -1239,14 +1288,43 @@ function EditableField({
         }}>
           {label}
         </label>
-        {showAI && onGenerateAI && (
-          <AIGenerateDropdown
-            onGenerate={onGenerateAI}
-            isGenerating={isGenerating}
-            hasContent={!!value.trim()}
-            generatingMode={generatingMode}
-          />
-        )}
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          {canInlineRevert && onInlineRevert && (
+            <button
+              type="button"
+              onClick={onInlineRevert}
+              style={{
+                padding: "4px 8px",
+                fontSize: "var(--text-xs)",
+                fontWeight: 500,
+                border: "1px solid var(--color-warning)",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: "var(--color-warning-soft)",
+                color: "var(--color-warning-text)",
+                cursor: "pointer",
+                transition: "all var(--transition-fast)",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Revert to original value"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              Undo
+            </button>
+          )}
+          {showAI && onGenerateAI && (
+            <AIGenerateDropdown
+              onGenerate={onGenerateAI}
+              isGenerating={isGenerating}
+              hasContent={!!value.trim()}
+              generatingMode={generatingMode}
+            />
+          )}
+        </div>
       </div>
       
       <div style={{ position: "relative" }}>
@@ -1458,6 +1536,8 @@ function TagsInput({
   onRevert,
   field,
   productId,
+  canInlineRevert,
+  onInlineRevert,
 }: {
   tags: string[];
   onChange: (tags: string[]) => void;
@@ -1469,6 +1549,8 @@ function TagsInput({
   onRevert?: (field: string, version: number) => void;
   field?: string;
   productId?: string;
+  canInlineRevert?: boolean;
+  onInlineRevert?: () => void;
 }) {
   const [inputValue, setInputValue] = useState("");
   const [isAddingTag, setIsAddingTag] = useState(false);
@@ -1511,6 +1593,33 @@ function TagsInput({
           Tags
         </label>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {canInlineRevert && onInlineRevert && (
+            <button
+              type="button"
+              onClick={onInlineRevert}
+              style={{
+                padding: "4px 8px",
+                fontSize: "var(--text-xs)",
+                fontWeight: 500,
+                border: "1px solid var(--color-warning)",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: "var(--color-warning-soft)",
+                color: "var(--color-warning-text)",
+                cursor: "pointer",
+                transition: "all var(--transition-fast)",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Revert to original value"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              Undo
+            </button>
+          )}
           {fieldVersions && fieldVersions.length > 0 && field && productId && onRevert && (
             <VersionHistoryDropdown
               field={field}
@@ -1960,9 +2069,9 @@ function ImageManager({
                   gap: "8px",
                 }}>
                   <div className="loading-dots" style={{ transform: "scale(0.8)" }}>
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                    <span/>
+                    <span/>
+                    <span/>
                   </div>
                   <div style={{
                     fontSize: "var(--text-sm)",
@@ -2179,6 +2288,8 @@ function ChecklistSidebar({
   onRescan,
   isRescanning,
   onItemClick,
+  onAutoFixCollection,
+  canAutoFixCollection,
 }: { 
   audit: {
     status: string;
@@ -2195,6 +2306,8 @@ function ChecklistSidebar({
   onRescan?: () => void;
   isRescanning?: boolean;
   onItemClick?: (key: string) => void;
+  onAutoFixCollection?: () => void;
+  canAutoFixCollection?: boolean;
 }) {
   if (!audit) return null;
 
@@ -2272,10 +2385,8 @@ function ChecklistSidebar({
           const isExternalOnly = item.key === "has_collections";
           
           return (
-            <button
-              type="button"
+            <div
               key={item.key}
-              onClick={() => onItemClick?.(item.key)}
               className="animate-fade-in-up"
               style={{
                 display: "flex",
@@ -2290,16 +2401,21 @@ function ChecklistSidebar({
                 border: "none",
                 width: "100%",
                 textAlign: "left",
-                cursor: "pointer",
-                transition: "all var(--transition-fast)",
+                cursor: isExternalOnly ? "default" : "pointer",
+                transition: isExternalOnly ? "none" : "all var(--transition-fast)",
               }}
+              onClick={() => !isExternalOnly && onItemClick?.(item.key)}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateX(4px)";
-                e.currentTarget.style.boxShadow = "var(--shadow-soft)";
+                if (!isExternalOnly) {
+                  e.currentTarget.style.transform = "translateX(4px)";
+                  e.currentTarget.style.boxShadow = "var(--shadow-soft)";
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateX(0)";
-                e.currentTarget.style.boxShadow = "none";
+                if (!isExternalOnly) {
+                  e.currentTarget.style.transform = "translateX(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }
               }}
             >
               <span style={{
@@ -2331,7 +2447,36 @@ function ChecklistSidebar({
               }}>
                 {item.label}
               </span>
-              {isExternalOnly ? (
+              {isExternalOnly && item.status === "failed" && canAutoFixCollection ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAutoFixCollection?.();
+                  }}
+                  style={{
+                    padding: "4px 8px",
+                    fontSize: "9px",
+                    fontWeight: 600,
+                    borderRadius: "var(--radius-full)",
+                    border: "none",
+                    background: "var(--color-primary)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 6px rgba(59, 130, 246, 0.35)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = "0 4px 10px rgba(59, 130, 246, 0.5)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = "0 2px 6px rgba(59, 130, 246, 0.35)";
+                  }}
+                >
+                  Auto-fix
+                </button>
+              ) : isExternalOnly ? (
                 <svg 
                   width="14" 
                   height="14" 
@@ -2368,7 +2513,7 @@ function ChecklistSidebar({
                   <path d="M9 18l6-6-6-6"/>
                 </svg>
               )}
-            </button>
+            </div>
           );
         })}
       </div>
@@ -2400,9 +2545,9 @@ function ChecklistSidebar({
           {isRescanning ? (
             <>
               <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
-                <span></span>
-                <span></span>
-                <span></span>
+                <span/>
+                <span/>
+                <span/>
               </span>
               Rescanning...
             </>
@@ -2426,7 +2571,7 @@ function ChecklistSidebar({
 // ============================================
 
 export default function ProductEditor() {
-  const { product, audit, aiAvailable, navigation } = useLoaderData<typeof loader>();
+  const { product, audit, aiAvailable, navigation, defaultCollectionId } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const navigate = useNavigate();
   const shopify = useAppBridge();
@@ -2446,7 +2591,11 @@ export default function ProductEditor() {
   const [fieldVersions, setFieldVersions] = useState<Record<string, Array<{ version: number; createdAt: Date; source: string }>>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [generatingAll, setGeneratingAll] = useState(false);
-  
+
+  // Track pre-generation values for inline revert (before save)
+  const [preGenerationValues, setPreGenerationValues] = useState<Record<string, string | string[]>>({});
+  // Track which fields have been AI-generated since last save
+  const [aiGeneratedFields, setAiGeneratedFields] = useState<Set<string>>(new Set());
 
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
 
@@ -2507,7 +2656,7 @@ export default function ProductEditor() {
 
   useEffect(() => {
     const originalDesc = product.descriptionHtml.replace(/<[^>]*>/g, "");
-    const changed = 
+    const changed =
       form.title !== product.title ||
       form.description !== originalDesc ||
       form.vendor !== product.vendor ||
@@ -2518,9 +2667,38 @@ export default function ProductEditor() {
     setHasChanges(changed);
   }, [form, product]);
 
+  // Warn user before leaving page with unsaved changes (browser close/refresh)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved changes. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasChanges]);
+
+  // Block in-app navigation when there are unsaved changes
+  const blocker = useBlocker(hasChanges);
+
+  // State for unsaved changes dialog
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      setShowUnsavedDialog(true);
+    }
+  }, [blocker.state]);
+
   useEffect(() => {
     if (fetcher.data?.message) {
       shopify.toast.show(fetcher.data.message);
+      // Clear pre-generation state after successful save
+      setPreGenerationValues({});
+      setAiGeneratedFields(new Set());
     }
     if (fetcher.data?.error) {
       shopify.toast.show(fetcher.data.error);
@@ -2557,7 +2735,11 @@ export default function ProductEditor() {
     field: string,
     mode: AIGenerateMode
   ) => {
-    const requestId = `${field}-${Date.now()}`;
+    // Save current value for potential revert (only if not already saved)
+    const currentValue = form[field as keyof typeof form];
+    if (currentValue && !preGenerationValues[field]) {
+      setPreGenerationValues(prev => ({ ...prev, [field]: currentValue }));
+    }
 
     // Add field to generating set to show overlay
     setGenerating(prev => new Set([...prev, field]));
@@ -2602,6 +2784,8 @@ export default function ProductEditor() {
           } else {
             updateField(field, data.suggestion);
           }
+          // Mark field as AI-generated (for inline revert)
+          setAiGeneratedFields(prev => new Set([...prev, field]));
           shopify.toast.show("Applied!");
         }
       })
@@ -2622,7 +2806,28 @@ export default function ProductEditor() {
           message: "Failed to generate",
         });
       });
-  }, [product.id, updateField, shopify]);
+  }, [product.id, updateField, shopify, form, preGenerationValues]);
+
+  // Revert to pre-generation value (inline, before save)
+  const revertToPreGeneration = useCallback((field: string) => {
+    const originalValue = preGenerationValues[field];
+    if (originalValue !== undefined) {
+      updateField(field, originalValue);
+      // Remove from AI-generated tracking
+      setAiGeneratedFields(prev => {
+        const next = new Set(prev);
+        next.delete(field);
+        return next;
+      });
+      // Remove from pre-generation values
+      setPreGenerationValues(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+      shopify.toast.show("Reverted");
+    }
+  }, [preGenerationValues, updateField, shopify]);
 
 
   const closeImagePromptModal = useCallback(() => {
@@ -2848,73 +3053,6 @@ export default function ProductEditor() {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <button
-            type="button"
-            onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
-            style={{
-              padding: "10px 16px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-full)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              transition: "all var(--transition-fast)",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-              <polyline points="15 3 21 3 21 9"/>
-              <line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
-            Open in Shopify
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!hasChanges || isSaving}
-            style={{
-              padding: "10px 20px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              border: "none",
-              borderRadius: "var(--radius-full)",
-              background: hasChanges ? "var(--color-primary)" : "var(--color-surface-strong)",
-              color: hasChanges ? "#fff" : "var(--color-muted)",
-              cursor: (!hasChanges || isSaving) ? "not-allowed" : "pointer",
-              opacity: isSaving ? 0.7 : 1,
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              transition: "all var(--transition-fast)",
-            }}
-          >
-            {isSaving ? (
-              <>
-                <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </span>
-                Saving...
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                {hasChanges ? "Save changes" : "Saved"}
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* Main Content Grid */}
@@ -2965,9 +3103,9 @@ export default function ProductEditor() {
                     {generatingAll ? (
                       <>
                         <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
-                          <span></span>
-                          <span></span>
-                          <span></span>
+                          <span/>
+                          <span/>
+                          <span/>
                         </span>
                         Generating...
                       </>
@@ -3037,13 +3175,15 @@ export default function ProductEditor() {
                       onChange={(v) => updateField("title", v)}
                       onGenerateAI={(mode) => generateAIContent("title", "title", mode)}
                       isGenerating={generating.has("title")}
-                      generatingMode={generatingModes["title"]}
+                      generatingMode={generatingModes.title}
                       showAI={aiAvailable}
                       placeholder="Product title"
-                      fieldVersions={fieldVersions["title"]}
+                      fieldVersions={fieldVersions.title}
                       onRevert={(field, version) => handleRevert(field, version)}
                       field="title"
                       productId={product.id}
+                      canInlineRevert={aiGeneratedFields.has("title") && !!preGenerationValues.title}
+                      onInlineRevert={() => revertToPreGeneration("title")}
                     />
                   </div>
                   <div style={{ display: "flex", gap: "16px" }}>
@@ -3107,15 +3247,17 @@ export default function ProductEditor() {
                   onChange={(v) => updateField("description", v)}
                   onGenerateAI={(mode) => generateAIContent("description", "description", mode)}
                   isGenerating={generating.has("description")}
-                  generatingMode={generatingModes["description"]}
+                  generatingMode={generatingModes.description}
                   showAI={aiAvailable}
                   multiline
                   placeholder="Describe your product..."
                   helpText="Supports plain text, will be converted to HTML"
-                  fieldVersions={fieldVersions["description"]}
-                  onRevert={handleRevertSuccess}
+                  fieldVersions={fieldVersions.description}
+                  onRevert={(field, version) => handleRevert(field, version)}
                   field="description"
                   productId={product.id}
+                  canInlineRevert={aiGeneratedFields.has("description") && !!preGenerationValues.description}
+                  onInlineRevert={() => revertToPreGeneration("description")}
                 />
               </div>
 
@@ -3135,12 +3277,14 @@ export default function ProductEditor() {
                   onChange={(v) => updateField("tags", v)}
                   onGenerateAI={(mode) => generateAIContent("tags", "tags", mode)}
                   isGenerating={generating.has("tags")}
-                  generatingMode={generatingModes["tags"]}
+                  generatingMode={generatingModes.tags}
                   showAI={aiAvailable}
-                  fieldVersions={fieldVersions["tags"]}
-                  onRevert={handleRevertSuccess}
+                  fieldVersions={fieldVersions.tags}
+                  onRevert={(field, version) => handleRevert(field, version)}
                   field="tags"
                   productId={product.id}
+                  canInlineRevert={aiGeneratedFields.has("tags") && !!preGenerationValues.tags}
+                  onInlineRevert={() => revertToPreGeneration("tags")}
                 />
               </div>
             </div>
@@ -3250,15 +3394,17 @@ export default function ProductEditor() {
                   onChange={(v) => updateField("seoTitle", v)}
                   onGenerateAI={(mode) => generateAIContent("seo_title", "seoTitle", mode)}
                   isGenerating={generating.has("seoTitle")}
-                  generatingMode={generatingModes["seoTitle"]}
+                  generatingMode={generatingModes.seoTitle}
                   showAI={aiAvailable}
                   placeholder={form.title}
                   maxLength={60}
                   helpText="Recommended: 50-60 characters"
-                  fieldVersions={fieldVersions["seoTitle"]}
-                  onRevert={handleRevertSuccess}
+                  fieldVersions={fieldVersions.seoTitle}
+                  onRevert={(field, version) => handleRevert(field, version)}
                   field="seoTitle"
                   productId={product.id}
+                  canInlineRevert={aiGeneratedFields.has("seoTitle") && !!preGenerationValues.seoTitle}
+                  onInlineRevert={() => revertToPreGeneration("seoTitle")}
                 />
               </div>
 
@@ -3279,16 +3425,18 @@ export default function ProductEditor() {
                   onChange={(v) => updateField("seoDescription", v)}
                   onGenerateAI={(mode) => generateAIContent("seo_description", "seoDescription", mode)}
                   isGenerating={generating.has("seoDescription")}
-                  generatingMode={generatingModes["seoDescription"]}
+                  generatingMode={generatingModes.seoDescription}
                   showAI={aiAvailable}
                   multiline
                   placeholder="Describe this product for search engines..."
                   maxLength={160}
                   helpText="Recommended: 120-155 characters"
-                  fieldVersions={fieldVersions["seoDescription"]}
-                  onRevert={handleRevertSuccess}
+                  fieldVersions={fieldVersions.seoDescription}
+                  onRevert={(field, version) => handleRevert(field, version)}
                   field="seoDescription"
                   productId={product.id}
+                  canInlineRevert={aiGeneratedFields.has("seoDescription") && !!preGenerationValues.seoDescription}
+                  onInlineRevert={() => revertToPreGeneration("seoDescription")}
                 />
               </div>
             </div>
@@ -3304,6 +3452,75 @@ export default function ProductEditor() {
               gap: "16px",
             }}
           >
+            {/* Action Buttons */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-full)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all var(--transition-fast)",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+                Open in Shopify
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!hasChanges || isSaving}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: "var(--radius-full)",
+                  background: hasChanges ? "var(--color-primary)" : "var(--color-surface-strong)",
+                  color: hasChanges ? "#fff" : "var(--color-muted)",
+                  cursor: (!hasChanges || isSaving) ? "not-allowed" : "pointer",
+                  opacity: isSaving ? 0.7 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all var(--transition-fast)",
+                }}
+              >
+                {isSaving ? (
+                  <>
+                    <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                      <span/>
+                      <span/>
+                      <span/>
+                    </span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                      <polyline points="17 21 17 13 7 13 7 21"/>
+                      <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    {hasChanges ? "Save changes" : "Saved"}
+                  </>
+                )}
+              </button>
+            </div>
+
             <div
               className="card glass animate-fade-in-up"
               style={{
@@ -3317,12 +3534,129 @@ export default function ProductEditor() {
                 onRescan={() => fetcher.submit({ intent: "rescan" }, { method: "POST" })}
                 isRescanning={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"}
                 onItemClick={handleChecklistItemClick}
+                canAutoFixCollection={!!defaultCollectionId}
+                onAutoFixCollection={() => {
+                  if (defaultCollectionId) {
+                    fetcher.submit(
+                      { intent: "add_to_collection", collectionId: defaultCollectionId },
+                      { method: "POST" }
+                    );
+                  }
+                }}
               />
             </div>
             
           </div>
         </div>
       
+
+      {/* Unsaved Changes Dialog */}
+      {showUnsavedDialog && blocker.state === "blocked" && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(45, 42, 38, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1100,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--color-surface)",
+              borderRadius: "var(--radius-lg)",
+              padding: "28px",
+              maxWidth: "400px",
+              width: "100%",
+              boxShadow: "var(--shadow-lg)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "var(--radius-full)",
+                backgroundColor: "var(--color-warning-soft)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <h3 style={{
+                margin: 0,
+                fontFamily: "var(--font-heading)",
+                fontSize: "var(--text-lg)",
+                fontWeight: 600,
+                color: "var(--color-text)",
+              }}>
+                Unsaved changes
+              </h3>
+            </div>
+            <p style={{
+              margin: "0 0 24px",
+              fontSize: "var(--text-sm)",
+              color: "var(--color-muted)",
+              lineHeight: 1.5,
+            }}>
+              You have unsaved changes that will be lost if you leave this page. Are you sure you want to continue?
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedDialog(false);
+                  blocker.reset?.();
+                }}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  transition: "all var(--transition-fast)",
+                }}
+              >
+                Stay on page
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnsavedDialog(false);
+                  blocker.proceed?.();
+                }}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  borderRadius: "var(--radius-md)",
+                  border: "none",
+                  background: "var(--color-error)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  transition: "all var(--transition-fast)",
+                }}
+              >
+                Leave without saving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Upsell Modal */}
       <AIUpsellModal

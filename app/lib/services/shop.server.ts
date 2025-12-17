@@ -127,6 +127,7 @@ export async function updateShopSettings(
     autoRunOnCreate?: boolean;
     autoRunOnUpdate?: boolean;
     defaultCollectionId?: string | null;
+    versionHistoryEnabled?: boolean;
   }
 ) {
   return db

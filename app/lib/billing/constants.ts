@@ -15,12 +15,14 @@ export const PLAN_CONFIG = {
     trialDays: 0,
     auditsPerMonth: 20,
     aiCredits: 0,
+    versionHistoryDays: 0, // No version history
     features: {
       audits: true,
       autoFix: false,
       aiGeneration: false,
       bulkAI: false,
       customRules: false,
+      versionHistory: false,
     },
   },
   [PLANS.STARTER]: {
@@ -29,12 +31,14 @@ export const PLAN_CONFIG = {
     trialDays: 7,
     auditsPerMonth: -1, // unlimited
     aiCredits: 0,
+    versionHistoryDays: 1, // 24 hours
     features: {
       audits: true,
       autoFix: true,
       aiGeneration: false,
       bulkAI: false,
       customRules: false,
+      versionHistory: true,
     },
   },
   [PLANS.PRO]: {
@@ -44,12 +48,14 @@ export const PLAN_CONFIG = {
     auditsPerMonth: -1, // unlimited
     aiCredits: 100, // per month
     trialAiCredits: 15, // during trial
+    versionHistoryDays: 30, // 30 days
     features: {
       audits: true,
       autoFix: true,
       aiGeneration: true,
       bulkAI: true,
       customRules: true,
+      versionHistory: true,
     },
   },
 } as const;
