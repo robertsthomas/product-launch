@@ -68,11 +68,8 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       // Step 2: Attach to product
       const attachResponse = await admin.graphql(
         `#graphql
-        mutation productAppendMedia($productId: ID!, $mediaIds: [ID!]!) {
-          productAppendMedia(productId: $productId, mediaIds: $mediaIds) {
-            product {
-              id
-            }
+        mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+          productCreateMedia(productId: $productId, media: $media) {
             media {
               ... on MediaImage {
                 id
@@ -91,13 +88,16 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         {
           variables: {
             productId,
-            mediaIds: [fileId],
+            media: [{
+              originalSource: fileId,
+              mediaContentType: "IMAGE"
+            }],
           },
         }
       );
 
       const attachJson = await attachResponse.json();
-      const errors = attachJson.data?.productAppendMedia?.mediaUserErrors;
+      const errors = attachJson.data?.productCreateMedia?.mediaUserErrors;
 
       if (errors?.length > 0) {
         return Response.json({ error: errors[0].message }, { status: 400 });
@@ -393,8 +393,8 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
     const response = await admin.graphql(
       `#graphql
-      mutation productUpdate($input: ProductUpdateInput!) {
-        productUpdate(input: $input) {
+      mutation productUpdate($product: ProductUpdateInput!) {
+        productUpdate(product: $product) {
           product {
             id
             featuredMedia {
@@ -414,7 +414,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       }`,
       {
         variables: {
-          input: {
+          product: {
             id: productId,
             featuredMediaId: imageId,
           },

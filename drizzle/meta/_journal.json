@@ -15,6 +15,13 @@
       "when": 1765552085398,
       "tag": "0001_flawless_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1765946122057,
+      "tag": "0002_luxuriant_luckman",
+      "breakpoints": true
     }
   ]
 }

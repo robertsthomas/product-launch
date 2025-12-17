@@ -10,3 +10,4 @@ ALTER TABLE shops ADD COLUMN ai_credits_reset_at INTEGER;
 ALTER TABLE shops ADD COLUMN audits_this_month INTEGER DEFAULT 0 NOT NULL;
 ALTER TABLE shops ADD COLUMN audits_reset_at INTEGER;
 
+

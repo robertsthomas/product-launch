@@ -14,7 +14,7 @@ import OpenAI from "openai";
 const openai = new OpenAI();
 
 // Default model configuration
-const DEFAULT_MODEL = "gpt-4o-mini";
+const DEFAULT_MODEL = "gpt-4o";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || DEFAULT_MODEL;
 
 // Image-specific model (can be different from text generation)

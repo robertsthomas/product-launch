@@ -37,3 +37,13 @@ scopes = "write_products,write_files"
 
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
+
+[product.metafields.product_score.current_score]
+type = "single_line_text_field"
+name = "Product Score"
+description = "Current calculated score for this product"
+
+[product.metafields.product_score.last_updated]
+type = "date_time"
+name = "Score Last Updated"
+description = "When the product score was last calculated"

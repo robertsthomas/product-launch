@@ -54,6 +54,7 @@ export const shops = sqliteTable("shops", {
 export const shopsRelations = relations(shops, ({ many }) => ({
   checklistTemplates: many(checklistTemplates),
   productAudits: many(productAudits),
+  fieldVersions: many(productFieldVersions),
 }));
 
 // ============================================
@@ -147,6 +148,20 @@ export const productAuditItems = sqliteTable("product_audit_items", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
 
+// ============================================
+// Product field versions (for AI revert functionality)
+// ============================================
+export const productFieldVersions = sqliteTable("product_field_versions", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  shopId: text("shop_id").notNull().references(() => shops.id, { onDelete: "cascade" }),
+  productId: text("product_id").notNull(), // Shopify product GID
+  field: text("field").notNull(), // 'title', 'description', 'seoTitle', 'seoDescription', 'tags'
+  value: text("value").notNull(), // The field value (JSON string for arrays like tags)
+  version: integer("version").default(1).notNull(), // Version number for ordering
+  source: text("source", { enum: ["manual", "ai_generate", "ai_expand", "ai_improve", "ai_replace"] }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
+});
+
 export const productAuditItemsRelations = relations(productAuditItems, ({ one }) => ({
   audit: one(productAudits, {
     fields: [productAuditItems.auditId],
@@ -155,6 +170,13 @@ export const productAuditItemsRelations = relations(productAuditItems, ({ one })
   item: one(checklistItems, {
     fields: [productAuditItems.itemId],
     references: [checklistItems.id],
+  }),
+}));
+
+export const productFieldVersionsRelations = relations(productFieldVersions, ({ one }) => ({
+  shop: one(shops, {
+    fields: [productFieldVersions.shopId],
+    references: [shops.id],
   }),
 }));
 
@@ -169,5 +191,7 @@ export type ProductAudit = typeof productAudits.$inferSelect;
 export type NewProductAudit = typeof productAudits.$inferInsert;
 export type ProductAuditItem = typeof productAuditItems.$inferSelect;
 export type NewProductAuditItem = typeof productAuditItems.$inferInsert;
+export type ProductFieldVersion = typeof productFieldVersions.$inferSelect;
+export type NewProductFieldVersion = typeof productFieldVersions.$inferInsert;
 
 

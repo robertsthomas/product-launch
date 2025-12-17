@@ -1,0 +1,11 @@
+api_version = "2025-01"
+
+[[extensions]]
+name = "t:name"
+handle = "product-score-block"
+uid = "product-score-block-uid"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/BlockExtension.jsx"
+target = "admin.product-details.block.render"

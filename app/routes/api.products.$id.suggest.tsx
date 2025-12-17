@@ -12,6 +12,9 @@ import {
   type ProductContext,
 } from "../lib/ai";
 import { checkAIGate, consumeAICredit } from "../lib/billing";
+import { db } from "../db";
+import { productFieldVersions } from "../db/schema";
+import { eq, desc } from "drizzle-orm";
 
 /**
  * AI suggestion endpoint.
@@ -21,13 +24,53 @@ import { checkAIGate, consumeAICredit } from "../lib/billing";
  * - Enforces a hard credit cap (trial vs paid)
  * - Credits are decremented ONLY after a successful AI response
  */
-export type SuggestionType = 
+export type SuggestionType =
   | "title"
-  | "seo_title" 
-  | "seo_description" 
-  | "description" 
-  | "tags" 
+  | "seo_title"
+  | "seo_description"
+  | "description"
+  | "tags"
   | "image_alt_text";
+
+export type GenerationMode = "generate" | "expand" | "improve" | "replace";
+
+// Helper function to save current field value as a version
+const saveFieldVersion = async (
+  shopId: string,
+  productId: string,
+  field: string,
+  currentValue: string | string[],
+  mode: GenerationMode
+) => {
+  const sourceMap: Record<GenerationMode, "ai_generate" | "ai_expand" | "ai_improve" | "ai_replace"> = {
+    generate: "ai_generate",
+    expand: "ai_expand",
+    improve: "ai_improve",
+    replace: "ai_replace",
+  };
+
+  const source = sourceMap[mode];
+  // Get the latest version number for this field
+  const latestVersion = await db
+    .select({ version: productFieldVersions.version })
+    .from(productFieldVersions)
+    .where(eq(productFieldVersions.productId, productId))
+    .where(eq(productFieldVersions.field, field))
+    .orderBy(desc(productFieldVersions.version))
+    .limit(1);
+
+  const nextVersion = latestVersion.length > 0 ? latestVersion[0].version + 1 : 1;
+
+  // Save the current value as a version
+  await db.insert(productFieldVersions).values({
+    shopId,
+    productId,
+    field,
+    value: Array.isArray(currentValue) ? JSON.stringify(currentValue) : currentValue,
+    version: nextVersion,
+    source,
+  });
+};
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -35,6 +78,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
   
   const formData = await request.formData();
   const type = formData.get("type") as SuggestionType;
+  const mode = (formData.get("mode") as GenerationMode) || "generate";
   const imageIndex = formData.get("imageIndex") ? parseInt(formData.get("imageIndex") as string, 10) : 0;
 
   if (!isAIAvailable()) {
@@ -81,6 +125,54 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
   };
 
   try {
+    // Map suggestion types to database field names
+    const fieldMapping: Record<SuggestionType, string> = {
+      title: "title",
+      seo_title: "seoTitle",
+      seo_description: "seoDescription",
+      description: "description",
+      tags: "tags",
+      image_alt_text: "imageAltText",
+    };
+
+    const dbField = fieldMapping[type];
+
+    // Save current field value as a version before generating
+    if (dbField) {
+      let currentValue: string | string[];
+
+      switch (type) {
+        case "title":
+          currentValue = product.title || "";
+          break;
+        case "seo_title":
+          currentValue = product.seo?.title || "";
+          break;
+        case "seo_description":
+          currentValue = product.seo?.description || "";
+          break;
+        case "description":
+          currentValue = product.descriptionHtml || "";
+          break;
+        case "tags":
+          currentValue = product.tags || [];
+          break;
+        case "image_alt_text":
+          // For alt text, we need to get the specific image
+          const images = product.images?.nodes || [];
+          currentValue = images[imageIndex]?.altText || "";
+          break;
+      }
+
+      await saveFieldVersion(
+        session.shop,
+        productId,
+        dbField,
+        currentValue,
+        mode
+      );
+    }
+
     let suggestion: string | string[];
 
     switch (type) {

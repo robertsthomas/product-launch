@@ -413,3 +413,4 @@ export async function handleSubscriptionCancelled(shopDomain: string): Promise<v
     .where(eq(shops.shopDomain, shopDomain));
 }
 
+
