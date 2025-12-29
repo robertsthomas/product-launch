@@ -1,5 +1,6 @@
 {
-  "name": "product-launch",
+  "name": "launch-ready",
+  "description": "Launch Ready - AI-powered product launch checklist for Shopify",
   "private": true,
   "scripts": {
     "build": "react-router build",
@@ -36,6 +37,7 @@
     "@shopify/shopify-app-react-router": "^1.0.0",
     "@shopify/shopify-app-session-storage": "^3.0.0",
     "better-sqlite3": "^11.0.0",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
     "isbot": "^5.1.31",
@@ -46,10 +48,10 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@shopify/api-codegen-preset": "^1.2.0",
     "@shopify/polaris-types": "^1.0.1",
     "@types/better-sqlite3": "^7.6.11",
-    "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.18.8",
     "@types/react": "^18.3.25",
     "@types/react-dom": "^18.3.7",

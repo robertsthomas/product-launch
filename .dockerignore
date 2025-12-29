@@ -1,3 +1,42 @@
-.cache
-build
+# Dependencies
 node_modules
+extensions/*/node_modules
+
+# Build output (we rebuild in Docker)
+build
+.cache
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Development files
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+
+# Documentation
+*.md
+!README.md
+
+# Shopify CLI cache
+.shopify

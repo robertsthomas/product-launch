@@ -44,7 +44,7 @@ export async function initializeShop(shopDomain: string) {
   await db.insert(checklistTemplates).values({
     id: templateId,
     shopId: shop.id,
-    name: "Default Product Launch Checklist",
+    name: "Default Launch Ready Checklist",
     isDefault: true,
     isActive: true,
     createdAt: new Date(),

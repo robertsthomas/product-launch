@@ -21,7 +21,7 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>Product Launch Checklist</h1>
+        <h1 className={styles.heading}>Launch Ready</h1>
         <p className={styles.text}>
           Never forget a step when launching a new product again. We check every
           product against your launch checklist and auto-fix what we can.

@@ -1,13 +1,14 @@
 import type { ActionFunctionArgs } from "react-router";
+import { redirect } from "react-router";
 import { authenticate } from "~/shopify.server";
-import { createSubscription, isDevStore, syncPlanFromShopify } from "~/lib/billing";
+import { isDevStore, syncPlanFromShopify } from "~/lib/billing";
 import { PLANS } from "~/lib/billing/constants";
 
 /**
  * POST /api/billing/upgrade?plan=starter|pro
- * 
- * Creates a subscription and returns the confirmation URL.
- * Client should redirect to confirmationUrl using top-level navigation.
+ *
+ * With managed pricing, subscriptions are created through Shopify's hosted plan selection page.
+ * This endpoint now redirects merchants to Shopify's hosted pricing page.
  */
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
@@ -23,41 +24,30 @@ export async function action({ request }: ActionFunctionArgs) {
     const isDev = await isDevStore(admin);
     if (isDev) {
       await syncPlanFromShopify(admin, session.shop);
-      return Response.json({ 
-        success: true, 
-        plan: PLANS.PRO, 
-        message: "Development store - Pro features enabled for free" 
+      return Response.json({
+        success: true,
+        plan: PLANS.PRO,
+        message: "Development store - Pro features enabled for free"
       });
     }
 
-    // Build return URL (where merchant returns after approval)
-    const appUrl = process.env.SHOPIFY_APP_URL || "";
-    const returnUrl = `${appUrl}/api/billing/callback?shop=${session.shop}`;
+    // Redirect to Shopify's hosted plan selection page
+    // URL pattern: https://admin.shopify.com/store/:store_handle/charges/:app_handle/pricing_plans
+    // IMPORTANT: Replace this with your actual app handle from Partner Dashboard
+    // Find it at: https://partners.shopify.com/[partner_id]/apps/[app_handle]
+    const appHandle = process.env.SHOPIFY_APP_HANDLE || "299712806913";
+    const pricingPlansUrl = `https://admin.shopify.com/store/${session.shop}/charges/${appHandle}/pricing_plans`;
 
-    // Determine if this is a test charge
-    const isTest = process.env.NODE_ENV !== "production";
-
-    // Create the subscription
-    const result = await createSubscription(
-      admin,
-      plan,
-      session.shop,
-      returnUrl,
-      isTest
-    );
-
-    return Response.json({
-      success: true,
-      confirmationUrl: result.confirmationUrl,
-      subscriptionId: result.subscriptionId,
-    });
+    return redirect(pricingPlansUrl);
   } catch (error) {
-    console.error("Subscription creation failed:", error);
+    console.error("Billing redirect failed:", error);
     return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to create subscription" },
+      { error: error instanceof Error ? error.message : "Failed to redirect to pricing page" },
       { status: 500 }
     );
   }
 }
+
+
 
 

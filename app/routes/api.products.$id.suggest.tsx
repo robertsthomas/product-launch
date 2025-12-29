@@ -11,10 +11,11 @@ import {
   isAIAvailable,
   type ProductContext,
 } from "../lib/ai";
-import { checkAIGate, consumeAICredit, PLAN_CONFIG, type PlanType } from "../lib/billing";
+import { checkAIGate, consumeAICredit } from "../lib/billing";
 import { db } from "../db";
-import { productFieldVersions, shops } from "../db/schema";
-import { eq, desc, and, lt } from "drizzle-orm";
+import { shops } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { saveFieldVersion, type VersionSource } from "../lib/services/version.server";
 
 /**
  * AI suggestion endpoint.
@@ -34,83 +35,12 @@ export type SuggestionType =
 
 export type GenerationMode = "generate" | "expand" | "improve" | "replace";
 
-// Helper function to save current field value as a version
-// Respects plan-based retention: Free=none, Starter=24hr, Pro=30 days
-const saveFieldVersion = async (
-  shopId: string,
-  productId: string,
-  field: string,
-  currentValue: string | string[],
-  mode: GenerationMode
-) => {
-  // Get shop settings to check plan and version history enabled
-  const [shopData] = await db
-    .select({ plan: shops.plan, versionHistoryEnabled: shops.versionHistoryEnabled })
-    .from(shops)
-    .where(eq(shops.id, shopId))
-    .limit(1);
-
-  if (!shopData) return;
-
-  const plan = shopData.plan as PlanType;
-  const planConfig = PLAN_CONFIG[plan];
-
-  // Check if version history is enabled and allowed for this plan
-  if (!shopData.versionHistoryEnabled || !planConfig.features.versionHistory) {
-    return; // Don't save version history
-  }
-
-  const retentionDays = planConfig.versionHistoryDays;
-  if (retentionDays <= 0) {
-    return; // No retention for this plan
-  }
-
-  const sourceMap: Record<GenerationMode, "ai_generate" | "ai_expand" | "ai_improve" | "ai_replace"> = {
-    generate: "ai_generate",
-    expand: "ai_expand",
-    improve: "ai_improve",
-    replace: "ai_replace",
-  };
-
-  const source = sourceMap[mode];
-  
-  // Get the latest version number for this field
-  const latestVersion = await db
-    .select({ version: productFieldVersions.version })
-    .from(productFieldVersions)
-    .where(
-      and(
-        eq(productFieldVersions.productId, productId),
-        eq(productFieldVersions.field, field)
-      )
-    )
-    .orderBy(desc(productFieldVersions.version))
-    .limit(1);
-
-  const nextVersion = latestVersion.length > 0 ? latestVersion[0].version + 1 : 1;
-
-  // Save the current value as a version
-  await db.insert(productFieldVersions).values({
-    shopId,
-    productId,
-    field,
-    value: Array.isArray(currentValue) ? JSON.stringify(currentValue) : currentValue,
-    version: nextVersion,
-    source,
-  });
-
-  // Clean up old versions beyond retention period
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-  
-  await db
-    .delete(productFieldVersions)
-    .where(
-      and(
-        eq(productFieldVersions.shopId, shopId),
-        lt(productFieldVersions.createdAt, cutoffDate)
-      )
-    );
+// Map generation mode to version source
+const modeToSource: Record<GenerationMode, VersionSource> = {
+  generate: "ai_generate",
+  expand: "ai_expand",
+  improve: "ai_improve",
+  replace: "ai_replace",
 };
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
@@ -210,7 +140,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         productId,
         dbField,
         currentValue,
-        mode
+        modeToSource[mode]
       );
     }
 

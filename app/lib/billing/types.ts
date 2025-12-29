@@ -21,10 +21,6 @@ export interface PlanFeatures {
   customRules: boolean;
 }
 
-export interface SubscriptionCreateResult {
-  subscriptionId: string;
-  confirmationUrl: string;
-}
 
 export interface ActiveSubscription {
   id: string;
@@ -49,5 +45,7 @@ export interface FeatureCheckResult {
   errorCode?: string;
   upgradeRequired?: PlanType;
 }
+
+
 
 

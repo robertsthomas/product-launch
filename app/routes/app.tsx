@@ -60,7 +60,7 @@ export default function App() {
               >
                 <RocketIcon />
               </div>
-              <span className="brand-title">Product Launch</span>
+              <span className="brand-title">Launch Ready</span>
             </div>
             <nav style={{ display: "flex", gap: "8px" }}>
               <s-link

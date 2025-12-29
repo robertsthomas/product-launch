@@ -25,6 +25,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       .select({
         id: productFieldVersions.id,
         field: productFieldVersions.field,
+        value: productFieldVersions.value,
         version: productFieldVersions.version,
         source: productFieldVersions.source,
         createdAt: productFieldVersions.createdAt,
@@ -39,7 +40,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       .orderBy(desc(productFieldVersions.version));
 
     // Group by field
-    const groupedVersions: Record<string, Array<{ version: number; createdAt: Date; source: string }>> = {};
+    const groupedVersions: Record<string, Array<{ version: number; value: string; createdAt: Date; source: string }>> = {};
 
     for (const version of versions) {
       if (!groupedVersions[version.field]) {
@@ -47,6 +48,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       }
       groupedVersions[version.field].push({
         version: version.version,
+        value: version.value,
         createdAt: version.createdAt,
         source: version.source,
       });

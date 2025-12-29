@@ -2,10 +2,8 @@ import { db } from "~/db";
 import { shops } from "~/db/schema";
 import { eq } from "drizzle-orm";
 import { PLANS, PLAN_CONFIG, BILLING_ERRORS, type PlanType } from "./constants";
-import type { SubscriptionCreateResult, ActiveSubscription, FeatureCheckResult } from "./types";
+import type { ActiveSubscription, FeatureCheckResult } from "./types";
 import {
-  CREATE_SUBSCRIPTION_MUTATION,
-  CANCEL_SUBSCRIPTION_MUTATION,
   GET_CURRENT_SUBSCRIPTION_QUERY,
   GET_SHOP_PLAN_QUERY,
 } from "./graphql";
@@ -22,78 +20,14 @@ import {
  * Note: AI credits are enforced in `ai-gating.server.ts`.
  */
 // ============================================
-// Subscription Creation
+// Managed Pricing Notes
 // ============================================
 
-export async function createSubscription(
-  admin: { graphql: Function },
-  plan: "starter" | "pro",
-  shopDomain: string,
-  returnUrl: string,
-  isTest: boolean = false
-): Promise<SubscriptionCreateResult> {
-  const config = PLAN_CONFIG[plan];
-  
-  const response = await admin.graphql(CREATE_SUBSCRIPTION_MUTATION, {
-    variables: {
-      name: `Product Launch Assistant - ${config.name}`,
-      returnUrl,
-      trialDays: config.trialDays,
-      test: isTest,
-      replacementBehavior: "APPLY_IMMEDIATELY",
-      lineItems: [
-        {
-          plan: {
-            appRecurringPricingDetails: {
-              price: {
-                amount: config.price,
-                currencyCode: "USD",
-              },
-              interval: "EVERY_30_DAYS",
-            },
-          },
-        },
-      ],
-    },
-  });
-
-  const { data } = await response.json();
-  
-  if (data?.appSubscriptionCreate?.userErrors?.length > 0) {
-    throw new Error(data.appSubscriptionCreate.userErrors[0].message);
-  }
-
-  const subscription = data?.appSubscriptionCreate?.appSubscription;
-  const confirmationUrl = data?.appSubscriptionCreate?.confirmationUrl;
-
-  if (!subscription || !confirmationUrl) {
-    throw new Error("Failed to create subscription");
-  }
-
-  return {
-    subscriptionId: subscription.id,
-    confirmationUrl,
-  };
-}
-
-// ============================================
-// Subscription Cancellation
-// ============================================
-
-export async function cancelSubscription(
-  admin: { graphql: Function },
-  subscriptionId: string
-): Promise<void> {
-  const response = await admin.graphql(CANCEL_SUBSCRIPTION_MUTATION, {
-    variables: { id: subscriptionId },
-  });
-
-  const { data } = await response.json();
-  
-  if (data?.appSubscriptionCancel?.userErrors?.length > 0) {
-    throw new Error(data.appSubscriptionCancel.userErrors[0].message);
-  }
-}
+/**
+ * With managed pricing, subscriptions are created and managed through Shopify's hosted plan selection page.
+ * The functions createSubscription and cancelSubscription have been removed as they're handled by Shopify.
+ * Plan changes are detected via the APP_SUBSCRIPTIONS_UPDATE webhook.
+ */
 
 // ============================================
 // Plan Detection
@@ -113,18 +47,23 @@ export async function detectPlanFromSubscription(
   subscription: ActiveSubscription | null
 ): Promise<PlanType> {
   if (!subscription) return PLANS.FREE;
-  
+
+  // For managed pricing, check subscription name first
   const name = subscription.name.toLowerCase();
-  if (name.includes("pro")) return PLANS.PRO;
-  if (name.includes("starter")) return PLANS.STARTER;
-  
-  // Fallback: check price
+
+  // Check for managed pricing plan names
+  if (name.includes("pro") || name.includes("professional")) return PLANS.PRO;
+  if (name.includes("starter") || name.includes("basic")) return PLANS.STARTER;
+
+  // Fallback: check price for managed pricing
   const price = parseFloat(
     subscription.lineItems[0]?.plan?.pricingDetails?.price?.amount || "0"
   );
-  if (price >= 30) return PLANS.PRO;
-  if (price >= 10) return PLANS.STARTER;
-  
+
+  // Price thresholds for managed pricing plans
+  if (price >= PLAN_CONFIG[PLANS.PRO].price) return PLANS.PRO;
+  if (price >= PLAN_CONFIG[PLANS.STARTER].price) return PLANS.STARTER;
+
   return PLANS.FREE;
 }
 
@@ -412,5 +351,7 @@ export async function handleSubscriptionCancelled(shopDomain: string): Promise<v
     })
     .where(eq(shops.shopDomain, shopDomain));
 }
+
+
 
 

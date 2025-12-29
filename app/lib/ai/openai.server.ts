@@ -24,11 +24,13 @@ import {
 const openai = new OpenAI();
 
 // Default model configuration
-const DEFAULT_MODEL = "gpt-4o";
+// GPT-4.1 Mini offers 1M token context, low latency, excellent for text generation
+const DEFAULT_MODEL = "gpt-4.1-mini";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || DEFAULT_MODEL;
 
-// Image-specific model (can be different from text generation)
-const DEFAULT_IMAGE_MODEL = "gpt-4o-mini";
+// Image-specific model (used for alt text generation)
+// Using same model for consistency across all text generation
+const DEFAULT_IMAGE_MODEL = "gpt-4.1-mini";
 const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
 
 // Kie.ai API configuration
@@ -59,17 +61,37 @@ async function generateText(
   userPrompt: string,
   options?: { maxTokens?: number; temperature?: number; model?: string }
 ): Promise<string> {
-  const response = await openai.chat.completions.create({
-    model: options?.model || OPENAI_MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    max_tokens: options?.maxTokens ?? 256,
-    temperature: options?.temperature ?? 0.7,
-  });
+  const model = options?.model || OPENAI_MODEL;
+  
+  console.log("[OpenAI] generateText called");
+  console.log("[OpenAI] Model:", model);
+  console.log("[OpenAI] Max tokens:", options?.maxTokens ?? 256);
+  console.log("[OpenAI] Temperature:", options?.temperature ?? 0.7);
+  console.log("[OpenAI] System prompt length:", systemPrompt.length);
+  console.log("[OpenAI] User prompt length:", userPrompt.length);
+  console.log("[OpenAI] User prompt preview:", userPrompt.slice(0, 200));
 
-  return response.choices[0]?.message?.content?.trim() ?? "";
+  try {
+    const response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: options?.maxTokens ?? 256,
+      temperature: options?.temperature ?? 0.7,
+    });
+
+    const result = response.choices[0]?.message?.content?.trim() ?? "";
+    console.log("[OpenAI] Response received successfully");
+    console.log("[OpenAI] Result length:", result.length);
+    console.log("[OpenAI] Result preview:", result.slice(0, 100));
+    
+    return result;
+  } catch (error) {
+    console.error("[OpenAI] Error in generateText:", error);
+    throw error;
+  }
 }
 
 
@@ -124,7 +146,7 @@ export async function generateSeoDescription(product: ProductContext): Promise<s
   let desc = result.replace(/^["']|["']$/g, "").trim();
   // Ensure proper length
   if (desc.length > 160) {
-    desc = desc.slice(0, 157) + "...";
+    desc = `${desc.slice(0, 157)}...`;
   }
   return desc;
 }
@@ -169,17 +191,28 @@ export async function generateImageAltText(
   product: ProductContext,
   imageIndex: number
 ): Promise<string> {
+  console.log("[Alt Text] generateImageAltText called");
+  console.log("[Alt Text] Product title:", product.title);
+  console.log("[Alt Text] Image index:", imageIndex);
+  console.log("[Alt Text] Using model:", OPENAI_IMAGE_MODEL);
+  console.log("[Alt Text] OPENAI_IMAGE_MODEL env:", process.env.OPENAI_IMAGE_MODEL);
+  
   const result = await generateText(
     SYSTEM_PROMPTS.altText,
     buildAltTextPrompt(product, imageIndex),
     { maxTokens: 80, model: OPENAI_IMAGE_MODEL }
   );
 
-  return result
+  const cleanedResult = result
     .replace(/^["']|["']$/g, "")
     .replace(/^(image of|picture of|photo of)/i, "")
     .trim()
     .slice(0, 125);
+    
+  console.log("[Alt Text] Raw result:", result);
+  console.log("[Alt Text] Cleaned result:", cleanedResult);
+  
+  return cleanedResult;
 }
 
 // ============================================
@@ -189,14 +222,15 @@ export async function generateImageAltText(
 export async function generateProductImage(
   product: ProductContext
 ): Promise<string> {
-  // Use Kie.ai Nano Banana Pro if available and we have reference images
-  if (isKieAvailable() && product.existingImages && product.existingImages.length > 0) {
-    console.log(`[AI Image Generation] Using Kie.ai with ${product.existingImages.length} reference images`);
+  // Use Kie.ai Nano Banana Pro if available (preferred over DALL-E)
+  if (isKieAvailable()) {
+    const referenceCount = product.existingImages?.length || 0;
+    console.log(`[AI Image Generation] Using Kie.ai Nano Banana Pro with ${referenceCount} reference images`);
     return generateProductImageWithKie(product);
   }
 
   // Fall back to DALL-E
-  console.log(`[AI Image Generation] Using DALL-E`);
+  console.log("[AI Image Generation] Using DALL-E (Kie.ai not available)");
 
   const prompt = buildImagePrompt(product);
 
@@ -348,14 +382,20 @@ export async function generateProductImageWithKie(
   const imageUrls = product.existingImages?.slice(0, 8).map((img) => img.url) || [];
   const prompt = buildImagePrompt(product);
 
-  console.log(`[Kie.ai] Generating image for: ${product.title}`);
+  console.log(`[Kie.ai] Generating image for: ${product.title} using Nano Banana Pro model`);
   console.log(`[Kie.ai] Using ${imageUrls.length} reference images`);
+
+  if (imageUrls.length === 0) {
+    console.log(`[Kie.ai] No reference images - generating from text prompt only`);
+  } else {
+    console.log(`[Kie.ai] Using reference-based generation for style consistency`);
+  }
 
   const taskId = await createKieTask(prompt, imageUrls);
   console.log(`[Kie.ai] Task created: ${taskId}`);
 
   const imageUrl = await pollKieTask(taskId);
-  console.log(`[Kie.ai] Image generated successfully`);
+  console.log("[Kie.ai] Nano Banana Pro image generated successfully");
 
   return imageUrl;
 }

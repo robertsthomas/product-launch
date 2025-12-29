@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useId } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -10,6 +10,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getProductAudit, auditProduct, getNextIncompleteProduct, getIncompleteProductCount } from "../lib/services/audit.server";
 import { getShopSettings } from "../lib/services/shop.server";
+import { saveFieldVersion, getShopId } from "../lib/services/version.server";
 import { isAIAvailable } from "../lib/ai";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
 
@@ -156,6 +157,46 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     const tags = formData.get("tags") as string;
     const seoTitle = formData.get("seoTitle") as string;
     const seoDescription = formData.get("seoDescription") as string;
+
+    // Get current product values for version history
+    const shopId = await getShopId(shop);
+    if (shopId) {
+      const currentProductRes = await admin.graphql(`#graphql
+        query GetProductForVersionHistory($id: ID!) {
+          product(id: $id) {
+            title
+            descriptionHtml
+            tags
+            seo { title description }
+          }
+        }
+      `, { variables: { id: productId } });
+      const currentProduct = (await currentProductRes.json()).data?.product;
+
+      if (currentProduct) {
+        // Save versions for changed fields
+        const versionPromises: Promise<void>[] = [];
+        
+        if (currentProduct.title !== title) {
+          versionPromises.push(saveFieldVersion(shopId, productId, "title", currentProduct.title || "", "manual_edit"));
+        }
+        if (currentProduct.descriptionHtml !== descriptionHtml) {
+          versionPromises.push(saveFieldVersion(shopId, productId, "description", currentProduct.descriptionHtml || "", "manual_edit"));
+        }
+        if ((currentProduct.seo?.title || "") !== seoTitle) {
+          versionPromises.push(saveFieldVersion(shopId, productId, "seo_title", currentProduct.seo?.title || "", "manual_edit"));
+        }
+        if ((currentProduct.seo?.description || "") !== seoDescription) {
+          versionPromises.push(saveFieldVersion(shopId, productId, "seo_description", currentProduct.seo?.description || "", "manual_edit"));
+        }
+        const currentTags = currentProduct.tags?.join(",") || "";
+        if (currentTags !== tags) {
+          versionPromises.push(saveFieldVersion(shopId, productId, "tags", currentProduct.tags || [], "manual_edit"));
+        }
+
+        await Promise.all(versionPromises);
+      }
+    }
 
     const response = await admin.graphql(
       `#graphql
@@ -1260,7 +1301,7 @@ function EditableField({
   maxLength?: number;
   showAI?: boolean;
   helpText?: string;
-  fieldVersions?: Array<{ version: number; createdAt: Date; source: string }>;
+  fieldVersions?: Array<{ version: number; value: string; createdAt: Date; source: string }>;
   onRevert?: (field: string, version: number) => void;
   field?: string;
   productId?: string;
@@ -1268,7 +1309,7 @@ function EditableField({
   onInlineRevert?: () => void;
 }) {
   const [isFocused, setIsFocused] = useState(false);
-  const inputId = `input-${label.toLowerCase().replace(/\s+/g, "-")}-${Math.random().toString(36).substr(2, 9)}`;
+  const inputId = useId();
 
   return (
     <div style={{ marginBottom: "24px" }}>
@@ -1413,7 +1454,7 @@ function VersionHistoryDropdown({
   productId,
 }: {
   field: string;
-  versions: Array<{ version: number; createdAt: Date; source: string }>;
+  versions: Array<{ version: number; value: string; createdAt: Date; source: string }>;
   onRevert: (field: string, version: number) => void;
   productId: string;
 }) {
@@ -1474,37 +1515,58 @@ function VersionHistoryDropdown({
             overflow: "hidden",
           }}
         >
-          {recentVersions.map((version) => (
-            <button
-              key={version.version}
-              type="button"
-              onClick={() => handleVersionRevert(version.version)}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                fontSize: "var(--text-xs)",
-                fontWeight: 500,
-                border: "none",
-                background: "transparent",
-                color: "var(--color-text)",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background var(--transition-fast)",
-                borderBottom: "1px solid var(--color-border-subtle)",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <div style={{ fontWeight: 600 }}>
-                  Version {version.version}
+          {recentVersions.map((version) => {
+            // Parse value for display (handle arrays for tags)
+            let displayValue: string;
+            try {
+              const parsed = JSON.parse(version.value);
+              if (Array.isArray(parsed)) {
+                displayValue = parsed.join(", ");
+              } else {
+                displayValue = parsed;
+              }
+            } catch {
+              displayValue = version.value;
+            }
+
+            // Truncate long content for display
+            const truncatedValue = displayValue.length > 50 ? displayValue.slice(0, 50) + "..." : displayValue;
+
+            return (
+              <button
+                key={version.version}
+                type="button"
+                onClick={() => handleVersionRevert(version.version)}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 500,
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background var(--transition-fast)",
+                  borderBottom: "1px solid var(--color-border-subtle)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <div style={{ fontWeight: 600 }}>
+                    Version {version.version}
+                  </div>
+                  <div style={{ color: "var(--color-text-secondary)", fontSize: "11px", fontWeight: 400 }}>
+                    {truncatedValue}
+                  </div>
+                  <div style={{ color: "var(--color-muted)", fontSize: "10px" }}>
+                    {new Date(version.createdAt).toLocaleDateString()} • {version.source.replace("ai_", "").replace("_", " ")}
+                  </div>
                 </div>
-                <div style={{ color: "var(--color-muted)", fontSize: "11px" }}>
-                  {new Date(version.createdAt).toLocaleDateString()} • {version.source.replace("ai_", "").replace("_", " ")}
-                </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
           {recentVersions.length === 0 && (
             <div style={{
               padding: "12px",
@@ -1545,7 +1607,7 @@ function TagsInput({
   isGenerating?: boolean;
   generatingMode?: AIGenerateMode;
   showAI?: boolean;
-  fieldVersions?: Array<{ version: number; createdAt: Date; source: string }>;
+  fieldVersions?: Array<{ version: number; value: string; createdAt: Date; source: string }>;
   onRevert?: (field: string, version: number) => void;
   field?: string;
   productId?: string;
@@ -1785,6 +1847,7 @@ function ImageManager({
   aiAvailable,
   onRefresh,
   generatingImage,
+  onOpenImagePromptModal,
 }: {
   images: Array<{ id: string; url: string; altText: string | null }>;
   featuredImageId: string | null;
@@ -1793,6 +1856,7 @@ function ImageManager({
   aiAvailable: boolean;
   onRefresh: () => void;
   generatingImage?: boolean;
+  onOpenImagePromptModal: () => void;
 }) {
   const [editingAlt, setEditingAlt] = useState<string | null>(null);
   const [altTexts, setAltTexts] = useState<Record<string, string>>({});
@@ -1943,8 +2007,8 @@ function ImageManager({
   };
 
   const openImagePromptModal = useCallback(() => {
-    setImagePromptModal(prev => ({ ...prev, isOpen: true }));
-  }, []);
+    onOpenImagePromptModal();
+  }, [onOpenImagePromptModal]);
 
   return (
     <div style={{ marginBottom: "24px" }}>
@@ -2588,7 +2652,7 @@ export default function ProductEditor() {
 
   const [generating, setGenerating] = useState<Set<string>>(new Set());
   const [generatingModes, setGeneratingModes] = useState<Record<string, AIGenerateMode>>({});
-  const [fieldVersions, setFieldVersions] = useState<Record<string, Array<{ version: number; createdAt: Date; source: string }>>>({});
+  const [fieldVersions, setFieldVersions] = useState<Record<string, Array<{ version: number; value: string; createdAt: Date; source: string }>>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [generatingAll, setGeneratingAll] = useState(false);
 
@@ -2614,6 +2678,10 @@ export default function ProductEditor() {
     isOpen: false,
     customPrompt: "",
   });
+
+  const openImagePromptModal = useCallback(() => {
+    setImagePromptModal(prev => ({ ...prev, isOpen: true }));
+  }, []);
 
   const [generateAllModal, setGenerateAllModal] = useState<{
     isOpen: boolean;
@@ -2838,24 +2906,38 @@ export default function ProductEditor() {
   }, []);
 
   const handleGenerateImages = useCallback(async () => {
-    if (!imagePromptModal.customPrompt.trim()) {
-      shopify.toast.show("Please enter a prompt for image generation");
-      return;
-    }
-
     setGeneratingImage(true);
     try {
-      // TODO: Implement image generation logic
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Placeholder
-      shopify.toast.show("Image generation completed!");
-      closeImagePromptModal();
+      const formData = new FormData();
+      formData.append("intent", "generate_image");
+      if (imagePromptModal.customPrompt.trim()) {
+        formData.append("customPrompt", imagePromptModal.customPrompt.trim());
+      }
+
+      const response = await fetch(
+        `/api/products/${encodeURIComponent(product.id)}/images`,
+        { method: "POST", body: formData }
+      );
+
+      const data = await response.json();
+
+      if (data.error) {
+        shopify.toast.show(data.error);
+      } else {
+        shopify.toast.show("Image generated successfully!");
+        closeImagePromptModal();
+        // Reset the custom prompt for next time
+        setImagePromptModal(prev => ({ ...prev, customPrompt: "" }));
+        // Refresh the page to show the new image
+        window.location.reload();
+      }
     } catch (error) {
       console.error("Image generation failed:", error);
       shopify.toast.show("Failed to generate image");
     } finally {
       setGeneratingImage(false);
     }
-  }, [imagePromptModal.customPrompt, shopify, closeImagePromptModal]);
+  }, [imagePromptModal.customPrompt, shopify, closeImagePromptModal, product.id]);
 
   // Load field versions
   const loadFieldVersions = useCallback(async () => {
@@ -3310,6 +3392,7 @@ export default function ProductEditor() {
                 aiAvailable={aiAvailable}
                 onRefresh={() => window.location.reload()}
                 generatingImage={generatingImage}
+                onOpenImagePromptModal={openImagePromptModal}
               />
             </div>
 
@@ -3688,7 +3771,7 @@ export default function ProductEditor() {
             }
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
+            if (e.key === "Escape") {
               e.preventDefault();
               closeImagePromptModal();
             }
@@ -3727,7 +3810,7 @@ export default function ProductEditor() {
                 lineHeight: 1.5,
               }}
             >
-              Add specific instructions for how you want the image to look. The AI will still maintain the product's appearance while incorporating your style preferences.
+              <strong>Optional:</strong> Add specific instructions for how you want the image to look. Leave blank to use AI-generated defaults. The AI will maintain the product's appearance while incorporating your style preferences.
             </p>
 
             <textarea
@@ -3738,7 +3821,7 @@ export default function ProductEditor() {
                   customPrompt: e.target.value,
                 }))
               }
-              placeholder="e.g., vibrant colors, minimalist style, dramatic lighting, warm tones, etc."
+              placeholder="Optional: e.g., vibrant colors, minimalist style, dramatic lighting, warm tones, etc."
               style={{
                 width: "100%",
                 minHeight: "100px",
@@ -3758,7 +3841,7 @@ export default function ProductEditor() {
               style={{
                 display: "flex",
                 gap: "12px",
-                justifyContent: "flex-end",
+                justifyContent: "space-between",
               }}
             >
               <button
@@ -3778,24 +3861,51 @@ export default function ProductEditor() {
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={handleGenerateImages}
-                disabled={generatingImage}
-                style={{
-                  padding: "8px 16px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: generatingImage ? "var(--color-surface-strong)" : "var(--color-primary)",
-                  color: generatingImage ? "var(--color-subtle)" : "var(--color-surface)",
-                  cursor: generatingImage ? "not-allowed" : "pointer",
-                  transition: "all var(--transition-fast)",
-                }}
-              >
-                {generatingImage ? "Generating..." : "Generate Image"}
-              </button>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImagePromptModal(prev => ({ ...prev, customPrompt: "" }));
+                    closeImagePromptModal();
+                    handleGenerateImages();
+                  }}
+                  disabled={generatingImage}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "transparent",
+                    color: "var(--color-text)",
+                    cursor: generatingImage ? "not-allowed" : "pointer",
+                    transition: "all var(--transition-fast)",
+                  }}
+                >
+                  Use Default
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeImagePromptModal();
+                    handleGenerateImages();
+                  }}
+                  disabled={generatingImage}
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: generatingImage ? "var(--color-surface-strong)" : "var(--color-primary)",
+                    color: generatingImage ? "var(--color-subtle)" : "var(--color-surface)",
+                    cursor: generatingImage ? "not-allowed" : "pointer",
+                    transition: "all var(--transition-fast)",
+                  }}
+                >
+                  {generatingImage ? "Generating..." : "Generate with Custom"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

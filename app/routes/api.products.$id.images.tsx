@@ -2,6 +2,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { auditProduct } from "../lib/services/audit.server";
 import { generateImageAltText, generateProductImage, isAIAvailable } from "../lib/ai";
+import { checkAIGate, consumeAICredit } from "../lib/billing/ai-gating.server";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
@@ -166,10 +167,19 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     formData.get("imageId"); // imageId passed but not needed for generation
     const imageIndex = parseInt(formData.get("imageIndex") as string, 10);
 
+    // Check AI availability and credits
     if (!isAIAvailable()) {
       return Response.json(
         { error: "AI is not configured" },
         { status: 503 }
+      );
+    }
+
+    const aiGate = await checkAIGate(shop);
+    if (!aiGate.allowed) {
+      return Response.json(
+        { error: aiGate.message || "AI features not available" },
+        { status: 403 }
       );
     }
 
@@ -193,15 +203,27 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       imageIndex
     );
 
+    // Consume AI credit after successful generation
+    await consumeAICredit(shop);
+
     return Response.json({ altText });
   }
 
   // Generate image with AI
   if (intent === "generate_image") {
+    // Check AI availability and credits
     if (!isAIAvailable()) {
       return Response.json(
         { error: "AI is not configured" },
         { status: 503 }
+      );
+    }
+
+    const aiGate = await checkAIGate(shop);
+    if (!aiGate.allowed) {
+      return Response.json(
+        { error: aiGate.message || "AI features not available" },
+        { status: 403 }
       );
     }
 
@@ -335,11 +357,61 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         return Response.json({ error: mediaErrors[0].message }, { status: 400 });
       }
 
+      const newImage = createMediaJson.data?.productCreateMedia?.media?.[0];
+
+      // Automatically generate alt text for the new image
+      try {
+        const altText = await generateImageAltText(
+          {
+            title: product.title,
+            productType: product.productType,
+            vendor: product.vendor,
+          },
+          (product.images?.nodes?.length || 0) // Use the new image index
+        );
+
+        // Update the image with the generated alt text
+        if (altText && newImage?.id) {
+          await admin.graphql(
+            `#graphql
+            mutation productUpdateMedia($productId: ID!, $media: [UpdateMediaInput!]!) {
+              productUpdateMedia(productId: $productId, media: $media) {
+                media {
+                  ... on MediaImage {
+                    id
+                    alt
+                  }
+                }
+                mediaUserErrors {
+                  field
+                  message
+                }
+              }
+            }`,
+            {
+              variables: {
+                productId,
+                media: [{
+                  id: newImage.id,
+                  alt: altText,
+                }],
+              },
+            }
+          );
+        }
+      } catch (altTextError) {
+        // Don't fail the whole request if alt text generation fails
+        console.warn("Failed to generate alt text for new image:", altTextError);
+      }
+
       await auditProduct(shop, productId, admin);
+
+      // Consume AI credit after successful generation
+      await consumeAICredit(shop);
 
       return Response.json({
         success: true,
-        image: createMediaJson.data?.productCreateMedia?.media?.[0],
+        image: newImage,
       });
     } catch (error) {
       console.error("Image generation error:", error);
