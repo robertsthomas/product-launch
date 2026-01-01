@@ -133,6 +133,10 @@ export async function updateShopSettings(
     brandVoicePreset?: string | null;
     brandVoiceNotes?: string | null;
     activeTemplateId?: string | null;
+    openaiApiKey?: string | null;
+    useOwnOpenAIKey?: boolean;
+    openaiTextModel?: string | null;
+    openaiImageModel?: string | null;
   }
 ) {
   return db
@@ -142,4 +146,85 @@ export async function updateShopSettings(
       updatedAt: new Date(),
     })
     .where(eq(shops.shopDomain, shopDomain));
+}
+
+/**
+ * Get the OpenAI API key for a shop (either their own or the app's default)
+ */
+export async function getOpenAIApiKey(shopDomain: string): Promise<string | null> {
+  const shop = await db.query.shops.findFirst({
+    where: eq(shops.shopDomain, shopDomain),
+  });
+
+  // Return merchant's key if set, otherwise fall back to app's key
+  return shop?.openaiApiKey || process.env.OPENAI_API_KEY || null;
+}
+
+/**
+ * Check if shop is using their own OpenAI API key
+ * Returns true only if they have a key AND the toggle is enabled
+ */
+export async function isUsingOwnOpenAIKey(shopDomain: string): Promise<boolean> {
+  const shop = await db.query.shops.findFirst({
+    where: eq(shops.shopDomain, shopDomain),
+  });
+
+  // Both conditions must be true: has a key AND toggle is on
+  return !!shop?.openaiApiKey && shop.useOwnOpenAIKey !== false;
+}
+
+/**
+ * Get the shop's OpenAI configuration (API key and model preferences)
+ */
+export async function getShopOpenAIConfig(shopDomain: string): Promise<{
+  apiKey: string | null;
+  isUsingOwnKey: boolean;
+  textModel: string | null;
+  imageModel: string | null;
+}> {
+  const shop = await db.query.shops.findFirst({
+    where: eq(shops.shopDomain, shopDomain),
+  });
+
+  const isUsingOwnKey = !!shop?.openaiApiKey && shop.useOwnOpenAIKey !== false;
+
+  return {
+    apiKey: isUsingOwnKey ? shop?.openaiApiKey || null : null,
+    isUsingOwnKey,
+    textModel: isUsingOwnKey ? shop?.openaiTextModel || null : null,
+    imageModel: isUsingOwnKey ? shop?.openaiImageModel || null : null,
+  };
+}
+
+/**
+ * Toggle whether to use own OpenAI API key
+ */
+export async function toggleUseOwnOpenAIKey(shopDomain: string, enabled: boolean) {
+  return db
+    .update(shops)
+    .set({ useOwnOpenAIKey: enabled, updatedAt: new Date() })
+    .where(eq(shops.shopDomain, shopDomain));
+}
+
+/**
+ * Toggle a checklist item's enabled state
+ */
+export async function toggleChecklistItem(itemId: string, isEnabled: boolean) {
+  return db
+    .update(checklistItems)
+    .set({ isEnabled, updatedAt: new Date() })
+    .where(eq(checklistItems.id, itemId));
+}
+
+/**
+ * Update a checklist item's weight
+ */
+export async function updateChecklistItemWeight(itemId: string, weight: number) {
+  if (weight < 1 || weight > 10) {
+    throw new Error("Invalid weight");
+  }
+  return db
+    .update(checklistItems)
+    .set({ weight, updatedAt: new Date() })
+    .where(eq(checklistItems.id, itemId));
 }

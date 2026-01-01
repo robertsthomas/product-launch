@@ -3,14 +3,17 @@ import { shops } from "~/db/schema";
 import { eq } from "drizzle-orm";
 import { PLANS, PLAN_CONFIG, BILLING_ERRORS, type PlanType } from "./constants";
 import { isInTrial } from "./billing.server";
+import { isUsingOwnOpenAIKey } from "../services/shop.server";
 
 /**
  * AI gating and credit accounting (server-side).
  *
  * Rules implemented:
- * - Free + Starter: AI locked
+ * - Free: AI locked
+ * - Starter + own key: AI allowed (uses their key only)
  * - Pro trial: fixed total credit cap (e.g. 15)
- * - Pro paid: monthly credit cap (e.g. 100), reset monthly
+ * - Pro paid: monthly credit cap (e.g. 100), then switch to own key if available
+ * - Pro + own key: Use app's 100 credits first, then unlimited with their key
  * - Dev stores: bypass billing + allow AI without consuming credits
  *
  * IMPORTANT:
@@ -23,11 +26,20 @@ interface AIGateResult {
   message?: string;
   creditsRemaining?: number;
   creditsLimit?: number;
+  usingOwnKey?: boolean;
+  ownKeyCreditsUsed?: number;
 }
 
 /**
  * Check if AI feature can be used.
  * Call this BEFORE running any AI operation.
+ * 
+ * Rules:
+ * - Free: AI locked
+ * - Starter + own key: AI allowed (uses their key, unlimited)
+ * - Starter without own key: AI locked
+ * - Pro + own key: Use app's 100 credits first, then their key (unlimited)
+ * - Pro without own key: 100 credits/month, then locked
  */
 export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
   const [shop] = await db
@@ -45,7 +57,6 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
   }
 
   // Dev-only plan override to quickly test locked/unlocked states.
-  // Set: BILLING_DEV_PLAN=free|starter|pro (only honored outside production)
   const forcedPlan = getDevPlanOverride();
   const plan = (forcedPlan ?? shop.plan) as PlanType;
 
@@ -54,16 +65,39 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
     return { allowed: true };
   }
 
-  // Free and Starter: AI locked
-  if (plan !== PLANS.PRO) {
+  // Check if user has their own OpenAI API key
+  const hasOwnKey = await isUsingOwnOpenAIKey(shopDomain);
+
+  // Free plan: AI locked
+  if (plan === PLANS.FREE) {
     return {
       allowed: false,
       errorCode: BILLING_ERRORS.AI_FEATURE_LOCKED,
-      message: "AI features require Pro plan",
+      message: hasOwnKey 
+        ? "Upgrade to Starter or Pro to use AI features with your API key"
+        : "AI features require Starter or Pro plan",
     };
   }
 
-  // Pro plan: check credits
+  // Starter plan
+  if (plan === PLANS.STARTER) {
+    if (hasOwnKey) {
+      // Starter + own key: use their key (unlimited)
+      return { 
+        allowed: true, 
+        usingOwnKey: true,
+        ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+      };
+    }
+    // Starter without own key: locked
+    return {
+      allowed: false,
+      errorCode: BILLING_ERRORS.AI_FEATURE_LOCKED,
+      message: "Add your own OpenAI API key or upgrade to Pro for AI features",
+    };
+  }
+
+  // Pro plan: use app credits first, then own key
   const inTrial = isInTrial(shop);
   const limit = inTrial
     ? PLAN_CONFIG[PLANS.PRO].trialAiCredits
@@ -72,11 +106,12 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
   // Check if credits need reset
   const now = new Date();
   if (shop.aiCreditsResetAt && now > shop.aiCreditsResetAt) {
-    // Reset credits
+    // Reset credits (both app and own key usage)
     await db
       .update(shops)
       .set({
         aiCreditsUsed: 0,
+        ownKeyCreditsUsed: 0,
         aiCreditsResetAt: getNextMonthReset(),
         updatedAt: now,
       })
@@ -86,24 +121,42 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
       allowed: true,
       creditsRemaining: limit,
       creditsLimit: limit,
+      usingOwnKey: false,
+      ownKeyCreditsUsed: 0,
     };
   }
 
   const creditsRemaining = Math.max(0, limit - shop.aiCreditsUsed);
 
-  if (creditsRemaining <= 0) {
+  // App credits still available
+  if (creditsRemaining > 0) {
     return {
-      allowed: false,
-      errorCode: BILLING_ERRORS.AI_LIMIT_REACHED,
-      message: `AI credit limit reached (${shop.aiCreditsUsed}/${limit})`,
-      creditsRemaining: 0,
+      allowed: true,
+      creditsRemaining,
       creditsLimit: limit,
+      usingOwnKey: false,
+      ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
     };
   }
 
+  // App credits exhausted - check for own key
+  if (hasOwnKey) {
+    // Pro + own key + credits exhausted: use their key
+    return {
+      allowed: true,
+      creditsRemaining: 0,
+      creditsLimit: limit,
+      usingOwnKey: true,
+      ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+    };
+  }
+
+  // Pro without own key + credits exhausted: locked
   return {
-    allowed: true,
-    creditsRemaining,
+    allowed: false,
+    errorCode: BILLING_ERRORS.AI_LIMIT_REACHED,
+    message: `AI credit limit reached (${shop.aiCreditsUsed}/${limit}). Add your own OpenAI API key for unlimited access.`,
+    creditsRemaining: 0,
     creditsLimit: limit,
   };
 }
@@ -111,10 +164,20 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
 /**
  * Consume one AI credit after successful AI operation.
  * Call this AFTER AI operation succeeds.
+ * 
+ * Logic:
+ * - Dev stores: no tracking
+ * - Starter + own key: track own key usage
+ * - Pro: consume app credits first, then track own key usage
  */
 export async function consumeAICredit(
   shopDomain: string
-): Promise<{ creditsRemaining: number; creditsLimit: number }> {
+): Promise<{ 
+  creditsRemaining: number; 
+  creditsLimit: number; 
+  usingOwnKey: boolean;
+  ownKeyCreditsUsed: number;
+}> {
   const [shop] = await db
     .select()
     .from(shops)
@@ -127,27 +190,85 @@ export async function consumeAICredit(
 
   // Dev stores don't consume credits
   if (shop.isDevStore) {
-    return { creditsRemaining: Infinity, creditsLimit: Infinity };
+    return { creditsRemaining: Infinity, creditsLimit: Infinity, usingOwnKey: false, ownKeyCreditsUsed: 0 };
   }
 
-  const newCount = shop.aiCreditsUsed + 1;
+  const forcedPlan = getDevPlanOverride();
+  const plan = (forcedPlan ?? shop.plan) as PlanType;
+  const hasOwnKey = await isUsingOwnOpenAIKey(shopDomain);
   const inTrial = isInTrial(shop);
   const limit = inTrial
     ? PLAN_CONFIG[PLANS.PRO].trialAiCredits
     : PLAN_CONFIG[PLANS.PRO].aiCredits;
 
-  await db
-    .update(shops)
-    .set({
-      aiCreditsUsed: newCount,
-      aiCreditsResetAt: shop.aiCreditsResetAt || getNextMonthReset(),
-      updatedAt: new Date(),
-    })
-    .where(eq(shops.shopDomain, shopDomain));
+  // Starter + own key: only track own key usage
+  if (plan === PLANS.STARTER && hasOwnKey) {
+    const newOwnKeyCount = (shop.ownKeyCreditsUsed || 0) + 1;
+    await db
+      .update(shops)
+      .set({
+        ownKeyCreditsUsed: newOwnKeyCount,
+        aiCreditsResetAt: shop.aiCreditsResetAt || getNextMonthReset(),
+        updatedAt: new Date(),
+      })
+      .where(eq(shops.shopDomain, shopDomain));
 
+    return {
+      creditsRemaining: 0,
+      creditsLimit: 0,
+      usingOwnKey: true,
+      ownKeyCreditsUsed: newOwnKeyCount,
+    };
+  }
+
+  // Pro plan: check if app credits are available
+  const appCreditsRemaining = Math.max(0, limit - shop.aiCreditsUsed);
+
+  if (appCreditsRemaining > 0) {
+    // Consume app credit
+    const newCount = shop.aiCreditsUsed + 1;
+    await db
+      .update(shops)
+      .set({
+        aiCreditsUsed: newCount,
+        aiCreditsResetAt: shop.aiCreditsResetAt || getNextMonthReset(),
+        updatedAt: new Date(),
+      })
+      .where(eq(shops.shopDomain, shopDomain));
+
+    return {
+      creditsRemaining: Math.max(0, limit - newCount),
+      creditsLimit: limit,
+      usingOwnKey: false,
+      ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+    };
+  }
+
+  // App credits exhausted - use own key if available
+  if (hasOwnKey) {
+    const newOwnKeyCount = (shop.ownKeyCreditsUsed || 0) + 1;
+    await db
+      .update(shops)
+      .set({
+        ownKeyCreditsUsed: newOwnKeyCount,
+        updatedAt: new Date(),
+      })
+      .where(eq(shops.shopDomain, shopDomain));
+
+    return {
+      creditsRemaining: 0,
+      creditsLimit: limit,
+      usingOwnKey: true,
+      ownKeyCreditsUsed: newOwnKeyCount,
+    };
+  }
+
+  // No credits and no own key - shouldn't reach here (gate should have blocked)
   return {
-    creditsRemaining: Math.max(0, limit - newCount),
+    creditsRemaining: 0,
     creditsLimit: limit,
+    usingOwnKey: false,
+    ownKeyCreditsUsed: 0,
   };
 }
 
@@ -158,9 +279,13 @@ export async function getAICreditStatus(
   shopDomain: string
 ): Promise<{
   allowed: boolean;
-  creditsUsed: number;
-  creditsLimit: number;
-  creditsRemaining: number;
+  plan: PlanType;
+  appCreditsUsed: number;
+  appCreditsLimit: number;
+  appCreditsRemaining: number;
+  ownKeyCreditsUsed: number;
+  hasOwnKey: boolean;
+  currentlyUsingOwnKey: boolean;
   inTrial: boolean;
   resetsAt: Date | null;
 }> {
@@ -173,9 +298,13 @@ export async function getAICreditStatus(
   if (!shop) {
     return {
       allowed: false,
-      creditsUsed: 0,
-      creditsLimit: 0,
-      creditsRemaining: 0,
+      plan: PLANS.FREE,
+      appCreditsUsed: 0,
+      appCreditsLimit: 0,
+      appCreditsRemaining: 0,
+      ownKeyCreditsUsed: 0,
+      hasOwnKey: false,
+      currentlyUsingOwnKey: false,
       inTrial: false,
       resetsAt: null,
     };
@@ -183,39 +312,72 @@ export async function getAICreditStatus(
 
   const forcedPlan = getDevPlanOverride();
   const plan = (forcedPlan ?? shop.plan) as PlanType;
+  const hasOwnKey = await isUsingOwnOpenAIKey(shopDomain);
+  const inTrial = isInTrial(shop);
+  const limit = plan === PLANS.PRO 
+    ? (inTrial ? PLAN_CONFIG[PLANS.PRO].trialAiCredits : PLAN_CONFIG[PLANS.PRO].aiCredits)
+    : 0;
   
   if (shop.isDevStore) {
     return {
       allowed: true,
-      creditsUsed: shop.aiCreditsUsed,
-      creditsLimit: Infinity,
-      creditsRemaining: Infinity,
+      plan,
+      appCreditsUsed: shop.aiCreditsUsed,
+      appCreditsLimit: Infinity,
+      appCreditsRemaining: Infinity,
+      ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+      hasOwnKey,
+      currentlyUsingOwnKey: false,
       inTrial: false,
       resetsAt: null,
     };
   }
 
-  if (plan !== PLANS.PRO) {
+  // Free plan: not allowed
+  if (plan === PLANS.FREE) {
     return {
       allowed: false,
-      creditsUsed: 0,
-      creditsLimit: 0,
-      creditsRemaining: 0,
+      plan,
+      appCreditsUsed: 0,
+      appCreditsLimit: 0,
+      appCreditsRemaining: 0,
+      ownKeyCreditsUsed: 0,
+      hasOwnKey,
+      currentlyUsingOwnKey: false,
       inTrial: false,
       resetsAt: null,
     };
   }
 
-  const inTrial = isInTrial(shop);
-  const limit = inTrial
-    ? PLAN_CONFIG[PLANS.PRO].trialAiCredits
-    : PLAN_CONFIG[PLANS.PRO].aiCredits;
+  // Starter: only own key (no app credits)
+  if (plan === PLANS.STARTER) {
+    return {
+      allowed: hasOwnKey,
+      plan,
+      appCreditsUsed: 0,
+      appCreditsLimit: 0,
+      appCreditsRemaining: 0,
+      ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+      hasOwnKey,
+      currentlyUsingOwnKey: hasOwnKey,
+      inTrial: false,
+      resetsAt: shop.aiCreditsResetAt,
+    };
+  }
+
+  // Pro plan: app credits first, then own key
+  const appCreditsRemaining = Math.max(0, limit - shop.aiCreditsUsed);
+  const currentlyUsingOwnKey = appCreditsRemaining <= 0 && hasOwnKey;
 
   return {
-    allowed: true,
-    creditsUsed: shop.aiCreditsUsed,
-    creditsLimit: limit,
-    creditsRemaining: Math.max(0, limit - shop.aiCreditsUsed),
+    allowed: appCreditsRemaining > 0 || hasOwnKey,
+    plan,
+    appCreditsUsed: shop.aiCreditsUsed,
+    appCreditsLimit: limit,
+    appCreditsRemaining,
+    ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+    hasOwnKey,
+    currentlyUsingOwnKey,
     inTrial,
     resetsAt: shop.aiCreditsResetAt,
   };

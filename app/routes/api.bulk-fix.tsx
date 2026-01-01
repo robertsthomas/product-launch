@@ -19,7 +19,7 @@ import { consumeAICredit } from "../lib/billing/ai-gating.server";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
 import { generateSeoDescription, generateImageAltText } from "../lib/ai";
 import { recordBulkFixHistory } from "../lib/services/history.server";
-import { getShopSettings } from "../lib/services/shop.server";
+import { getShopSettings, getShopOpenAIConfig } from "../lib/services/shop.server";
 import { auditProduct } from "../lib/services/audit.server";
 
 // Types
@@ -87,8 +87,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  // Get shop settings
+  // Get shop settings and OpenAI config
   const shopSettings = await getShopSettings(shop);
+  const openaiConfig = await getShopOpenAIConfig(shop);
 
   // Process results
   const results: BulkFixResult[] = [];
@@ -106,7 +107,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         intent,
         admin,
         shop,
-        shopSettings
+        shopSettings,
+        openaiConfig
       ))
     );
 
@@ -144,7 +146,8 @@ async function processSingleProduct(
   intent: BulkFixRequest["intent"],
   admin: { graphql: Function },
   shopDomain: string,
-  shopSettings: Awaited<ReturnType<typeof getShopSettings>>
+  shopSettings: Awaited<ReturnType<typeof getShopSettings>>,
+  openaiConfig: Awaited<ReturnType<typeof getShopOpenAIConfig>>
 ): Promise<BulkFixResult> {
   try {
     // Fetch product data
@@ -166,10 +169,10 @@ async function processSingleProduct(
         return await applyDefaultCollection(product, admin, shopDomain, shopSettings);
       
       case "generate_alt_text":
-        return await generateBulkAltText(product, admin, shopDomain);
+        return await generateBulkAltText(product, admin, shopDomain, openaiConfig);
       
       case "generate_seo_desc":
-        return await generateBulkSeoDesc(product, admin, shopDomain);
+        return await generateBulkSeoDesc(product, admin, shopDomain, openaiConfig);
       
       default:
         return { productId, success: false, message: "Unknown intent" };
@@ -349,7 +352,8 @@ async function applyDefaultCollection(
 async function generateBulkAltText(
   product: Product,
   admin: { graphql: Function },
-  shopDomain: string
+  shopDomain: string,
+  openaiConfig: Awaited<ReturnType<typeof getShopOpenAIConfig>>
 ): Promise<BulkFixResult> {
   const images = product.images?.nodes || [];
   const imagesWithoutAlt = images.filter(img => !img.altText?.trim());
@@ -375,7 +379,12 @@ async function generateBulkAltText(
           productType: product.productType,
           vendor: product.vendor,
         },
-        i
+        i,
+        {
+          apiKey: openaiConfig.apiKey || undefined,
+          textModel: openaiConfig.textModel || undefined,
+          imageModel: openaiConfig.imageModel || undefined,
+        }
       );
 
       // Update image alt text
@@ -430,7 +439,8 @@ async function generateBulkAltText(
 async function generateBulkSeoDesc(
   product: Product,
   admin: { graphql: Function },
-  shopDomain: string
+  shopDomain: string,
+  openaiConfig: Awaited<ReturnType<typeof getShopOpenAIConfig>>
 ): Promise<BulkFixResult> {
   // Check if already has SEO description
   if (product.seo?.description?.trim()) {
@@ -443,13 +453,20 @@ async function generateBulkSeoDesc(
 
   try {
     // Generate SEO description using AI
-    const seoDescription = await generateSeoDescription({
-      title: product.title,
-      productType: product.productType,
-      vendor: product.vendor,
-      tags: product.tags,
-      descriptionHtml: product.descriptionHtml,
-    });
+    const seoDescription = await generateSeoDescription(
+      {
+        title: product.title,
+        productType: product.productType,
+        vendor: product.vendor,
+        tags: product.tags,
+        descriptionHtml: product.descriptionHtml,
+      },
+      {
+        apiKey: openaiConfig.apiKey || undefined,
+        textModel: openaiConfig.textModel || undefined,
+        imageModel: openaiConfig.imageModel || undefined,
+      }
+    );
 
     // Update product SEO
     const updateResponse = await admin.graphql(

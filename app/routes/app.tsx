@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError, useLocation } from "react-router";
+import { Outlet, useLoaderData, useRouteError, useLocation, Link } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
@@ -58,11 +58,58 @@ function LogoIcon() {
   );
 }
 
-export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+// Navigation component
+function AppNavigation() {
   const location = useLocation();
   const isDashboard = location.pathname === "/app";
   const isSettings = location.pathname.startsWith("/app/settings");
+
+  return (
+    <nav style={{ display: "flex", gap: "8px" }}>
+      <Link
+        to="/app"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "10px 18px",
+          borderRadius: "var(--radius-full)",
+          fontSize: "var(--text-sm)",
+          fontWeight: 600,
+          color: isDashboard ? "#fff" : "var(--color-text)",
+          background: isDashboard ? "var(--gradient-primary)" : "var(--color-surface)",
+          border: isDashboard ? "none" : "1px solid var(--color-border)",
+          transition: "all var(--transition-fast)",
+          textDecoration: "none",
+          boxShadow: isDashboard ? "var(--shadow-primary-glow)" : "none",
+        }}
+      >
+        Dashboard
+      </Link>
+      <Link
+        to="/app/settings"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "10px 18px",
+          borderRadius: "var(--radius-full)",
+          fontSize: "var(--text-sm)",
+          fontWeight: 600,
+          color: isSettings ? "#fff" : "var(--color-text)",
+          background: isSettings ? "var(--gradient-primary)" : "var(--color-surface)",
+          border: isSettings ? "none" : "1px solid var(--color-border)",
+          transition: "all var(--transition-fast)",
+          textDecoration: "none",
+          boxShadow: isSettings ? "var(--shadow-primary-glow)" : "none",
+        }}
+      >
+        Settings
+      </Link>
+    </nav>
+  );
+}
+
+export default function App() {
+  const { apiKey } = useLoaderData<typeof loader>();
 
   return (
     <AppProvider embedded apiKey={apiKey}>
@@ -73,46 +120,7 @@ export default function App() {
               {/* <LogoIcon /> */}
               <span className="brand-title">Launch Ready</span>
             </div>
-            <nav style={{ display: "flex", gap: "8px" }}>
-              <s-link
-                href="/app"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "10px 18px",
-                  borderRadius: "var(--radius-full)",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  color: isDashboard ? "#fff" : "var(--color-text)",
-                  background: isDashboard ? "var(--gradient-primary)" : "var(--color-surface)",
-                  border: isDashboard ? "none" : "1px solid var(--color-border)",
-                  transition: "all var(--transition-fast)",
-                  textDecoration: "none",
-                  boxShadow: isDashboard ? "var(--shadow-primary-glow)" : "none",
-                }}
-              >
-                Dashboard
-              </s-link>
-              <s-link
-                href="/app/settings"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "10px 18px",
-                  borderRadius: "var(--radius-full)",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  color: isSettings ? "#fff" : "var(--color-text)",
-                  background: isSettings ? "var(--gradient-primary)" : "var(--color-surface)",
-                  border: isSettings ? "none" : "1px solid var(--color-border)",
-                  transition: "all var(--transition-fast)",
-                  textDecoration: "none",
-                  boxShadow: isSettings ? "var(--shadow-primary-glow)" : "none",
-                }}
-              >
-                Settings
-              </s-link>
-            </nav>
+            <AppNavigation />
           </div>
         </header>
         <main className="page-shell animate-fade-in-up">

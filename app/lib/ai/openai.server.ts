@@ -20,8 +20,18 @@ import {
   buildAltTextPrompt
 } from "./prompts";
 
-// Initialize client (reads OPENAI_API_KEY from env automatically)
-const openai = new OpenAI();
+// Default OpenAI client (uses app's API key from env)
+const defaultOpenai = new OpenAI();
+
+/**
+ * Get an OpenAI client, optionally using a custom API key
+ */
+function getOpenAIClient(customApiKey?: string): OpenAI {
+  if (customApiKey) {
+    return new OpenAI({ apiKey: customApiKey });
+  }
+  return defaultOpenai;
+}
 
 // Default model configuration
 // GPT-4.1 Mini offers 1M token context, low latency, excellent for text generation
@@ -59,12 +69,14 @@ export interface ProductContext {
 async function generateText(
   systemPrompt: string,
   userPrompt: string,
-  options?: { maxTokens?: number; temperature?: number; model?: string }
+  options?: { maxTokens?: number; temperature?: number; model?: string; apiKey?: string }
 ): Promise<string> {
   const model = options?.model || OPENAI_MODEL;
+  const client = getOpenAIClient(options?.apiKey);
   
   console.log("[OpenAI] generateText called");
   console.log("[OpenAI] Model:", model);
+  console.log("[OpenAI] Using custom API key:", !!options?.apiKey);
   console.log("[OpenAI] Max tokens:", options?.maxTokens ?? 256);
   console.log("[OpenAI] Temperature:", options?.temperature ?? 0.7);
   console.log("[OpenAI] System prompt length:", systemPrompt.length);
@@ -72,7 +84,7 @@ async function generateText(
   console.log("[OpenAI] User prompt preview:", userPrompt.slice(0, 200));
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await client.chat.completions.create({
       model,
       messages: [
         { role: "system", content: systemPrompt },
@@ -96,14 +108,24 @@ async function generateText(
 
 
 // ============================================
+// Generation options type
+// ============================================
+
+export interface GenerationOptions {
+  apiKey?: string; // Custom OpenAI API key (merchant's own key)
+  textModel?: string; // Custom text generation model
+  imageModel?: string; // Custom image/vision model
+}
+
+// ============================================
 // Product Title Generation
 // ============================================
 
-export async function generateTitle(product: ProductContext): Promise<string> {
+export async function generateTitle(product: ProductContext, options?: GenerationOptions): Promise<string> {
   const result = await generateText(
     SYSTEM_PROMPTS.title,
     buildTitlePrompt(product),
-    { maxTokens: 80, temperature: 0.7 }
+    { maxTokens: 80, temperature: 0.7, apiKey: options?.apiKey, model: options?.textModel }
   );
 
   return result.replace(/^["']|["']$/g, "").replace(/[:|]/g, "-");
@@ -113,11 +135,11 @@ export async function generateTitle(product: ProductContext): Promise<string> {
 // SEO Title Generation (Meta Title)
 // ============================================
 
-export async function generateSeoTitle(product: ProductContext): Promise<string> {
+export async function generateSeoTitle(product: ProductContext, options?: GenerationOptions): Promise<string> {
   const result = await generateText(
     SYSTEM_PROMPTS.seoTitle,
     buildSeoTitlePrompt(product),
-    { maxTokens: 80 }
+    { maxTokens: 80, apiKey: options?.apiKey, model: options?.textModel }
   );
 
   // Clean up and enforce limit
@@ -136,11 +158,11 @@ export async function generateSeoTitle(product: ProductContext): Promise<string>
 // SEO Description Generation (Meta Description)
 // ============================================
 
-export async function generateSeoDescription(product: ProductContext): Promise<string> {
+export async function generateSeoDescription(product: ProductContext, options?: GenerationOptions): Promise<string> {
   const result = await generateText(
     SYSTEM_PROMPTS.seoDescription,
     buildSeoDescriptionPrompt(product),
-    { maxTokens: 120 }
+    { maxTokens: 120, apiKey: options?.apiKey, model: options?.textModel }
   );
 
   let desc = result.replace(/^["']|["']$/g, "").trim();
@@ -155,11 +177,11 @@ export async function generateSeoDescription(product: ProductContext): Promise<s
 // Product Description Generation
 // ============================================
 
-export async function generateProductDescription(product: ProductContext): Promise<string> {
+export async function generateProductDescription(product: ProductContext, options?: GenerationOptions): Promise<string> {
   const result = await generateText(
     SYSTEM_PROMPTS.productDescription,
     buildProductDescriptionPrompt(product),
-    { maxTokens: 500, temperature: 0.75 }
+    { maxTokens: 500, temperature: 0.75, apiKey: options?.apiKey, model: options?.textModel }
   );
 
   return result.trim();
@@ -169,11 +191,11 @@ export async function generateProductDescription(product: ProductContext): Promi
 // Tags Generation
 // ============================================
 
-export async function generateTags(product: ProductContext): Promise<string[]> {
+export async function generateTags(product: ProductContext, options?: GenerationOptions): Promise<string[]> {
   const result = await generateText(
     SYSTEM_PROMPTS.tags,
     buildTagsPrompt(product),
-    { maxTokens: 120 }
+    { maxTokens: 120, apiKey: options?.apiKey, model: options?.textModel }
   );
 
   return result
@@ -189,18 +211,19 @@ export async function generateTags(product: ProductContext): Promise<string[]> {
 
 export async function generateImageAltText(
   product: ProductContext,
-  imageIndex: number
+  imageIndex: number,
+  options?: GenerationOptions
 ): Promise<string> {
   console.log("[Alt Text] generateImageAltText called");
   console.log("[Alt Text] Product title:", product.title);
   console.log("[Alt Text] Image index:", imageIndex);
   console.log("[Alt Text] Using model:", OPENAI_IMAGE_MODEL);
-  console.log("[Alt Text] OPENAI_IMAGE_MODEL env:", process.env.OPENAI_IMAGE_MODEL);
+  console.log("[Alt Text] Using custom API key:", !!options?.apiKey);
   
   const result = await generateText(
     SYSTEM_PROMPTS.altText,
     buildAltTextPrompt(product, imageIndex),
-    { maxTokens: 80, model: OPENAI_IMAGE_MODEL }
+    { maxTokens: 80, model: options?.imageModel || OPENAI_IMAGE_MODEL, apiKey: options?.apiKey }
   );
 
   const cleanedResult = result
@@ -220,7 +243,8 @@ export async function generateImageAltText(
 // ============================================
 
 export async function generateProductImage(
-  product: ProductContext
+  product: ProductContext,
+  options?: GenerationOptions
 ): Promise<string> {
   // Use Kie.ai Nano Banana Pro if available (preferred over DALL-E)
   if (isKieAvailable()) {
@@ -231,14 +255,16 @@ export async function generateProductImage(
 
   // Fall back to DALL-E
   console.log("[AI Image Generation] Using DALL-E (Kie.ai not available)");
+  console.log("[AI Image Generation] Using custom API key:", !!options?.apiKey);
 
   const prompt = buildImagePrompt(product);
+  const client = getOpenAIClient(options?.apiKey);
 
   console.log(`[AI Image Generation] Generating image for product: ${product.title}`);
   console.log(`[AI Image Generation] Prompt: ${prompt.slice(0, 200)}...`);
 
   try {
-    const response = await openai.images.generate({
+    const response = await client.images.generate({
       model: "dall-e-3",
       prompt,
       n: 1,

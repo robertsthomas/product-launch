@@ -32,6 +32,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // Calculate AI credits remaining
   let aiCreditsRemaining = 0;
+  const hasOwnKey = !!shop.openaiApiKey;
+  const useOwnKey = shop.useOwnOpenAIKey !== false; // Default to true
+  const effectivelyUsingOwnKey = hasOwnKey && useOwnKey;
   if (plan === "pro") {
     const proConfig = PLAN_CONFIG.pro;
     const limit = inTrial ? proConfig.trialAiCredits : proConfig.aiCredits;
@@ -53,10 +56,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     trialEndsAt: shop.trialEndsAt?.toISOString() || null,
     currentPeriodEnd: shop.currentPeriodEnd?.toISOString() || null,
     features: config.features,
-    aiCredits: plan === "pro" ? {
-      used: shop.aiCreditsUsed,
-      limit: inTrial ? PLAN_CONFIG.pro.trialAiCredits : PLAN_CONFIG.pro.aiCredits,
-      remaining: aiCreditsRemaining,
+    aiCredits: plan === "pro" || (plan === "starter" && effectivelyUsingOwnKey) ? {
+      appCreditsUsed: shop.aiCreditsUsed,
+      appCreditsLimit: plan === "pro" ? (inTrial ? PLAN_CONFIG.pro.trialAiCredits : PLAN_CONFIG.pro.aiCredits) : 0,
+      appCreditsRemaining: aiCreditsRemaining,
+      ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+      hasOwnKey,
+      useOwnKey,
+      currentlyUsingOwnKey: (plan === "starter" && effectivelyUsingOwnKey) || (plan === "pro" && effectivelyUsingOwnKey && aiCreditsRemaining <= 0),
       resetsAt: shop.aiCreditsResetAt?.toISOString() || null,
     } : null,
     audits: plan === "free" ? {

@@ -16,6 +16,7 @@ import { db } from "../db";
 import { shops } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { saveFieldVersion, type VersionSource } from "../lib/services/version.server";
+import { getShopOpenAIConfig } from "../lib/services/shop.server";
 
 /**
  * AI suggestion endpoint.
@@ -144,26 +145,34 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       );
     }
 
+    // Get the shop's OpenAI configuration (API key and model preferences)
+    const openaiConfig = await getShopOpenAIConfig(session.shop);
+    const genOptions = {
+      apiKey: openaiConfig.apiKey || undefined,
+      textModel: openaiConfig.textModel || undefined,
+      imageModel: openaiConfig.imageModel || undefined,
+    };
+
     let suggestion: string | string[];
 
     switch (type) {
       case "title":
-        suggestion = await generateTitle(context);
+        suggestion = await generateTitle(context, genOptions);
         break;
       case "seo_title":
-        suggestion = await generateSeoTitle(context);
+        suggestion = await generateSeoTitle(context, genOptions);
         break;
       case "seo_description":
-        suggestion = await generateSeoDescription(context);
+        suggestion = await generateSeoDescription(context, genOptions);
         break;
       case "description":
-        suggestion = await generateProductDescription(context);
+        suggestion = await generateProductDescription(context, genOptions);
         break;
       case "tags":
-        suggestion = await generateTags(context);
+        suggestion = await generateTags(context, genOptions);
         break;
       case "image_alt_text":
-        suggestion = await generateImageAltText(context, imageIndex);
+        suggestion = await generateImageAltText(context, imageIndex, genOptions);
         break;
       default:
         return Response.json({ error: "Invalid suggestion type" }, { status: 400 });

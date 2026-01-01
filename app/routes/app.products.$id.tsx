@@ -86,6 +86,33 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const shopSettings = await getShopSettings(shop);
   const defaultCollectionId = shopSettings?.defaultCollectionId || null;
 
+  // Fetch existing vendors and product types for autocomplete
+  const autocompleteResponse = await admin.graphql(`#graphql
+    query GetAutocompleteOptions {
+      products(first: 250) {
+        nodes {
+          vendor
+          productType
+        }
+      }
+    }
+  `);
+  const autocompleteJson = await autocompleteResponse.json();
+  const allProducts = autocompleteJson.data?.products?.nodes || [];
+  
+  // Extract unique vendors and product types
+  const vendors = [...new Set(
+    allProducts
+      .map((p: { vendor: string }) => p.vendor)
+      .filter((v: string) => v && v.trim() !== "")
+  )].sort() as string[];
+  
+  const productTypes = [...new Set(
+    allProducts
+      .map((p: { productType: string }) => p.productType)
+      .filter((t: string) => t && t.trim() !== "")
+  )].sort() as string[];
+
   return {
     product: {
       id: shopifyProduct.id,
@@ -139,6 +166,10 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       incompleteCount,
     },
     defaultCollectionId,
+    autocomplete: {
+      vendors,
+      productTypes,
+    },
   };
 };
 
@@ -1177,7 +1208,7 @@ function AIGenerateDropdown({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
             </svg>
-            AI
+            Generate
             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
               <path d="M6 9l6 6 6-6"/>
             </svg>
@@ -1464,6 +1495,194 @@ function EditableField({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================
+// Autocomplete Field Component
+// ============================================
+
+function AutocompleteField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder?: string;
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
+  const inputId = useId();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync inputValue with prop value
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filter options based on input
+  const filteredOptions = options.filter(option =>
+    option.toLowerCase().includes(inputValue.toLowerCase()) &&
+    option.toLowerCase() !== inputValue.toLowerCase()
+  );
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    onChange(newValue);
+    setIsOpen(true);
+  };
+
+  const handleSelectOption = (option: string) => {
+    setInputValue(option);
+    onChange(option);
+    setIsOpen(false);
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    if (filteredOptions.length > 0 || options.length > 0) {
+      setIsOpen(true);
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    // Delay closing to allow click on option
+    setTimeout(() => setIsOpen(false), 150);
+  };
+
+  // Show all options when input is empty, filtered when typing
+  const displayOptions = inputValue.trim() === "" 
+    ? options.slice(0, 10) 
+    : filteredOptions.slice(0, 10);
+
+  return (
+    <div style={{ marginBottom: "20px" }} ref={dropdownRef}>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "8px"
+      }}>
+        <label
+          htmlFor={inputId}
+          style={{
+            fontSize: "var(--text-xs)",
+            fontWeight: 500,
+            color: "var(--color-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {label}
+        </label>
+      </div>
+
+      <div style={{ position: "relative" }}>
+        <input
+          id={inputId}
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          autoComplete="off"
+          style={{
+            width: "100%",
+            padding: "10px 14px",
+            fontSize: "var(--text-base)",
+            fontFamily: "var(--font-body)",
+            color: "var(--color-text)",
+            backgroundColor: "transparent",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)",
+            transition: "border-color var(--transition-fast)",
+            outline: "none",
+          }}
+          onMouseEnter={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
+          onMouseLeave={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"; }}
+        />
+
+        {/* Dropdown arrow indicator */}
+        <div
+          style={{
+            position: "absolute",
+            right: "12px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            color: "var(--color-muted)",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+
+        {/* Dropdown options */}
+        {isOpen && displayOptions.length > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              boxShadow: "var(--shadow-elevated)",
+              overflow: "hidden",
+              maxHeight: "200px",
+              overflowY: "auto",
+            }}
+          >
+            {displayOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => handleSelectOption(option)}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 400,
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background var(--transition-fast)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2174,6 +2393,7 @@ function ImageManager({
                 borderRadius: "var(--radius-md)",
                 overflow: "hidden",
                 backgroundColor: "var(--color-surface-strong)",
+                border: "1px solid var(--color-border)",
                 transition: "all var(--transition-fast)",
               }}
             >
@@ -2588,7 +2808,7 @@ function ChecklistSidebar({
 // ============================================
 
 export default function ProductEditor() {
-  const { product, audit, aiAvailable, navigation, defaultCollectionId } = useLoaderData<typeof loader>();
+  const { product, audit, aiAvailable, navigation, defaultCollectionId, autocomplete } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const navigate = useNavigate();
   const shopify = useAppBridge();
@@ -3060,6 +3280,54 @@ export default function ProductEditor() {
         
         {/* Header Actions - Moved here for cleaner look */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* AI Generate Button */}
+          {aiAvailable && (
+            <button
+              type="button"
+              onClick={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
+              disabled={generatingAll || generating.size > 0}
+              style={{
+                padding: "8px 14px",
+                fontSize: "var(--text-sm)",
+                fontWeight: 500,
+                border: "1px dashed var(--color-border)",
+                borderRadius: "var(--radius-full)",
+                background: "transparent",
+                color: (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-primary)",
+                cursor: (generatingAll || generating.size > 0) ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => {
+                if (!(generatingAll || generating.size > 0)) {
+                  e.currentTarget.style.borderColor = "var(--color-primary)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-border)";
+              }}
+            >
+              {generatingAll ? (
+                <>
+                  <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                    <span/>
+                    <span/>
+                    <span/>
+                  </span>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
+                  </svg>
+                  Generate All
+                </>
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
@@ -3085,7 +3353,7 @@ export default function ProductEditor() {
               <polyline points="15 3 21 3 21 9"/>
               <line x1="10" y1="14" x2="21" y2="3"/>
             </svg>
-            Shopify
+            Open in Shopify
           </button>
           <button
             type="button"
@@ -3129,7 +3397,15 @@ export default function ProductEditor() {
             {/* Product Hero - Featured Image & Title */}
             <div
               id="section-info"
-              style={{ display: "flex", flexDirection: "column", gap: "40px" }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "40px",
+                padding: "32px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                backgroundColor: "var(--color-surface)"
+              }}
             >
               <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
                 {/* Product Image - Larger, more prominent */}
@@ -3187,18 +3463,20 @@ export default function ProductEditor() {
                   </div>
                   <div style={{ display: "flex", gap: "24px" }}>
                     <div id="field-vendor" style={{ flex: 1 }}>
-                      <EditableField
+                      <AutocompleteField
                         label="Vendor"
                         value={form.vendor}
                         onChange={(v) => updateField("vendor", v)}
+                        options={autocomplete.vendors}
                         placeholder="Brand or vendor"
                       />
                     </div>
                     <div id="field-product-type" style={{ flex: 1 }}>
-                      <EditableField
+                      <AutocompleteField
                         label="Product Type"
                         value={form.productType}
                         onChange={(v) => updateField("productType", v)}
+                        options={autocomplete.productTypes}
                         placeholder="e.g., Snowboard"
                       />
                     </div>
@@ -3246,11 +3524,16 @@ export default function ProductEditor() {
               </div>
             </div>
 
-            {/* Subtle divider */}
-            <div style={{ height: "1px", background: "var(--color-border)", opacity: 0.5 }} />
-
             {/* Images Section */}
-            <div id="section-images">
+            <div
+              id="section-images"
+              style={{
+                padding: "32px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                backgroundColor: "var(--color-surface)"
+              }}
+            >
               <ImageManager
                 images={product.images}
                 featuredImageId={product.featuredImageId}
@@ -3263,15 +3546,20 @@ export default function ProductEditor() {
               />
             </div>
 
-            {/* Subtle divider */}
-            <div style={{ height: "1px", background: "var(--color-border)", opacity: 0.5 }} />
-
             {/* SEO Section */}
-            <div id="section-seo">
-              <h3 style={{ 
-                margin: "0 0 32px", 
+            <div
+              id="section-seo"
+              style={{
+                padding: "32px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                backgroundColor: "var(--color-surface)"
+              }}
+            >
+              <h3 style={{
+                margin: "0 0 32px",
                 fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-lg)", 
+                fontSize: "var(--text-lg)",
                 fontWeight: 600,
                 color: "var(--color-text)",
                 letterSpacing: "-0.01em",
@@ -3373,61 +3661,15 @@ export default function ProductEditor() {
               gap: "24px",
             }}
           >
-            {/* AI Generate All - Minimal button */}
-            {aiAvailable && (
-              <button
-                type="button"
-                onClick={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
-                disabled={generatingAll || generating.size > 0}
-                style={{
-                  width: "100%",
-                  padding: "12px 20px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  border: "1px dashed var(--color-border)",
-                  borderRadius: "var(--radius-lg)",
-                  background: "transparent",
-                  color: (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-muted)",
-                  cursor: (generatingAll || generating.size > 0) ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  transition: "all var(--transition-fast)",
-                }}
-                onMouseEnter={(e) => { 
-                  if (!(generatingAll || generating.size > 0)) {
-                    e.currentTarget.style.borderColor = "var(--color-primary)";
-                    e.currentTarget.style.color = "var(--color-primary)";
-                  }
-                }}
-                onMouseLeave={(e) => { 
-                  e.currentTarget.style.borderColor = "var(--color-border)";
-                  e.currentTarget.style.color = (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-muted)";
-                }}
-              >
-                {generatingAll ? (
-                  <>
-                    <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
-                      <span/>
-                      <span/>
-                      <span/>
-                    </span>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-                    </svg>
-                    Generate with AI
-                  </>
-                )}
-              </button>
-            )}
-
             {/* Checklist - Minimal styling */}
-            <div>
+            <div
+              style={{
+                padding: "24px",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                backgroundColor: "var(--color-surface)"
+              }}
+            >
               <ChecklistSidebar 
                 audit={audit}
                 onRescan={() => fetcher.submit({ intent: "rescan" }, { method: "POST" })}

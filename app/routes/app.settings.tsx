@@ -9,9 +9,14 @@ import { useLoaderData, useFetcher, useNavigate } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { getOrCreateShop, updateShopSettings } from "../lib/services/shop.server";
-import { db, checklistItems, BRAND_VOICE_PRESETS, type BrandVoicePreset } from "../db";
-import { eq } from "drizzle-orm";
+import { 
+  getOrCreateShop, 
+  updateShopSettings,
+  toggleChecklistItem,
+  updateChecklistItemWeight,
+} from "../lib/services/shop.server";
+import { getAICreditStatus } from "../lib/billing/ai-gating.server";
+import { BRAND_VOICE_PRESETS, type BrandVoicePreset, OPENAI_TEXT_MODELS, OPENAI_IMAGE_MODELS } from "../lib/constants";
 import { BRAND_VOICE_PROFILES } from "../lib/ai/prompts";
 import { TEMPLATE_PRESETS } from "../lib/checklist/types";
 
@@ -67,6 +72,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
   }
 
+  // Mask the API key for display (show last 4 chars only)
+  const hasOpenaiApiKey = !!shopRecord.openaiApiKey;
+  const maskedApiKey = shopRecord.openaiApiKey 
+    ? `sk-...${shopRecord.openaiApiKey.slice(-4)}`
+    : null;
+  const useOwnOpenAIKey = shopRecord.useOwnOpenAIKey ?? true;
+
+  // Get AI credit status
+  const aiCredits = await getAICreditStatus(shop);
+
   return {
     shop: {
       autoRunOnCreate: shopRecord.autoRunOnCreate,
@@ -77,6 +92,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       plan: effectivePlan,
       brandVoicePreset: shopRecord.brandVoicePreset as BrandVoicePreset | null,
       brandVoiceNotes: shopRecord.brandVoiceNotes ?? null,
+      hasOpenaiApiKey,
+      maskedApiKey,
+      useOwnOpenAIKey,
+      openaiTextModel: shopRecord.openaiTextModel || null,
+      openaiImageModel: shopRecord.openaiImageModel || null,
+    },
+    aiCredits: {
+      allowed: aiCredits.allowed,
+      plan: aiCredits.plan,
+      appCreditsUsed: aiCredits.appCreditsUsed,
+      appCreditsLimit: aiCredits.appCreditsLimit,
+      appCreditsRemaining: aiCredits.appCreditsRemaining,
+      ownKeyCreditsUsed: aiCredits.ownKeyCreditsUsed,
+      hasOwnKey: aiCredits.hasOwnKey,
+      currentlyUsingOwnKey: aiCredits.currentlyUsingOwnKey,
+      inTrial: aiCredits.inTrial,
+      resetsAt: aiCredits.resetsAt?.toISOString() || null,
     },
     template: template
       ? {
@@ -142,26 +174,60 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const itemId = formData.get("itemId") as string;
     const isEnabled = formData.get("isEnabled") === "true";
 
-    await db.update(checklistItems).set({ isEnabled, updatedAt: new Date() }).where(eq(checklistItems.id, itemId));
+    await toggleChecklistItem(itemId, isEnabled);
     return { success: true, message: "Updated" };
   }
 
   if (intent === "update_item_weight") {
     const itemId = formData.get("itemId") as string;
-    const weight = parseInt(formData.get("weight") as string, 10);
+    const weight = Number.parseInt(formData.get("weight") as string, 10);
 
-    if (weight >= 1 && weight <= 10) {
-      await db.update(checklistItems).set({ weight, updatedAt: new Date() }).where(eq(checklistItems.id, itemId));
+    try {
+      await updateChecklistItemWeight(itemId, weight);
       return { success: true, message: "Weight updated" };
+    } catch {
+      return { success: false, message: "Invalid weight" };
     }
-    return { success: false, message: "Invalid weight" };
+  }
+
+  if (intent === "save_openai_key") {
+    const apiKey = (formData.get("openaiApiKey") as string) || "";
+    
+    // Basic validation - OpenAI keys start with sk-
+    if (!apiKey.startsWith("sk-")) {
+      return { success: false, message: "Invalid API key format. Keys should start with 'sk-'" };
+    }
+    
+    await updateShopSettings(shop, { openaiApiKey: apiKey });
+    return { success: true, message: "API key saved" };
+  }
+
+  if (intent === "remove_openai_key") {
+    await updateShopSettings(shop, { openaiApiKey: null });
+    return { success: true, message: "API key removed" };
+  }
+
+  if (intent === "toggle_use_own_key") {
+    const useOwnKey = formData.get("useOwnKey") === "true";
+    await updateShopSettings(shop, { useOwnOpenAIKey: useOwnKey });
+    return { success: true, message: useOwnKey ? "Using your API key" : "Using app credits" };
+  }
+
+  if (intent === "update_openai_models") {
+    const textModel = (formData.get("textModel") as string) || null;
+    const imageModel = (formData.get("imageModel") as string) || null;
+    await updateShopSettings(shop, { 
+      openaiTextModel: textModel,
+      openaiImageModel: imageModel,
+    });
+    return { success: true, message: "Models updated" };
   }
 
   return { success: false };
 };
 
 export default function Settings() {
-  const { shop, template, collections, brandVoiceProfiles } = useLoaderData<typeof loader>();
+  const { shop, template, collections, brandVoiceProfiles, aiCredits } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const versionFetcher = useFetcher();
   const navigate = useNavigate();
@@ -402,7 +468,7 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Default Collection */}
+          {/* Auto-fix Settings - Combined */}
           <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
             <h2 style={{ 
               margin: "0 0 20px", 
@@ -413,26 +479,79 @@ export default function Settings() {
             }}>
               Auto-fix Settings
             </h2>
-            <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "var(--text-sm)", 
-                fontWeight: 600, 
-                color: "var(--color-text)",
-                marginBottom: "8px",
-              }}>
-                Default collection for auto-add
-              </label>
-              <select
-                value={shop.defaultCollectionId ?? ""}
-                onChange={(e) => updateSetting("defaultCollectionId", e.target.value)}
-                className="input-elevated"
-              >
-                <option value="">Select a collection</option>
-                {collections.map((c: { id: string; title: string }) => (
-                  <option key={c.id} value={c.id}>{c.title}</option>
-                ))}
-              </select>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Default Collection */}
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "var(--text-sm)", 
+                  fontWeight: 600, 
+                  color: "var(--color-text)",
+                  marginBottom: "8px",
+                }}>
+                  Default collection
+                </label>
+                <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                  Products will be added to this collection when using "Add to Collection" auto-fix.
+                </p>
+                <select
+                  value={shop.defaultCollectionId ?? ""}
+                  onChange={(e) => updateSetting("defaultCollectionId", e.target.value)}
+                  className="input-elevated"
+                >
+                  <option value="">Select a collection</option>
+                  {collections.map((c: { id: string; title: string }) => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Divider */}
+              <div style={{ height: "1px", backgroundColor: "var(--color-border)" }} />
+
+              {/* Default Tags */}
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "var(--text-sm)", 
+                  fontWeight: 600, 
+                  color: "var(--color-text)",
+                  marginBottom: "8px",
+                }}>
+                  Default tags
+                </label>
+                <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                  These tags will be added when using "Apply Default Tags" auto-fix.
+                </p>
+                <input
+                  type="text"
+                  placeholder="Enter tags separated by commas"
+                  defaultValue={shop.defaultTags?.join(", ") || ""}
+                  className="input-elevated"
+                  onBlur={(e) => {
+                    fetcher.submit(
+                      { intent: "update_default_tags", defaultTags: e.target.value },
+                      { method: "POST" }
+                    );
+                  }}
+                />
+                {shop.defaultTags && shop.defaultTags.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
+                    {shop.defaultTags.map((tag) => (
+                      <span key={tag} style={{
+                        padding: "3px 10px",
+                        borderRadius: "var(--radius-full)",
+                        background: "var(--color-primary-soft)",
+                        color: "var(--color-primary)",
+                        fontSize: "11px",
+                        fontWeight: 500,
+                      }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -524,56 +643,595 @@ export default function Settings() {
               )}
             </div>
           </div>
-
-          {/* Default Tags */}
-          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "200ms", animationFillMode: "both" }}>
-            <h2 style={{ 
-              margin: "0 0 20px", 
-              fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)", 
-              fontWeight: 500,
-              color: "var(--color-text)",
-            }}>
-              Default Tags
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                These tags will be added when using "Apply Default Tags" auto-fix.
-              </p>
-              <input
-                type="text"
-                placeholder="Enter tags separated by commas"
-                defaultValue={shop.defaultTags?.join(", ") || ""}
-                className="input-elevated"
-                onBlur={(e) => {
-                  fetcher.submit(
-                    { intent: "update_default_tags", defaultTags: e.target.value },
-                    { method: "POST" }
-                  );
-                }}
-              />
-              {shop.defaultTags && shop.defaultTags.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                  {shop.defaultTags.map((tag, i) => (
-                    <span key={i} style={{
-                      padding: "3px 10px",
-                      borderRadius: "var(--radius-full)",
-                      background: "var(--color-primary-soft)",
-                      color: "var(--color-primary)",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Right Column */}
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          {/* AI Credits */}
+          {aiCredits.plan === "pro" && (
+            <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "50ms", animationFillMode: "both" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                <h2 style={{ 
+                  margin: 0, 
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "var(--text-xl)", 
+                  fontWeight: 500,
+                  color: "var(--color-text)",
+                }}>
+                  AI Credits
+                </h2>
+                {aiCredits.resetsAt && (
+                  <span style={{
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-muted)",
+                  }}>
+                    Resets {new Date(aiCredits.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* iOS-style stacked progress bar */}
+                <div>
+                  {/* Progress bar container */}
+                  <div style={{
+                    height: "24px",
+                    borderRadius: "6px",
+                    backgroundColor: "var(--color-surface-strong)",
+                    overflow: "hidden",
+                    display: "flex",
+                    border: "1px solid var(--color-border)",
+                  }}>
+                    {/* App Credits segment */}
+                    {aiCredits.appCreditsLimit > 0 && (
+                      <div
+                        style={{
+                          width: `${Math.min(100, (aiCredits.appCreditsUsed / aiCredits.appCreditsLimit) * 100)}%`,
+                          height: "100%",
+                          backgroundColor: "#6366f1",
+                          transition: "width 0.5s ease",
+                          minWidth: aiCredits.appCreditsUsed > 0 ? "4px" : "0",
+                        }}
+                      />
+                    )}
+                    {/* Own Key Credits segment - shown when own key is used */}
+                    {aiCredits.hasOwnKey && aiCredits.ownKeyCreditsUsed > 0 && (
+                      <div
+                        style={{
+                          // For own key usage, show it proportionally (e.g., every 10 = 1% of bar for visual)
+                          width: `${Math.min(100 - (aiCredits.appCreditsUsed / aiCredits.appCreditsLimit) * 100, Math.max(4, aiCredits.ownKeyCreditsUsed / 2))}%`,
+                          height: "100%",
+                          backgroundColor: "#22c55e",
+                          transition: "width 0.5s ease",
+                          minWidth: "4px",
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Legend */}
+                  <div style={{ 
+                    display: "flex", 
+                    gap: "16px", 
+                    marginTop: "12px",
+                    flexWrap: "wrap",
+                  }}>
+                    {/* App Credits */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div style={{
+                        width: "12px",
+                        height: "12px",
+                        borderRadius: "3px",
+                        backgroundColor: "#6366f1",
+                      }} />
+                      <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)" }}>
+                        App Credits
+                      </span>
+                      <span style={{ 
+                        fontSize: "var(--text-sm)", 
+                        fontWeight: 600,
+                        color: aiCredits.appCreditsRemaining <= 10 ? "#ef4444" : "var(--color-text)",
+                      }}>
+                        {aiCredits.appCreditsUsed}/{aiCredits.appCreditsLimit}
+                      </span>
+                    </div>
+
+                    {/* Own API Key */}
+                    {aiCredits.hasOwnKey && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{
+                          width: "12px",
+                          height: "12px",
+                          borderRadius: "3px",
+                          backgroundColor: "#22c55e",
+                        }} />
+                        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)" }}>
+                          Your API Key
+                        </span>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                          {aiCredits.ownKeyCreditsUsed > 0 ? `${aiCredits.ownKeyCreditsUsed} used` : "Ready"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Available space */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div style={{
+                        width: "12px",
+                        height: "12px",
+                        borderRadius: "3px",
+                        backgroundColor: "var(--color-surface-strong)",
+                        border: "1px solid var(--color-border)",
+                      }} />
+                      <span style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                        Available
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status message */}
+                <div style={{
+                  padding: "12px 16px",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: aiCredits.currentlyUsingOwnKey 
+                    ? "rgba(34, 197, 94, 0.1)" 
+                    : aiCredits.appCreditsRemaining <= 10 
+                      ? "rgba(239, 68, 68, 0.1)"
+                      : "var(--color-primary-soft)",
+                  border: `1px solid ${
+                    aiCredits.currentlyUsingOwnKey 
+                      ? "rgba(34, 197, 94, 0.3)" 
+                      : aiCredits.appCreditsRemaining <= 10 
+                        ? "rgba(239, 68, 68, 0.3)"
+                        : "var(--color-primary-soft)"
+                  }`,
+                }}>
+                  <p style={{ 
+                    margin: 0, 
+                    fontSize: "var(--text-sm)", 
+                    color: aiCredits.currentlyUsingOwnKey 
+                      ? "#16a34a" 
+                      : aiCredits.appCreditsRemaining <= 10
+                        ? "#dc2626"
+                        : "var(--color-primary)",
+                    fontWeight: 500,
+                  }}>
+                    {aiCredits.currentlyUsingOwnKey ? (
+                      <>✓ Using your API key — unlimited generations</>
+                    ) : aiCredits.appCreditsRemaining <= 0 ? (
+                      aiCredits.hasOwnKey ? (
+                        shop.useOwnOpenAIKey ? (
+                          <>App credits exhausted. Now using your API key.</>
+                        ) : (
+                          <>App credits exhausted. Enable your API key to continue.</>
+                        )
+                      ) : (
+                        <>No credits remaining. Add your API key for unlimited access.</>
+                      )
+                    ) : aiCredits.appCreditsRemaining <= 10 ? (
+                      <>Only {aiCredits.appCreditsRemaining} credits left this month.{!aiCredits.hasOwnKey ? " Add your API key to continue after." : shop.useOwnOpenAIKey ? "" : " Enable your API key to continue after."}</>
+                    ) : (
+                      <>{aiCredits.appCreditsRemaining} credits remaining this month.{aiCredits.hasOwnKey && shop.useOwnOpenAIKey && " Your API key kicks in after."}{aiCredits.hasOwnKey && !shop.useOwnOpenAIKey && " Your API key is paused."}</>
+                    )}
+                  </p>
+                </div>
+
+                {/* Hint for users without own key */}
+                {!aiCredits.hasOwnKey && aiCredits.appCreditsRemaining <= 50 && (
+                  <p style={{ 
+                    margin: 0, 
+                    fontSize: "var(--text-xs)", 
+                    color: "var(--color-muted)",
+                    textAlign: "center",
+                  }}>
+                    💡 Add your OpenAI API key below for unlimited AI generations
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Starter plan - show simple message */}
+          {aiCredits.plan === "starter" && (
+            <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "50ms", animationFillMode: "both" }}>
+              <h2 style={{ 
+                margin: "0 0 16px", 
+                fontFamily: "var(--font-heading)",
+                fontSize: "var(--text-xl)", 
+                fontWeight: 500,
+                color: "var(--color-text)",
+              }}>
+                AI Credits
+              </h2>
+              
+              {aiCredits.hasOwnKey ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{
+                    padding: "16px",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "rgba(34, 197, 94, 0.1)",
+                    border: "1px solid rgba(34, 197, 94, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}>
+                    <div style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "50%",
+                      backgroundColor: "#22c55e",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M20 6L9 17l-5-5"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, color: "#16a34a" }}>
+                        Using your API key
+                      </p>
+                      <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                        {aiCredits.ownKeyCreditsUsed > 0 ? `${aiCredits.ownKeyCreditsUsed} generations this month` : "Unlimited AI generations"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: "16px",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: "var(--color-surface-strong)",
+                  border: "1px solid var(--color-border)",
+                }}>
+                  <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                    Add your OpenAI API key below to unlock AI features on Starter plan, or upgrade to Pro for 100 monthly credits included.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* OpenAI API Key */}
+          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontFamily: "var(--font-heading)",
+                fontSize: "var(--text-xl)", 
+                fontWeight: 500,
+                color: "var(--color-text)",
+              }}>
+                OpenAI API Key
+              </h2>
+              {shop.hasOpenaiApiKey && (
+                <span style={{
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-full)",
+                  background: "rgba(34, 197, 94, 0.15)",
+                  color: "#16a34a",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                }}>
+                  ACTIVE
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                Add your own OpenAI API key to unlock AI features. 
+                {shop.plan === "free" 
+                  ? " Upgrade to Starter or Pro to use AI with your own key."
+                  : shop.plan === "starter"
+                    ? " With your own key, you get unlimited AI generations."
+                    : " With your own key, you bypass the monthly credit limit."
+                }
+              </p>
+
+              {shop.hasOpenaiApiKey ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {/* Saved key display */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "12px 16px",
+                    borderRadius: "var(--radius-md)",
+                    backgroundColor: "var(--color-surface-strong)",
+                    border: "1px solid var(--color-border)",
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)", fontFamily: "monospace", flex: 1 }}>
+                      {shop.maskedApiKey}
+                    </span>
+                    {!shop.useOwnOpenAIKey && (
+                      <span style={{
+                        padding: "2px 8px",
+                        borderRadius: "var(--radius-full)",
+                        background: "rgba(251, 191, 36, 0.15)",
+                        color: "#d97706",
+                        fontSize: "10px",
+                        fontWeight: 600,
+                      }}>
+                        PAUSED
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Toggle to enable/disable own key */}
+                  {shop.plan === "pro" && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 16px",
+                      borderRadius: "var(--radius-md)",
+                      backgroundColor: shop.useOwnOpenAIKey ? "rgba(34, 197, 94, 0.08)" : "var(--color-surface-strong)",
+                      border: `1px solid ${shop.useOwnOpenAIKey ? "rgba(34, 197, 94, 0.2)" : "var(--color-border)"}`,
+                      transition: "all var(--transition-fast)",
+                    }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                          Use my API key
+                        </span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                          {shop.useOwnOpenAIKey 
+                            ? "Your key will be used after app credits are exhausted"
+                            : "Disabled — only using app's 100 monthly credits"
+                          }
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fetcher.submit(
+                            { intent: "toggle_use_own_key", useOwnKey: String(!shop.useOwnOpenAIKey) },
+                            { method: "POST" }
+                          );
+                        }}
+                        style={{
+                          width: "44px",
+                          height: "24px",
+                          borderRadius: "12px",
+                          border: "none",
+                          backgroundColor: shop.useOwnOpenAIKey ? "#22c55e" : "var(--color-border)",
+                          cursor: "pointer",
+                          position: "relative",
+                          transition: "background-color 0.2s ease",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          backgroundColor: "#fff",
+                          position: "absolute",
+                          top: "2px",
+                          left: shop.useOwnOpenAIKey ? "22px" : "2px",
+                          transition: "left 0.2s ease",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                        }} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Model Selection - only when using own key */}
+                  {shop.useOwnOpenAIKey && (
+                    <div style={{
+                      padding: "16px",
+                      borderRadius: "var(--radius-md)",
+                      backgroundColor: "var(--color-surface-strong)",
+                      border: "1px solid var(--color-border)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "12px",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+                          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                          <path d="M2 17l10 5 10-5"/>
+                          <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                          Model Selection
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        {/* Text Model */}
+                        <div>
+                          <label style={{ 
+                            display: "block",
+                            fontSize: "var(--text-xs)", 
+                            fontWeight: 500, 
+                            color: "var(--color-muted)",
+                            marginBottom: "6px",
+                          }}>
+                            Text Generation
+                          </label>
+                          <select
+                            value={shop.openaiTextModel || ""}
+                            onChange={(e) => {
+                              fetcher.submit(
+                                { 
+                                  intent: "update_openai_models", 
+                                  textModel: e.target.value,
+                                  imageModel: shop.openaiImageModel || "",
+                                },
+                                { method: "POST" }
+                              );
+                            }}
+                            className="input-elevated"
+                            style={{ fontSize: "var(--text-sm)" }}
+                          >
+                            <option value="">Default (GPT-4.1 Mini)</option>
+                            {OPENAI_TEXT_MODELS.map((model) => (
+                              <option key={model.id} value={model.id}>
+                                {model.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Image/Vision Model */}
+                        <div>
+                          <label style={{ 
+                            display: "block",
+                            fontSize: "var(--text-xs)", 
+                            fontWeight: 500, 
+                            color: "var(--color-muted)",
+                            marginBottom: "6px",
+                          }}>
+                            Image Analysis
+                          </label>
+                          <select
+                            value={shop.openaiImageModel || ""}
+                            onChange={(e) => {
+                              fetcher.submit(
+                                { 
+                                  intent: "update_openai_models", 
+                                  textModel: shop.openaiTextModel || "",
+                                  imageModel: e.target.value,
+                                },
+                                { method: "POST" }
+                              );
+                            }}
+                            className="input-elevated"
+                            style={{ fontSize: "var(--text-sm)" }}
+                          >
+                            <option value="">Default (GPT-4.1 Mini)</option>
+                            {OPENAI_IMAGE_MODELS.map((model) => (
+                              <option key={model.id} value={model.id}>
+                                {model.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                        Choose which OpenAI models to use with your API key. More capable models may cost more.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Remove button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm("Are you sure you want to remove your API key? AI features will use the app's default key (subject to credit limits).")) {
+                        fetcher.submit(
+                          { intent: "remove_openai_key" },
+                          { method: "POST" }
+                        );
+                      }
+                    }}
+                    style={{
+                      padding: "10px 16px",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 600,
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid var(--color-border)",
+                      background: "var(--color-surface)",
+                      color: "var(--color-text)",
+                      cursor: "pointer",
+                      transition: "all var(--transition-fast)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    Remove API Key
+                  </button>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    fetcher.submit(formData, { method: "POST" });
+                    e.currentTarget.reset();
+                  }}
+                  style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+                >
+                  <input type="hidden" name="intent" value="save_openai_key" />
+                  <input
+                    type="password"
+                    name="openaiApiKey"
+                    placeholder="sk-..."
+                    required
+                    className="input-elevated"
+                    style={{ fontFamily: "monospace" }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={fetcher.state !== "idle" || shop.plan === "free"}
+                    style={{
+                      padding: "10px 16px",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 600,
+                      borderRadius: "var(--radius-md)",
+                      border: "none",
+                      background: shop.plan === "free" ? "var(--color-surface-strong)" : "var(--gradient-primary)",
+                      color: shop.plan === "free" ? "var(--color-muted)" : "#fff",
+                      cursor: shop.plan === "free" ? "not-allowed" : "pointer",
+                      transition: "all var(--transition-fast)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      justifyContent: "center",
+                      opacity: fetcher.state !== "idle" ? 0.7 : 1,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                      <polyline points="17 21 17 13 7 13 7 21"/>
+                      <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    {fetcher.state !== "idle" ? "Saving..." : "Save API Key"}
+                  </button>
+                  {shop.plan === "free" && (
+                    <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)", textAlign: "center" }}>
+                      Upgrade to Starter or Pro to use your own API key
+                    </p>
+                  )}
+                </form>
+              )}
+
+              <div style={{
+                padding: "12px 16px",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--color-surface-strong)",
+                border: "1px solid var(--color-border)",
+              }}>
+                <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                  <strong>Security:</strong> Your API key is encrypted and stored securely. We never share or expose your key. 
+                  Get your key from{" "}
+                  <a 
+                    href="https://platform.openai.com/api-keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--color-primary)" }}
+                  >
+                    OpenAI Platform
+                  </a>.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Brand Voice (Pro only) */}
           <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>

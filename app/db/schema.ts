@@ -2,18 +2,8 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 
-// ============================================
-// Brand Voice Presets
-// ============================================
-export const BRAND_VOICE_PRESETS = [
-  "minimal",
-  "premium", 
-  "fun",
-  "technical",
-  "bold",
-] as const;
-
-export type BrandVoicePreset = typeof BRAND_VOICE_PRESETS[number];
+// Re-export brand voice presets from constants (can be used on both client and server)
+export { BRAND_VOICE_PRESETS, type BrandVoicePreset } from "../lib/constants";
 
 // ============================================
 // Session table (for Shopify session storage)
@@ -67,6 +57,15 @@ export const shops = sqliteTable("shops", {
   // AI usage tracking
   aiCreditsUsed: integer("ai_credits_used").default(0).notNull(),
   aiCreditsResetAt: integer("ai_credits_reset_at", { mode: "timestamp" }),
+  // Custom OpenAI API key (allows users to bring their own key)
+  openaiApiKey: text("openai_api_key"),
+  // Toggle to enable/disable using own API key (even if key is saved)
+  useOwnOpenAIKey: integer("use_own_openai_key", { mode: "boolean" }).default(true).notNull(),
+  // Custom model selection (only used when using own API key)
+  openaiTextModel: text("openai_text_model"), // e.g., "gpt-4o", "gpt-4o-mini", "gpt-4-turbo"
+  openaiImageModel: text("openai_image_model"), // e.g., "gpt-4o", "gpt-4o-mini" (for vision/alt text)
+  // Track usage when using own API key (after app credits exhausted)
+  ownKeyCreditsUsed: integer("own_key_credits_used").default(0).notNull(),
   // Audit limits (for free tier)
   auditsThisMonth: integer("audits_this_month").default(0).notNull(),
   auditsResetAt: integer("audits_reset_at", { mode: "timestamp" }),
