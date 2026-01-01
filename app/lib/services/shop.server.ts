@@ -127,7 +127,12 @@ export async function updateShopSettings(
     autoRunOnCreate?: boolean;
     autoRunOnUpdate?: boolean;
     defaultCollectionId?: string | null;
+    defaultTags?: string; // JSON string array
+    defaultMetafields?: string; // JSON string array
     versionHistoryEnabled?: boolean;
+    brandVoicePreset?: string | null;
+    brandVoiceNotes?: string | null;
+    activeTemplateId?: string | null;
   }
 ) {
   return db

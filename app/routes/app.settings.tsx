@@ -10,8 +10,10 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop, updateShopSettings } from "../lib/services/shop.server";
-import { db, checklistItems } from "../db";
+import { db, checklistItems, BRAND_VOICE_PRESETS, type BrandVoicePreset } from "../db";
 import { eq } from "drizzle-orm";
+import { BRAND_VOICE_PROFILES } from "../lib/ai/prompts";
+import { TEMPLATE_PRESETS } from "../lib/checklist/types";
 
 type VersionHistoryItem = {
   id: string;
@@ -55,16 +57,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const collectionsJson = await collectionsResponse.json();
   const collections = collectionsJson.data?.collections?.nodes ?? [];
 
+  // Parse default tags if set
+  let defaultTags: string[] = [];
+  if (shopRecord.defaultTags) {
+    try {
+      defaultTags = JSON.parse(shopRecord.defaultTags);
+    } catch {
+      defaultTags = [];
+    }
+  }
+
   return {
     shop: {
       autoRunOnCreate: shopRecord.autoRunOnCreate,
       autoRunOnUpdate: shopRecord.autoRunOnUpdate,
       defaultCollectionId: shopRecord.defaultCollectionId,
+      defaultTags,
       versionHistoryEnabled: shopRecord.versionHistoryEnabled ?? true,
       plan: effectivePlan,
+      brandVoicePreset: shopRecord.brandVoicePreset as BrandVoicePreset | null,
+      brandVoiceNotes: shopRecord.brandVoiceNotes ?? null,
     },
     template: template
       ? {
+          id: template.id,
+          name: template.name,
+          templateType: template.templateType,
           items: template.items
             .sort((a, b) => a.order - b.order)
             .map((item) => ({
@@ -73,10 +91,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               label: item.label,
               autoFixable: item.autoFixable,
               isEnabled: item.isEnabled,
+              weight: item.weight,
             })),
         }
       : null,
     collections,
+    templatePresets: TEMPLATE_PRESETS,
+    brandVoiceProfiles: BRAND_VOICE_PROFILES,
   };
 };
 
@@ -96,6 +117,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { success: true, message: "Saved" };
   }
 
+  if (intent === "update_brand_voice") {
+    const brandVoicePreset = (formData.get("brandVoicePreset") as string) || null;
+    const brandVoiceNotes = (formData.get("brandVoiceNotes") as string) || null;
+
+    await updateShopSettings(shop, { 
+      brandVoicePreset: brandVoicePreset as BrandVoicePreset | null, 
+      brandVoiceNotes 
+    });
+    return { success: true, message: "Brand voice saved" };
+  }
+
+  if (intent === "update_default_tags") {
+    const tagsString = (formData.get("defaultTags") as string) || "";
+    const tags = tagsString.split(",").map(t => t.trim()).filter(Boolean);
+    
+    await updateShopSettings(shop, { 
+      defaultTags: JSON.stringify(tags)
+    });
+    return { success: true, message: "Default tags saved" };
+  }
+
   if (intent === "toggle_item") {
     const itemId = formData.get("itemId") as string;
     const isEnabled = formData.get("isEnabled") === "true";
@@ -104,11 +146,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { success: true, message: "Updated" };
   }
 
+  if (intent === "update_item_weight") {
+    const itemId = formData.get("itemId") as string;
+    const weight = parseInt(formData.get("weight") as string, 10);
+
+    if (weight >= 1 && weight <= 10) {
+      await db.update(checklistItems).set({ weight, updatedAt: new Date() }).where(eq(checklistItems.id, itemId));
+      return { success: true, message: "Weight updated" };
+    }
+    return { success: false, message: "Invalid weight" };
+  }
+
   return { success: false };
 };
 
 export default function Settings() {
-  const { shop, template, collections } = useLoaderData<typeof loader>();
+  const { shop, template, collections, brandVoiceProfiles } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const versionFetcher = useFetcher();
   const navigate = useNavigate();
@@ -471,9 +524,192 @@ export default function Settings() {
               )}
             </div>
           </div>
+
+          {/* Default Tags */}
+          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "200ms", animationFillMode: "both" }}>
+            <h2 style={{ 
+              margin: "0 0 20px", 
+              fontFamily: "var(--font-heading)",
+              fontSize: "var(--text-xl)", 
+              fontWeight: 500,
+              color: "var(--color-text)",
+            }}>
+              Default Tags
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                These tags will be added when using "Apply Default Tags" auto-fix.
+              </p>
+              <input
+                type="text"
+                placeholder="Enter tags separated by commas"
+                defaultValue={shop.defaultTags?.join(", ") || ""}
+                className="input-elevated"
+                onBlur={(e) => {
+                  fetcher.submit(
+                    { intent: "update_default_tags", defaultTags: e.target.value },
+                    { method: "POST" }
+                  );
+                }}
+              />
+              {shop.defaultTags && shop.defaultTags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                  {shop.defaultTags.map((tag, i) => (
+                    <span key={i} style={{
+                      padding: "3px 10px",
+                      borderRadius: "var(--radius-full)",
+                      background: "var(--color-primary-soft)",
+                      color: "var(--color-primary)",
+                      fontSize: "11px",
+                      fontWeight: 500,
+                    }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Right Column - Checklist Rules */}
+        {/* Right Column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+          {/* Brand Voice (Pro only) */}
+          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontFamily: "var(--font-heading)",
+                fontSize: "var(--text-xl)", 
+                fontWeight: 500,
+                color: "var(--color-text)",
+              }}>
+                AI Brand Voice
+              </h2>
+              {shop.plan !== "pro" && (
+                <span style={{
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-full)",
+                  background: "rgba(167, 139, 250, 0.15)",
+                  color: "#8b5cf6",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                }}>
+                  PRO
+                </span>
+              )}
+            </div>
+            
+            {shop.plan !== "pro" ? (
+              <div style={{
+                padding: "16px",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--color-surface-strong)",
+                border: "1px solid var(--color-border)",
+              }}>
+                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                  AI Brand Voice profiles let you customize how AI generates content to match your brand's personality. Available on Pro plan.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Voice Preset */}
+                <div>
+                  <label style={{ 
+                    display: "block",
+                    fontSize: "var(--text-sm)", 
+                    fontWeight: 600, 
+                    color: "var(--color-text)",
+                    marginBottom: "8px",
+                  }}>
+                    Voice Preset
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px" }}>
+                    {BRAND_VOICE_PRESETS.map((preset) => {
+                      const profile = brandVoiceProfiles[preset];
+                      const isSelected = shop.brandVoicePreset === preset;
+                      return (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            fetcher.submit(
+                              { 
+                                intent: "update_brand_voice", 
+                                brandVoicePreset: preset,
+                                brandVoiceNotes: shop.brandVoiceNotes || "",
+                              },
+                              { method: "POST" }
+                            );
+                          }}
+                          style={{
+                            padding: "12px 8px",
+                            borderRadius: "var(--radius-md)",
+                            border: isSelected 
+                              ? "2px solid var(--color-primary)" 
+                              : "1px solid var(--color-border)",
+                            background: isSelected 
+                              ? "var(--color-primary-soft)" 
+                              : "var(--color-surface)",
+                            cursor: "pointer",
+                            transition: "all var(--transition-fast)",
+                            textAlign: "center",
+                          }}
+                        >
+                          <div style={{ 
+                            fontSize: "var(--text-sm)", 
+                            fontWeight: 600, 
+                            color: isSelected ? "var(--color-primary)" : "var(--color-text)",
+                            marginBottom: "2px",
+                          }}>
+                            {profile.name}
+                          </div>
+                          <div style={{ 
+                            fontSize: "9px", 
+                            color: "var(--color-muted)",
+                          }}>
+                            {profile.description}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Notes */}
+                <div>
+                  <label style={{ 
+                    display: "block",
+                    fontSize: "var(--text-sm)", 
+                    fontWeight: 600, 
+                    color: "var(--color-text)",
+                    marginBottom: "8px",
+                  }}>
+                    Custom Brand Notes (optional)
+                  </label>
+                  <textarea
+                    placeholder="Add specific instructions about your brand voice, e.g., 'Always mention our commitment to sustainability' or 'Use playful emojis sparingly'"
+                    defaultValue={shop.brandVoiceNotes || ""}
+                    className="input-elevated"
+                    rows={3}
+                    style={{ resize: "vertical" }}
+                    onBlur={(e) => {
+                      fetcher.submit(
+                        { 
+                          intent: "update_brand_voice", 
+                          brandVoicePreset: shop.brandVoicePreset || "",
+                          brandVoiceNotes: e.target.value,
+                        },
+                        { method: "POST" }
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Checklist Rules */}
         {template && (
           <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "150ms", animationFillMode: "both" }}>
             <h2 style={{ 
@@ -548,6 +784,7 @@ export default function Settings() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Version History Modal */}

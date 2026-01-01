@@ -6,7 +6,7 @@
 # Example: /app (for embedded apps) or https://yourapp.com/welcome (for external apps)
 
 client_id = "479c0f4598b92323ac11cc6cfe129112"
-name = "launch-ready"
+name = "Launch Ready"
 handle = "launch-ready"
 # Production URL on Google Cloud Run
 application_url = "https://launch-ready-539004348118.us-central1.run.app"

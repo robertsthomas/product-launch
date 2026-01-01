@@ -127,8 +127,8 @@ function CircularProgress({
         />
         <defs>
           <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="var(--color-primary)" />
-            <stop offset="100%" stopColor="var(--color-success)" />
+            <stop offset="0%" stopColor="#1F4FD8" />
+            <stop offset="100%" stopColor="#3BC9DB" />
           </linearGradient>
         </defs>
       </svg>
@@ -267,9 +267,12 @@ function ProductRow({
   audit, 
   onClick,
   delay = 0,
+  isSelected = false,
+  onToggleSelect,
 }: { 
   audit: {
     id: string;
+    productId: string;
     productTitle: string;
     productImage: string | null;
     status: string;
@@ -279,48 +282,104 @@ function ProductRow({
   };
   onClick: () => void;
   delay?: number;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100);
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
+      className="animate-fade-in-up"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="animate-fade-in-up"
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "16px",
-        padding: "14px 18px",
-        cursor: "pointer",
-        background: isHovered 
-          ? "linear-gradient(135deg, var(--color-surface-elevated), var(--color-surface))" 
-          : "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-lg)",
-        transition: "all var(--transition-base)",
-        boxShadow: isHovered ? "var(--shadow-card)" : "var(--shadow-sm)",
-        transform: isHovered ? "translateY(-1px)" : "translateY(0)",
+        gap: "8px",
         animationDelay: `${delay}ms`,
         animationFillMode: "both",
-        width: "100%",
-        textAlign: "left",
-        fontFamily: "inherit",
       }}
     >
-      {/* Product Image */}
+      {/* Selection Checkbox - always takes space, fades in/out */}
+      {onToggleSelect && (
+        <div
+          style={{
+            width: "20px",
+            height: "20px",
+            flexShrink: 0,
+            opacity: isHovered || isSelected ? 1 : 0,
+            transition: "opacity 0.15s ease",
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              width: "20px",
+              height: "20px",
+              borderRadius: "5px",
+              background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
+              border: isSelected ? "none" : "1.5px solid var(--color-border)",
+              transition: "all 0.15s ease",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onToggleSelect}
+              style={{
+                position: "absolute",
+                opacity: 0,
+                width: 0,
+                height: 0,
+              }}
+            />
+            {isSelected && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            )}
+          </label>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "14px",
+          padding: "12px 16px",
+          cursor: "pointer",
+          background: isSelected
+            ? "var(--color-primary-soft)"
+            : isHovered 
+              ? "var(--color-surface-elevated)" 
+              : "var(--color-surface)",
+          border: isSelected 
+            ? "1px solid rgba(31, 79, 216, 0.25)" 
+            : "1px solid var(--color-border)",
+          borderRadius: "12px",
+          transition: "all 0.15s ease",
+          boxShadow: isHovered && !isSelected ? "0 2px 8px rgba(0,0,0,0.04)" : "none",
+          flex: 1,
+          textAlign: "left",
+          fontFamily: "inherit",
+        }}
+      >
+        {/* Product Image */}
       <div
         style={{
-          width: "52px",
-          height: "52px",
-          borderRadius: "var(--radius-md)",
+          width: "44px",
+          height: "44px",
+          borderRadius: "8px",
           overflow: "hidden",
           backgroundColor: "var(--color-surface-strong)",
           flexShrink: 0,
-          border: "1px solid var(--color-border)",
         }}
       >
         {audit.productImage ? (
@@ -356,27 +415,26 @@ function ProductRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontWeight: 600,
-            fontSize: "var(--text-base)",
+            fontWeight: 500,
+            fontSize: "14px",
             color: "var(--color-text)",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            marginBottom: "6px",
+            marginBottom: "4px",
           }}
         >
           {audit.productTitle}
         </div>
         {/* Mini progress bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div
             style={{
-              flex: 1,
-              height: "4px",
+              width: "80px",
+              height: "3px",
               background: "var(--color-surface-strong)",
-              borderRadius: "var(--radius-full)",
+              borderRadius: "2px",
               overflow: "hidden",
-              maxWidth: "120px",
             }}
           >
             <div
@@ -386,12 +444,12 @@ function ProductRow({
                 background: audit.status === "ready" 
                   ? "var(--color-success)" 
                   : "var(--color-primary)",
-                borderRadius: "var(--radius-full)",
-                transition: "width var(--transition-slow)",
+                borderRadius: "2px",
+                transition: "width 0.3s ease",
               }}
             />
           </div>
-          <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+          <span style={{ fontSize: "12px", color: "var(--color-muted)", fontVariantNumeric: "tabular-nums" }}>
             {audit.passedCount}/{audit.totalCount}
           </span>
         </div>
@@ -400,35 +458,31 @@ function ProductRow({
       {/* Status Badge */}
       <div
         style={{
-          padding: "8px 14px",
-          borderRadius: "var(--radius-full)",
-          fontSize: "var(--text-sm)",
-          fontWeight: 600,
+          padding: "5px 10px",
+          borderRadius: "6px",
+          fontSize: "12px",
+          fontWeight: 500,
           backgroundColor: audit.status === "ready" 
-            ? "var(--color-success-soft)" 
-            : "var(--color-warning-soft)",
+            ? "rgba(34, 197, 94, 0.1)" 
+            : "rgba(251, 191, 36, 0.1)",
           color: audit.status === "ready" 
-            ? "var(--color-success)" 
-            : "var(--color-warning)",
+            ? "#16a34a" 
+            : "#d97706",
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
-          gap: "6px",
+          gap: "4px",
         }}
       >
         {audit.status === "ready" ? (
           <>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M20 6L9 17l-5-5" />
             </svg>
             Ready
           </>
         ) : (
           <>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4M12 16h.01" />
-            </svg>
             {audit.failedCount} to fix
           </>
         )}
@@ -436,8 +490,8 @@ function ProductRow({
 
       {/* Arrow */}
       <svg 
-        width="18" 
-        height="18" 
+        width="16" 
+        height="16" 
         viewBox="0 0 24 24" 
         fill="none" 
         stroke="currentColor" 
@@ -445,14 +499,16 @@ function ProductRow({
         aria-hidden="true"
         style={{ 
           color: "var(--color-subtle)",
-          transition: "transform var(--transition-fast), color var(--transition-fast)",
-          transform: isHovered ? "translateX(4px)" : "translateX(0)",
+          transition: "all 0.15s ease",
+          transform: isHovered ? "translateX(2px)" : "translateX(0)",
+          opacity: isHovered ? 1 : 0.5,
           flexShrink: 0,
         }}
       >
         <path d="M9 18l6-6-6-6" />
       </svg>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -501,12 +557,19 @@ function EmptyState({
 export default function Dashboard() {
   const { stats, audits } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
+  const bulkFetcher = useFetcher();
   const navigate = useNavigate();
   const shopify = useAppBridge();
   const [filter, setFilter] = useState<"all" | "ready" | "incomplete">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [sortBy, setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes");
+  
+  // Bulk selection state
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkAction, setBulkAction] = useState<string | null>(null);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Track scanning state
   useEffect(() => {
@@ -526,6 +589,56 @@ export default function Dashboard() {
       shopify.toast.show(`Scanned ${fetcher.data.scanned} products`);
     }
   }, [fetcher.data, shopify]);
+
+  // Handle bulk action response
+  useEffect(() => {
+    if (bulkFetcher.state === "idle" && bulkFetcher.data) {
+      const data = bulkFetcher.data as { success?: boolean; successCount?: number; errorCount?: number };
+      if (data.success) {
+        shopify.toast.show(`Bulk fix complete: ${data.successCount} succeeded, ${data.errorCount} failed`);
+        setSelectedProducts(new Set());
+        setShowBulkModal(false);
+        setBulkProgress(null);
+      }
+    }
+  }, [bulkFetcher.state, bulkFetcher.data, shopify]);
+
+  // Selection handlers
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const visibleIds = filteredAudits.map(a => a.productId);
+    setSelectedProducts(new Set(visibleIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedProducts(new Set());
+  };
+
+  const executeBulkAction = (action: string) => {
+    if (selectedProducts.size === 0) return;
+    
+    setBulkAction(action);
+    setBulkProgress({ current: 0, total: selectedProducts.size });
+    
+    bulkFetcher.submit(
+      {
+        intent: action,
+        productIds: JSON.stringify(Array.from(selectedProducts)),
+      },
+      { method: "POST", action: "/api/bulk-fix" }
+    );
+  };
 
   const filteredAudits = useMemo(() => {
     let filtered = audits.filter((audit) => {
@@ -567,43 +680,11 @@ export default function Dashboard() {
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "20px",
-        minHeight: "calc(100vh - 120px)",
+        height: "calc(100vh - 60px)",
+        overflow: "hidden",
+        padding: "0 24px",
       }}
     >
-      {/* Header Row */}
-      <div 
-        className="animate-fade-in-up"
-        style={{ 
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexShrink: 0,
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-2xl)",
-              fontWeight: 500,
-              color: "var(--color-text)",
-              margin: 0,
-            }}
-          >
-            Product Audits
-          </h1>
-          <p style={{ color: "var(--color-muted)", fontSize: "var(--text-sm)", margin: "4px 0 0" }}>
-            {stats.totalAudited === 0
-              ? "Scan your products to check launch readiness"
-              : stats.readyCount === stats.totalAudited
-                ? "All products are ready for launch"
-                : `${stats.incompleteCount} product${stats.incompleteCount !== 1 ? "s" : ""} need${stats.incompleteCount === 1 ? "s" : ""} attention`
-            }
-          </p>
-        </div>
-      </div>
-
       {/* Two Column Layout */}
       <div 
         className="animate-fade-in-up"
@@ -612,21 +693,17 @@ export default function Dashboard() {
           gridTemplateColumns: "1fr 320px",
           gap: "24px",
           flex: 1,
-          alignItems: "start",
+          minHeight: 0,
         }}
       >
         {/* Left Column - Products */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-          {/* Sticky Search & Filter Row with cover extension */}
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {/* Fixed Search & Filter Row */}
           <div 
             style={{ 
-              position: "sticky",
-              top: "-100px", /* Extend above viewport to cover scrolling content */
-              zIndex: 10,
-              background: "var(--color-bg)",
-              paddingTop: "108px", /* 100px cover + 8px actual padding */
+              flexShrink: 0,
+              paddingTop: "12px",
               paddingBottom: "12px",
-              marginTop: "-100px", /* Pull up to compensate for the cover */
             }}
           >
             <div 
@@ -642,28 +719,35 @@ export default function Dashboard() {
               }}
             >
               {/* Search */}
-              <div style={{ flex: 1, position: "relative" }}>
+              <div style={{ position: "relative", width: "180px" }}>
                 <input
-                  className="input-elevated"
                   type="text"
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{ 
-                    paddingLeft: "40px", 
-                    paddingRight: searchQuery ? "70px" : "14px",
+                    width: "100%",
+                    padding: "6px 10px 6px 32px",
+                    fontSize: "13px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
                     background: "var(--color-surface-strong)",
+                    color: "var(--color-text)",
+                    outline: "none",
+                    transition: "border-color 0.15s ease",
                   }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-primary)"}
+                  onBlur={(e) => e.currentTarget.style.borderColor = "var(--color-border)"}
                 />
                 <svg
                   aria-hidden="true"
                   style={{
                     position: "absolute",
-                    left: "12px",
+                    left: "10px",
                     top: "50%",
                     transform: "translateY(-50%)",
-                    width: "16px",
-                    height: "16px",
+                    width: "14px",
+                    height: "14px",
                     color: "var(--color-subtle)",
                   }}
                   fill="none"
@@ -678,23 +762,64 @@ export default function Dashboard() {
                     onClick={() => setSearchQuery("")}
                     style={{
                       position: "absolute",
-                      right: "8px",
+                      right: "6px",
                       top: "50%",
                       transform: "translateY(-50%)",
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-full)",
+                      background: "transparent",
+                      border: "none",
                       cursor: "pointer",
                       color: "var(--color-muted)",
-                      padding: "4px 8px",
-                      fontSize: "var(--text-xs)",
-                      fontWeight: 500,
+                      padding: "2px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    Clear
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
                   </button>
                 )}
               </div>
+
+              {/* Select All checkbox */}
+              <label style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "6px",
+                cursor: "pointer",
+                padding: "4px 8px",
+                borderRadius: "var(--radius-sm)",
+                background: selectedProducts.size > 0 ? "var(--color-primary-soft)" : "transparent",
+                minWidth: "44px",
+              }}>
+                <input
+                  type="checkbox"
+                  checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      selectAllVisible();
+                    } else {
+                      clearSelection();
+                    }
+                  }}
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    cursor: "pointer",
+                    accentColor: "var(--color-primary)",
+                  }}
+                />
+                <span style={{ 
+                  fontSize: "var(--text-xs)", 
+                  color: selectedProducts.size > 0 ? "var(--color-primary)" : "transparent", 
+                  fontWeight: 600,
+                  minWidth: "14px",
+                  fontVariantNumeric: "tabular-nums",
+                }}>
+                  {selectedProducts.size || "0"}
+                </span>
+              </label>
 
               {/* Filter Pills */}
               <div 
@@ -792,6 +917,7 @@ export default function Dashboard() {
             </div>
           </div>
 
+
           {/* Products List */}
           {filteredAudits.length === 0 ? (
             <div 
@@ -820,7 +946,7 @@ export default function Dashboard() {
                         alignItems: "center",
                         gap: "8px",
                         padding: "12px 24px",
-                        background: isScanning ? "var(--color-surface-strong)" : "var(--color-primary)",
+                        background: isScanning ? "var(--color-surface-strong)" : "var(--gradient-primary)",
                         color: isScanning ? "var(--color-muted)" : "#fff",
                         border: isScanning ? "1px solid var(--color-border)" : "none",
                         borderRadius: "var(--radius-full)",
@@ -828,6 +954,7 @@ export default function Dashboard() {
                         fontWeight: 600,
                         cursor: isScanning ? "not-allowed" : "pointer",
                         transition: "all var(--transition-fast)",
+                        boxShadow: isScanning ? "none" : "var(--shadow-primary-glow)",
                       }}
                     >
                       {isScanning ? (
@@ -883,10 +1010,15 @@ export default function Dashboard() {
             </div>
           ) : (
             <div 
+              className="products-scroll-container"
               style={{ 
+                flex: 1,
+                overflowY: "auto",
                 display: "flex",
                 flexDirection: "column",
-                gap: "8px",
+                gap: "6px",
+                paddingRight: "8px",
+                paddingBottom: "80px",
               }}
             >
               {filteredAudits.map((audit, index) => (
@@ -895,20 +1027,22 @@ export default function Dashboard() {
                   audit={audit}
                   onClick={() => navigate(`/app/products/${encodeURIComponent(audit.productId)}`)}
                   delay={Math.min(index * 20, 200)}
+                  isSelected={selectedProducts.has(audit.productId)}
+                  onToggleSelect={() => toggleProductSelection(audit.productId)}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {/* Right Column - Sticky Stats */}
+        {/* Right Column - Fixed Stats */}
         <div
           style={{
-            position: "sticky",
-            top: "80px",
             display: "flex",
             flexDirection: "column",
             gap: "16px",
+            paddingTop: "12px",
+            alignSelf: "start",
           }}
         >
           {/* Scan All Products Button */}
@@ -925,7 +1059,7 @@ export default function Dashboard() {
               justifyContent: "center",
               gap: "8px",
               padding: "12px 20px",
-              background: isScanning ? "var(--color-surface-strong)" : "var(--color-primary)",
+              background: isScanning ? "var(--color-surface-strong)" : "var(--gradient-primary)",
               color: isScanning ? "var(--color-muted)" : "#fff",
               border: isScanning ? "1px solid var(--color-border)" : "none",
               borderRadius: "var(--radius-lg)",
@@ -934,6 +1068,7 @@ export default function Dashboard() {
               cursor: isScanning ? "not-allowed" : "pointer",
               transition: "all var(--transition-fast)",
               width: "100%",
+              boxShadow: isScanning ? "none" : "var(--shadow-primary-glow)",
             }}
           >
             {isScanning ? (
@@ -1021,6 +1156,194 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Floating Bulk Actions Bar (light, minimal) */}
+      {selectedProducts.size > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 100,
+          }}
+        >
+          <div
+            className="animate-fade-in-up"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "2px",
+              padding: "6px",
+              background: "rgba(255, 255, 255, 0.92)",
+              backdropFilter: "blur(20px)",
+              borderRadius: "var(--radius-full)",
+              border: "1px solid rgba(17, 24, 39, 0.08)",
+              boxShadow: "0 10px 30px rgba(17, 24, 39, 0.12)",
+            }}
+          >
+            {/* Selection count */}
+            <div
+              style={{
+                padding: "8px 14px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--color-muted)",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                borderRight: "1px solid var(--color-border)",
+                marginRight: "4px",
+              }}
+            >
+              <span style={{ 
+                fontWeight: 600, 
+                color: "var(--color-text)",
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {selectedProducts.size}
+              </span>
+              selected
+            </div>
+
+            {/* Action buttons */}
+            <button
+              type="button"
+              onClick={() => executeBulkAction("apply_tags")}
+              disabled={bulkFetcher.state !== "idle"}
+              style={{
+                padding: "8px 14px",
+                background: "var(--color-primary)",
+                border: "1px solid var(--color-primary)",
+                borderRadius: "var(--radius-full)",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "#fff",
+                cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                transition: "all 0.15s ease",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => {
+                if (bulkFetcher.state === "idle") {
+                  e.currentTarget.style.background = "var(--color-primary-strong)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--color-primary)";
+              }}
+            >
+              Add Tags
+            </button>
+
+            <button
+              type="button"
+              onClick={() => executeBulkAction("generate_seo_desc")}
+              disabled={bulkFetcher.state !== "idle"}
+              style={{
+                padding: "8px 14px",
+                background: "transparent",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-full)",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--color-text)",
+                cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                transition: "all 0.15s ease",
+                whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+              onMouseEnter={(e) => {
+                if (bulkFetcher.state === "idle") {
+                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--color-text)";
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.7 }}>
+                <path d="M12 3v18M5 12h14" />
+              </svg>
+              SEO
+            </button>
+
+            <button
+              type="button"
+              onClick={() => executeBulkAction("generate_alt_text")}
+              disabled={bulkFetcher.state !== "idle"}
+              style={{
+                padding: "8px 14px",
+                background: "transparent",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-full)",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--color-text)",
+                cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                transition: "all 0.15s ease",
+                whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+              onMouseEnter={(e) => {
+                if (bulkFetcher.state === "idle") {
+                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--color-text)";
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.7 }}>
+                <path d="M12 3v18M5 12h14" />
+              </svg>
+              Alt Text
+            </button>
+
+            {/* Divider */}
+            <div style={{ width: "1px", height: "20px", background: "var(--color-border)", margin: "0 4px" }} />
+
+            {/* Clear button */}
+            <button
+              type="button"
+              onClick={clearSelection}
+              style={{
+                padding: "8px",
+                background: "transparent",
+                border: "none",
+                borderRadius: "var(--radius-full)",
+                color: "var(--color-muted)",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-surface-strong)";
+                e.currentTarget.style.color = "var(--color-text)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "var(--color-muted)";
+              }}
+              title="Clear selection"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

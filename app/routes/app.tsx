@@ -12,24 +12,48 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };
 
-// Rocket icon component for brand - business/launch focused
-function RocketIcon() {
+// Logo component - matches the original hexagon + checkmark + rocket logo
+function LogoIcon() {
   return (
-    <svg 
-      width="20" 
-      height="20" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-      style={{ color: "var(--color-primary)" }}
-    >
-      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
-      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
-      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+    <svg width="38" height="38" viewBox="0 0 40 40" fill="none">
+      <defs>
+        <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#2563eb" />
+          <stop offset="100%" stopColor="#0891b2" />
+        </linearGradient>
+        <linearGradient id="flameGrad" x1="50%" y1="100%" x2="50%" y2="0%">
+          <stop offset="0%" stopColor="#f97316" />
+          <stop offset="100%" stopColor="#fbbf24" />
+        </linearGradient>
+      </defs>
+      {/* Hexagon background */}
+      <path 
+        d="M20 2L36 11V29L20 38L4 29V11L20 2Z" 
+        fill="url(#hexGradient)"
+      />
+      {/* Inner glow/depth */}
+      <path 
+        d="M20 4L34 12V28L20 36L6 28V12L20 4Z" 
+        fill="url(#hexGradient)"
+        opacity="0.3"
+      />
+      {/* Checkmark */}
+      <path 
+        d="M12 20L17 25L28 14" 
+        stroke="white" 
+        strokeWidth="3" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* Rocket body */}
+      <g transform="translate(26, 5) rotate(45)">
+        <ellipse cx="4" cy="5" rx="3" ry="5" fill="white"/>
+        <path d="M2 9L4 13L6 9" fill="url(#flameGrad)"/>
+      </g>
+      {/* Sparkles */}
+      <circle cx="32" cy="10" r="1.2" fill="#67e8f9"/>
+      <circle cx="35" cy="6" r="0.8" fill="#fbbf24"/>
     </svg>
   );
 }
@@ -46,20 +70,7 @@ export default function App() {
         <header className="app-header">
           <div className="page-shell app-header-content" style={{ padding: "0 24px" }}>
             <div className="brand">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "var(--color-primary-soft)",
-                  border: "1px solid var(--color-border)",
-                }}
-              >
-                <RocketIcon />
-              </div>
+              {/* <LogoIcon /> */}
               <span className="brand-title">Launch Ready</span>
             </div>
             <nav style={{ display: "flex", gap: "8px" }}>
@@ -73,8 +84,8 @@ export default function App() {
                   fontSize: "var(--text-sm)",
                   fontWeight: 600,
                   color: isDashboard ? "#fff" : "var(--color-text)",
-                  background: isDashboard ? "var(--color-primary)" : "var(--color-surface)",
-                  border: `1px solid ${isDashboard ? "var(--color-primary)" : "var(--color-border)"}`,
+                  background: isDashboard ? "var(--gradient-primary)" : "var(--color-surface)",
+                  border: isDashboard ? "none" : "1px solid var(--color-border)",
                   transition: "all var(--transition-fast)",
                   textDecoration: "none",
                   boxShadow: isDashboard ? "var(--shadow-primary-glow)" : "none",
@@ -92,8 +103,8 @@ export default function App() {
                   fontSize: "var(--text-sm)",
                   fontWeight: 600,
                   color: isSettings ? "#fff" : "var(--color-text)",
-                  background: isSettings ? "var(--color-primary)" : "var(--color-surface)",
-                  border: `1px solid ${isSettings ? "var(--color-primary)" : "var(--color-border)"}`,
+                  background: isSettings ? "var(--gradient-primary)" : "var(--color-surface)",
+                  border: isSettings ? "none" : "1px solid var(--color-border)",
                   transition: "all var(--transition-fast)",
                   textDecoration: "none",
                   boxShadow: isSettings ? "var(--shadow-primary-glow)" : "none",

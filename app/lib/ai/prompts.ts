@@ -5,6 +5,84 @@
  * Organized by content type and product category for easy maintenance
  */
 
+import type { BrandVoicePreset } from "../../db/schema";
+
+// ============================================
+// Brand Voice Profiles
+// ============================================
+
+export const BRAND_VOICE_PROFILES: Record<BrandVoicePreset, {
+  name: string;
+  description: string;
+  tone: string;
+  vocabulary: string;
+  examples: string;
+}> = {
+  minimal: {
+    name: "Minimal",
+    description: "Clean, understated, less is more",
+    tone: "Simple, clean, understated. Let the product speak for itself.",
+    vocabulary: "Use short sentences. Avoid superlatives. Focus on essential details only. No fluff or marketing speak.",
+    examples: "Good: 'Organic cotton tee. Relaxed fit. Machine wash.' Bad: 'Absolutely stunning premium cotton t-shirt that will transform your wardrobe!'",
+  },
+  premium: {
+    name: "Premium",
+    description: "Luxurious, sophisticated, exclusive",
+    tone: "Sophisticated, refined, exclusive. Emphasize quality, craftsmanship, and timeless elegance.",
+    vocabulary: "Use words like: curated, artisanal, meticulously crafted, exceptional, refined, signature, heritage, distinguished. Avoid: cheap, basic, simple.",
+    examples: "Good: 'Meticulously crafted from the finest Italian leather, each piece embodies generations of artisanal expertise.' Bad: 'Nice leather bag.'",
+  },
+  fun: {
+    name: "Fun",
+    description: "Playful, energetic, approachable",
+    tone: "Playful, energetic, and approachable. Make shopping feel exciting and enjoyable.",
+    vocabulary: "Use casual language, action words, and enthusiasm. Emojis are okay sparingly. Words like: amazing, love, perfect, awesome, grab, snag, rock.",
+    examples: "Good: 'Ready to rock your next adventure? This bag has got you covered!' Bad: 'This bag is suitable for travel purposes.'",
+  },
+  technical: {
+    name: "Technical",
+    description: "Precise, detailed, specification-focused",
+    tone: "Precise, informative, and specification-focused. Appeal to detail-oriented buyers who research before purchasing.",
+    vocabulary: "Include measurements, materials, specs. Use technical terminology. Provide comparison points. Be factual over emotional.",
+    examples: "Good: 'Features 600D ripstop nylon, YKK zippers, 15L capacity, IPX4 water resistance rating.' Bad: 'Waterproof and durable!'",
+  },
+  bold: {
+    name: "Bold",
+    description: "Confident, assertive, attention-grabbing",
+    tone: "Confident, assertive, attention-grabbing. Make strong claims and stand out from competitors.",
+    vocabulary: "Use power words: revolutionary, game-changing, unrivaled, dominate, unstoppable, fearless. Short punchy sentences. Occasional all-caps for emphasis.",
+    examples: "Good: 'The ONLY bag you'll ever need. Period.' Bad: 'This is a nice bag that you might like.'",
+  },
+};
+
+/**
+ * Build brand voice instruction for AI prompts
+ */
+export function buildBrandVoiceInstruction(
+  preset?: BrandVoicePreset | null,
+  customNotes?: string | null
+): string {
+  if (!preset && !customNotes) {
+    return "";
+  }
+
+  let instruction = "\n\nBRAND VOICE GUIDELINES:\n";
+  
+  if (preset && BRAND_VOICE_PROFILES[preset]) {
+    const profile = BRAND_VOICE_PROFILES[preset];
+    instruction += `Tone: ${profile.tone}\n`;
+    instruction += `Style: ${profile.vocabulary}\n`;
+  }
+
+  if (customNotes?.trim()) {
+    instruction += `\nAdditional brand notes: ${customNotes.trim()}\n`;
+  }
+
+  instruction += "\nIMPORTANT: Apply these voice guidelines consistently while maintaining all other requirements.";
+  
+  return instruction;
+}
+
 // ============================================
 // Title Tag Engineering Formulas
 // ============================================
@@ -216,20 +294,33 @@ export function detectProductCategory(productType?: string | null, tags?: string
 }
 
 // ============================================
+// Brand Voice Context for prompts
+// ============================================
+
+export interface BrandVoiceContext {
+  preset?: BrandVoicePreset | null;
+  customNotes?: string | null;
+}
+
+// ============================================
 // Helper Functions for Prompt Construction
 // ============================================
 
-export function buildTitlePrompt(product: {
+export function buildTitlePrompt(
+  product: {
   title: string;
   productType?: string | null;
   vendor?: string | null;
   tags?: string[];
   descriptionHtml?: string | null;
-}) {
+  },
+  brandVoice?: BrandVoiceContext
+) {
   const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400);
   const category = detectProductCategory(product.productType, product.tags);
 
   const formula = TITLE_FORMULAS[category as keyof typeof TITLE_FORMULAS] || TITLE_FORMULAS.general;
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
 
   return `Create a compelling, search-optimized product title.
 
@@ -255,15 +346,20 @@ GOOD EXAMPLES:
 - "Nike Air Max 270 Men's Running Shoes - Black/White" (Footwear)
 - "Dior Poison Girl Eau de Parfum - 30ml" (Fragrance)
 - "Apple AirPods Pro Wireless Earbuds - White" (Electronics)
-- "La Mer The Moisturizing Cream - 30ml" (Skincare)`;
+- "La Mer The Moisturizing Cream - 30ml" (Skincare)${voiceInstruction}`;
 }
 
-export function buildSeoTitlePrompt(product: {
+export function buildSeoTitlePrompt(
+  product: {
   title: string;
   productType?: string | null;
   vendor?: string | null;
   tags?: string[];
-}) {
+  },
+  brandVoice?: BrandVoiceContext
+) {
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
+  
   return `Write a search-optimized meta title for this product page.
 
 PRODUCT INFO:
@@ -285,17 +381,21 @@ FORMAT: [Primary Keyword + Modifier] | [Brand or Benefit]
 EXAMPLES (note the character counts):
 - "Leather Wallets for Men | RFID Blocking | Free Shipping" (54 chars)
 - "Organic Cotton T-Shirt | Eco-Friendly & Sustainable" (51 chars)
-- "Professional Chef Knife Set | Premium German Steel" (50 chars)`;
+- "Professional Chef Knife Set | Premium German Steel" (50 chars)${voiceInstruction}`;
 }
 
-export function buildSeoDescriptionPrompt(product: {
+export function buildSeoDescriptionPrompt(
+  product: {
   title: string;
   productType?: string | null;
   vendor?: string | null;
   tags?: string[];
   descriptionHtml?: string | null;
-}) {
+  },
+  brandVoice?: BrandVoiceContext
+) {
   const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400);
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
 
   return `Write a compelling meta description that drives clicks from search results.
 
@@ -319,7 +419,7 @@ FORMULA: [Benefit hook] + [Key feature/keyword] + [Social proof or urgency] + [C
 
 EXAMPLES:
 - "Discover our premium leather wallet with RFID protection. Handcrafted for style & security. Free shipping on orders over $50. Shop now!" (134 chars)
-- "Transform your kitchen with this professional-grade chef knife. German steel blade stays sharp 10x longer. Order yours today!" (124 chars)`;
+- "Transform your kitchen with this professional-grade chef knife. German steel blade stays sharp 10x longer. Order yours today!" (124 chars)${voiceInstruction}`;
 }
 
 export function buildImagePrompt(product: {
@@ -394,14 +494,18 @@ EXAMPLES BY IMAGE TYPE:
 - Alternate angle: "Front and back view of minimalist cardholder in cognac leather"`;
 }
 
-export function buildProductDescriptionPrompt(product: {
+export function buildProductDescriptionPrompt(
+  product: {
   title: string;
   productType?: string | null;
   vendor?: string | null;
   tags?: string[];
   descriptionHtml?: string | null;
-}) {
+  },
+  brandVoice?: BrandVoiceContext
+) {
   const existingDesc = stripHtml(product.descriptionHtml || "");
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
 
   return `Write a conversion-optimized product description.
 
@@ -432,18 +536,24 @@ EXAMPLE STRUCTURE:
 
 [Key features presented as benefits - what they mean for the customer.]
 
-[Confidence builder and soft call-to-action.]"`;
+[Confidence builder and soft call-to-action.]"${voiceInstruction}`;
 }
 
-export function buildTagsPrompt(product: {
+export function buildTagsPrompt(
+  product: {
   title: string;
   productType?: string | null;
   vendor?: string | null;
   tags?: string[];
   descriptionHtml?: string | null;
   collections?: Array<{ title: string }>;
-}) {
+  },
+  brandVoice?: BrandVoiceContext
+) {
   const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400);
+  const voiceInstruction = brandVoice?.customNotes 
+    ? `\n\nBrand context: ${brandVoice.customNotes}` 
+    : "";
 
   return `Generate strategic, search-optimized tags for this product.
 
@@ -466,7 +576,7 @@ REQUIREMENTS:
 5. Output as comma-separated list ONLY
 
 EXAMPLE OUTPUT for a leather wallet:
-mens-wallet, rfid-blocking, genuine-leather, minimalist-wallet, gift-for-him, everyday-carry, slim-wallet, fathers-day-gift`;
+mens-wallet, rfid-blocking, genuine-leather, minimalist-wallet, gift-for-him, everyday-carry, slim-wallet, fathers-day-gift${voiceInstruction}`;
 }
 
 // Utility function

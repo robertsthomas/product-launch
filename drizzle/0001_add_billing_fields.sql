@@ -12,3 +12,5 @@ ALTER TABLE shops ADD COLUMN audits_reset_at INTEGER;
 
 
 
+
+

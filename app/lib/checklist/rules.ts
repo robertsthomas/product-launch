@@ -12,7 +12,9 @@ export const minTitleLengthRule: ChecklistRule = ({ product, config }) => {
   return {
     status: "failed",
     details: `Title is ${length} characters, minimum is ${min}.`,
-    canAutoFix: false,
+    canAutoFix: true,
+    fixType: "ai",
+    targetField: "title",
   };
 };
 
@@ -30,7 +32,9 @@ export const minDescriptionLengthRule: ChecklistRule = ({ product, config }) => 
   return {
     status: "failed",
     details: `Description is ${length} characters, minimum is ${min}.`,
-    canAutoFix: false,
+    canAutoFix: true,
+    fixType: "ai",
+    targetField: "description",
   };
 };
 
@@ -59,6 +63,8 @@ export const imagesHaveAltTextRule: ChecklistRule = ({ product }) => {
       status: "failed",
       details: "No images to check. Add images first.",
       canAutoFix: false,
+      fixType: "manual",
+      targetField: "images",
     };
   }
 
@@ -72,6 +78,8 @@ export const imagesHaveAltTextRule: ChecklistRule = ({ product }) => {
     status: "failed",
     details: `${missingAlt.length} of ${images.length} image${images.length !== 1 ? "s" : ""} missing alt text.`,
     canAutoFix: true,
+    fixType: "ai", // AI generates better alt text than template
+    targetField: "image_alt",
   };
 };
 
@@ -85,6 +93,8 @@ export const seoTitleRule: ChecklistRule = ({ product }) => {
     status: "failed",
     details: "SEO title is not set. Using product title as fallback.",
     canAutoFix: true,
+    fixType: "ai", // AI generates optimized SEO title
+    targetField: "seo_title",
   };
 };
 
@@ -103,6 +113,8 @@ export const seoDescriptionRule: ChecklistRule = ({ product, config }) => {
       status: "failed",
       details: "SEO description is not set.",
       canAutoFix: true,
+      fixType: "ai",
+      targetField: "seo_description",
     };
   }
 
@@ -110,6 +122,8 @@ export const seoDescriptionRule: ChecklistRule = ({ product, config }) => {
     status: "failed",
     details: `SEO description is ${length} characters, need at least ${minChars}.`,
     canAutoFix: true,
+    fixType: "ai",
+    targetField: "seo_description",
   };
 };
 
@@ -126,6 +140,8 @@ export const hasCollectionsRule: ChecklistRule = ({ product, config }) => {
     status: "failed",
     details: `Product is in ${count} collection${count !== 1 ? "s" : ""}, needs at least ${min}.`,
     canAutoFix: true,
+    fixType: "auto", // Auto-add to default collection
+    targetField: "collections",
   };
 };
 
@@ -167,7 +183,9 @@ export const hasTagsRule: ChecklistRule = ({ product, config }) => {
   return {
     status: "failed",
     details: `Product has ${count} tag${count !== 1 ? "s" : ""}, needs at least ${min}.`,
-    canAutoFix: false,
+    canAutoFix: true,
+    fixType: "auto", // Can add default tags
+    targetField: "tags",
   };
 };
 

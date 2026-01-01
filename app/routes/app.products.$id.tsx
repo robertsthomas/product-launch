@@ -524,25 +524,29 @@ function ImageAddDropdown({
         onClick={() => setIsOpen(!isOpen)}
         disabled={uploading}
         style={{
-          padding: "8px 16px",
-          fontSize: "var(--text-xs)",
-          fontWeight: 600,
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-full)",
-          backgroundColor: uploading ? "var(--color-surface-strong)" : "var(--color-surface)",
-          color: uploading ? "var(--color-subtle)" : "var(--color-text)",
+          padding: "4px 10px",
+          fontSize: "11px",
+          fontWeight: 500,
+          border: "none",
+          borderRadius: "var(--radius-sm)",
+          backgroundColor: "transparent",
+          color: uploading ? "var(--color-subtle)" : "var(--color-muted)",
           cursor: uploading ? "not-allowed" : "pointer",
           transition: "all var(--transition-fast)",
           display: "inline-flex",
           alignItems: "center",
-          gap: "6px",
+          gap: "4px",
         }}
+        onMouseEnter={(e) => { if (!uploading) e.currentTarget.style.color = "var(--color-text)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = uploading ? "var(--color-subtle)" : "var(--color-muted)"; }}
       >
-        {uploading ? "Uploading..." : "Add Images"}
-        {!uploading && (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M7 13l3 3 3-3M7 6l3 3 3-3"/>
-          </svg>
+        {uploading ? "Uploading..." : (
+          <>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            Add
+          </>
         )}
       </button>
 
@@ -866,11 +870,12 @@ function AIUpsellModal({
               fontWeight: 600,
               border: "none",
               borderRadius: "var(--radius-full)",
-              backgroundColor: "var(--color-primary)",
+              background: "var(--gradient-primary)",
               color: "#fff",
               cursor: "pointer",
               textDecoration: "none",
               transition: "all var(--transition-fast)",
+              boxShadow: "var(--shadow-primary-glow)",
             }}
           >
             <svg
@@ -1079,9 +1084,10 @@ function GenerateAllModal({
               fontWeight: 500,
               border: "none",
               borderRadius: "var(--radius-md)",
-              backgroundColor: (isGenerating || selectedFields.length === 0) ? "var(--color-subtle)" : "var(--color-primary)",
+              background: (isGenerating || selectedFields.length === 0) ? "var(--color-subtle)" : "var(--gradient-primary)",
               color: "#fff",
               cursor: (isGenerating || selectedFields.length === 0) ? "not-allowed" : "pointer",
+              boxShadow: (isGenerating || selectedFields.length === 0) ? "none" : "var(--shadow-primary-glow)",
             }}
           >
             {isGenerating ? "Generating..." : `Generate (${selectedFields.length})`}
@@ -1135,28 +1141,29 @@ function AIGenerateDropdown({
         onClick={() => !isGenerating && setIsOpen(!isOpen)}
         disabled={isGenerating}
         style={{
-          padding: "6px 12px",
-          fontSize: "var(--text-xs)",
-          fontWeight: 600,
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-full)",
-          background: "var(--color-surface)",
-          color: isGenerating ? "var(--color-subtle)" : "var(--color-primary)",
+          padding: "4px 10px",
+          fontSize: "11px",
+          fontWeight: 500,
+          border: "none",
+          borderRadius: "var(--radius-sm)",
+          background: "transparent",
+          color: isGenerating ? "var(--color-subtle)" : "var(--color-muted)",
           cursor: isGenerating ? "not-allowed" : "pointer",
           display: "flex",
           alignItems: "center",
-          gap: "6px",
+          gap: "4px",
           transition: "all var(--transition-fast)",
         }}
+        onMouseEnter={(e) => { if (!isGenerating) e.currentTarget.style.color = "var(--color-text)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = isGenerating ? "var(--color-subtle)" : "var(--color-muted)"; }}
       >
         {isGenerating && generatingMode ? (
           <>
-            <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+            <span className="loading-dots" style={{ transform: "scale(0.5)" }}>
               <span/>
               <span/>
               <span/>
             </span>
-            {/* Show "Generating" if field was empty, otherwise show mode-specific text */}
             {!hasContent ? "Generating" : (
               <>
                 {generatingMode === "expand" && "Expanding"}
@@ -1167,12 +1174,11 @@ function AIGenerateDropdown({
           </>
         ) : (
           <>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-              <path d="M19 2l-1 3l-3 1l3 1l1 3l1-3l3-1l-3-1l-1-3z" opacity="0.6"/>
             </svg>
-            Generate
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+            AI
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
               <path d="M6 9l6 6 6-6"/>
             </svg>
           </>
@@ -1312,45 +1318,48 @@ function EditableField({
   const inputId = useId();
 
   return (
-    <div style={{ marginBottom: "24px" }}>
+    <div style={{ marginBottom: "20px" }}>
       <div style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "10px"
+        marginBottom: "8px"
       }}>
         <label
           htmlFor={inputId}
           style={{
-          fontSize: "var(--text-sm)",
-          fontWeight: 600,
-          color: "var(--color-text)",
-          letterSpacing: "-0.01em",
+          fontSize: "var(--text-xs)",
+          fontWeight: 500,
+          color: "var(--color-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
         }}>
           {label}
         </label>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
           {canInlineRevert && onInlineRevert && (
             <button
               type="button"
               onClick={onInlineRevert}
               style={{
                 padding: "4px 8px",
-                fontSize: "var(--text-xs)",
+                fontSize: "11px",
                 fontWeight: 500,
-                border: "1px solid var(--color-warning)",
+                border: "none",
                 borderRadius: "var(--radius-sm)",
-                backgroundColor: "var(--color-warning-soft)",
-                color: "var(--color-warning-text)",
+                backgroundColor: "transparent",
+                color: "var(--color-muted)",
                 cursor: "pointer",
                 transition: "all var(--transition-fast)",
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
               title="Revert to original value"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                 <path d="M3 3v5h5"/>
               </svg>
@@ -1378,12 +1387,23 @@ function EditableField({
             onBlur={() => setIsFocused(false)}
             placeholder={placeholder}
             disabled={isGenerating}
-            className="input-elevated"
             style={{
-              minHeight: "140px",
+              width: "100%",
+              minHeight: "120px",
+              padding: "12px 14px",
+              fontSize: "var(--text-base)",
+              fontFamily: "var(--font-body)",
+              color: "var(--color-text)",
+              backgroundColor: "transparent",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
               resize: "vertical",
               opacity: isGenerating ? 0.6 : 1,
+              transition: "border-color var(--transition-fast)",
+              outline: "none",
             }}
+            onMouseEnter={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
+            onMouseLeave={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"; }}
           />
         ) : (
           <input
@@ -1396,49 +1416,54 @@ function EditableField({
             placeholder={placeholder}
             maxLength={maxLength}
             disabled={isGenerating}
-            className="input-elevated"
             style={{
+              width: "100%",
+              padding: "10px 14px",
+              fontSize: "var(--text-base)",
+              fontFamily: "var(--font-body)",
+              color: "var(--color-text)",
+              backgroundColor: "transparent",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
               opacity: isGenerating ? 0.6 : 1,
+              transition: "border-color var(--transition-fast)",
+              outline: "none",
             }}
+            onMouseEnter={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
+            onMouseLeave={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"; }}
           />
         )}
       </div>
       
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: "8px",
-        gap: "12px",
-      }}>
-        {helpText && (
-          <span style={{
-            color: "var(--color-muted)",
-            fontSize: "var(--text-xs)"
-          }}>
-            {helpText}
-          </span>
-        )}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {maxLength && (
+      {(helpText || maxLength) && (
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: "6px",
+          gap: "12px",
+        }}>
+          {helpText && (
             <span style={{
-              color: value.length > maxLength ? "var(--color-error)" : "var(--color-muted)",
-              fontWeight: value.length > maxLength ? 600 : 400,
-              fontSize: "var(--text-xs)",
+              color: "var(--color-subtle)",
+              fontSize: "11px"
             }}>
-              {value.length}/{maxLength}
+              {helpText}
             </span>
           )}
-          {fieldVersions && fieldVersions.length > 0 && field && productId && onRevert && (
-            <VersionHistoryDropdown
-              field={field}
-              versions={fieldVersions}
-              onRevert={onRevert}
-              productId={productId}
-            />
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto" }}>
+            {maxLength && (
+              <span style={{
+                color: value.length > maxLength * 0.9 ? (value.length > maxLength ? "var(--color-error)" : "var(--color-warning)") : "var(--color-subtle)",
+                fontWeight: 400,
+                fontSize: "11px",
+              }}>
+                {value.length}/{maxLength}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1639,56 +1664,51 @@ function TagsInput({
   };
 
   return (
-    <div style={{ marginBottom: "24px" }}>
+    <div style={{ marginBottom: "20px" }}>
       <div style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "10px"
+        marginBottom: "8px"
       }}>
         <label style={{
-          fontSize: "var(--text-sm)",
-          fontWeight: 600,
-          color: "var(--color-text)",
-          letterSpacing: "-0.01em",
+          fontSize: "var(--text-xs)",
+          fontWeight: 500,
+          color: "var(--color-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
         }}>
           Tags
         </label>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {canInlineRevert && onInlineRevert && (
             <button
               type="button"
               onClick={onInlineRevert}
               style={{
                 padding: "4px 8px",
-                fontSize: "var(--text-xs)",
+                fontSize: "11px",
                 fontWeight: 500,
-                border: "1px solid var(--color-warning)",
+                border: "none",
                 borderRadius: "var(--radius-sm)",
-                backgroundColor: "var(--color-warning-soft)",
-                color: "var(--color-warning-text)",
+                backgroundColor: "transparent",
+                color: "var(--color-muted)",
                 cursor: "pointer",
                 transition: "all var(--transition-fast)",
                 display: "flex",
                 alignItems: "center",
                 gap: "4px",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
               title="Revert to original value"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                 <path d="M3 3v5h5"/>
               </svg>
               Undo
             </button>
-          )}
-          {fieldVersions && fieldVersions.length > 0 && field && productId && onRevert && (
-            <VersionHistoryDropdown
-              field={field}
-              versions={fieldVersions}
-              onRevert={onRevert}
-              productId={productId}
-            />
           )}
           {showAI && onGenerateAI && (
             <AIGenerateDropdown
@@ -1701,12 +1721,11 @@ function TagsInput({
         </div>
       </div>
       
-      {/* Tags display */}
+      {/* Tags display - Minimal pills */}
       <div style={{
         display: "flex",
         flexWrap: "wrap",
-        gap: "8px",
-        marginBottom: "12px",
+        gap: "6px",
         opacity: isGenerating ? 0.5 : 1,
         transition: "opacity var(--transition-fast)",
       }}>
@@ -1717,15 +1736,14 @@ function TagsInput({
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
-              padding: "8px 14px",
-              backgroundColor: "var(--color-primary-soft)",
+              padding: "6px 12px",
+              backgroundColor: "var(--color-surface-strong)",
               borderRadius: "var(--radius-full)",
               fontSize: "var(--text-sm)",
-              color: "var(--color-primary)",
-              position: "relative",
+              color: "var(--color-text)",
               transition: "all var(--transition-fast)",
               userSelect: "none",
-              fontWeight: 500,
+              fontWeight: 400,
             }}
           >
             {tag}
@@ -1742,19 +1760,21 @@ function TagsInput({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "var(--color-primary)",
+                color: "var(--color-muted)",
                 borderRadius: "50%",
                 transition: "all var(--transition-fast)",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M18 6L6 18M6 6l12 12"/>
               </svg>
             </button>
           </span>
         ))}
 
-        {/* Add tag input or badge */}
+        {/* Add tag input or button - Minimal */}
         {isAddingTag ? (
           <input
             ref={inputRef}
@@ -1775,7 +1795,6 @@ function TagsInput({
             onBlur={() => {
               const trimmedValue = inputValue.trim();
               if (trimmedValue) {
-                // Add the tag directly instead of calling addTag to avoid state timing issues
                 const normalizedTag = trimmedValue.toLowerCase();
                 if (!tags.includes(normalizedTag)) {
                   onChange([...tags, normalizedTag]);
@@ -1789,16 +1808,15 @@ function TagsInput({
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              backgroundColor: "var(--color-primary-soft)",
-              border: "1px solid var(--color-primary)",
+              padding: "6px 12px",
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border-strong)",
               borderRadius: "var(--radius-full)",
               fontSize: "var(--text-sm)",
-              color: "var(--color-primary)",
+              color: "var(--color-text)",
               outline: "none",
-              minWidth: "120px",
-              fontWeight: 500,
+              minWidth: "100px",
+              fontWeight: 400,
             }}
           />
         ) : (
@@ -1810,23 +1828,33 @@ function TagsInput({
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              backgroundColor: isGenerating ? "var(--color-subtle)" : "var(--color-surface)",
-              border: `1px dashed ${isGenerating ? "var(--color-subtle)" : "var(--color-border)"}`,
+              gap: "4px",
+              padding: "6px 12px",
+              backgroundColor: "transparent",
+              border: "1px dashed var(--color-border)",
               borderRadius: "var(--radius-full)",
               fontSize: "var(--text-sm)",
-              color: isGenerating ? "var(--color-subtle)" : "var(--color-text)",
+              color: isGenerating ? "var(--color-subtle)" : "var(--color-muted)",
               cursor: isGenerating ? "default" : "pointer",
               transition: "all var(--transition-fast)",
               userSelect: "none",
-              fontWeight: 500,
+              fontWeight: 400,
+            }}
+            onMouseEnter={(e) => { 
+              if (!isGenerating) {
+                e.currentTarget.style.borderColor = "var(--color-border-strong)";
+                e.currentTarget.style.color = "var(--color-text)";
+              }
+            }}
+            onMouseLeave={(e) => { 
+              e.currentTarget.style.borderColor = "var(--color-border)";
+              e.currentTarget.style.color = isGenerating ? "var(--color-subtle)" : "var(--color-muted)";
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M12 5v14M5 12h14"/>
             </svg>
-            Add tag
+            Add
           </button>
         )}
       </div>
@@ -2011,7 +2039,7 @@ function ImageManager({
   }, [onOpenImagePromptModal]);
 
   return (
-    <div style={{ marginBottom: "24px" }}>
+    <div>
       <div style={{ 
         display: "flex", 
         justifyContent: "space-between", 
@@ -2019,12 +2047,13 @@ function ImageManager({
         marginBottom: "16px" 
       }}>
         <label style={{ 
-          fontSize: "var(--text-sm)", 
-          fontWeight: 600, 
-          color: "var(--color-text)",
-          letterSpacing: "-0.01em",
+          fontSize: "var(--text-xs)",
+          fontWeight: 500,
+          color: "var(--color-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
         }}>
-          Product Images ({images.length})
+          Images {images.length > 0 && `(${images.length})`}
         </label>
         <ImageAddDropdown
           aiAvailable={aiAvailable}
@@ -2044,28 +2073,16 @@ function ImageManager({
 
       {images.length === 0 ? (
         <div style={{
-          border: "2px dashed var(--color-border)",
+          border: "1px dashed var(--color-border)",
           borderRadius: "var(--radius-lg)",
-          padding: "48px",
+          padding: "40px",
           textAlign: "center",
-          backgroundColor: "var(--color-surface-strong)",
         }}>
-          <div style={{ 
-            width: "64px",
-            height: "64px",
-            margin: "0 auto 16px",
-            borderRadius: "50%",
-            background: "var(--color-surface)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-muted)" strokeWidth="1.5" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <path d="M21 15l-5-5L5 21"/>
-            </svg>
-          </div>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-subtle)" strokeWidth="1" style={{ marginBottom: "12px" }}>
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
           <div style={{ color: "var(--color-muted)", fontSize: "var(--text-sm)", marginBottom: "16px" }}>
             No images yet
           </div>
@@ -2073,23 +2090,24 @@ function ImageManager({
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "8px",
-              padding: "10px 20px",
+              gap: "6px",
+              padding: "8px 16px",
               fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              border: "1px solid var(--color-primary)",
+              fontWeight: 500,
+              border: "1px solid var(--color-border)",
               borderRadius: "var(--radius-full)",
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-primary)",
+              backgroundColor: "transparent",
+              color: "var(--color-text)",
               cursor: "pointer",
+              transition: "all var(--transition-fast)",
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Upload Image
+            Upload
             <input
               type="file"
               accept="image/*"
@@ -2102,8 +2120,8 @@ function ImageManager({
       ) : (
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-          gap: "16px",
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          gap: "12px",
         }}>
           {generatingImage && (
             <div
@@ -2153,12 +2171,9 @@ function ImageManager({
               key={image.id}
               style={{
                 position: "relative",
-                borderRadius: "var(--radius-lg)",
+                borderRadius: "var(--radius-md)",
                 overflow: "hidden",
-                border: featuredImageId === image.id 
-                  ? "2px solid var(--color-primary)" 
-                  : "1px solid var(--color-border)",
-                backgroundColor: "var(--color-surface)",
+                backgroundColor: "var(--color-surface-strong)",
                 transition: "all var(--transition-fast)",
               }}
             >
@@ -2167,7 +2182,6 @@ function ImageManager({
                 width: "100%",
                 paddingTop: "100%",
                 position: "relative",
-                backgroundColor: "var(--color-surface-strong)",
               }}>
                 <img
                   src={image.url}
@@ -2183,18 +2197,18 @@ function ImageManager({
                 />
               </div>
 
-              {/* Featured Badge */}
+              {/* Featured Badge - Minimal */}
               {featuredImageId === image.id && (
                 <div style={{
                   position: "absolute",
-                  top: "8px",
-                  left: "8px",
-                  padding: "4px 10px",
-                  fontSize: "var(--text-xs)",
-                  fontWeight: 700,
-                  backgroundColor: "var(--color-primary)",
+                  top: "6px",
+                  left: "6px",
+                  padding: "3px 8px",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  background: "rgba(0, 0, 0, 0.7)",
                   color: "#fff",
-                  borderRadius: "var(--radius-full)",
+                  borderRadius: "var(--radius-sm)",
                   textTransform: "uppercase",
                   letterSpacing: "0.03em",
                 }}>
@@ -2205,8 +2219,8 @@ function ImageManager({
               {/* Actions */}
               <div style={{
                 position: "absolute",
-                top: "8px",
-                right: "8px",
+                top: "6px",
+                right: "6px",
               }}>
                 <ImageActionsDropdown
                   imageId={image.id}
@@ -2221,11 +2235,10 @@ function ImageManager({
                 />
               </div>
 
-              {/* Alt Text Editor */}
+              {/* Alt Text Editor - Minimal */}
               <div style={{
-                padding: "12px",
+                padding: "10px",
                 backgroundColor: "var(--color-surface)",
-                borderTop: "1px solid var(--color-border)",
               }}>
                 {editingAlt === image.id ? (
                   <div>
@@ -2239,11 +2252,12 @@ function ImageManager({
                       placeholder="Alt text..."
                       style={{
                         width: "100%",
-                        padding: "6px 10px",
-                        fontSize: "var(--text-xs)",
+                        padding: "6px 8px",
+                        fontSize: "11px",
                         border: "1px solid var(--color-border)",
                         borderRadius: "var(--radius-sm)",
                         marginBottom: "6px",
+                        outline: "none",
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleSaveAlt(image.id);
@@ -2256,13 +2270,13 @@ function ImageManager({
                         onClick={() => handleSaveAlt(image.id)}
                         style={{
                           flex: 1,
-                          padding: "5px 8px",
-                          fontSize: "var(--text-xs)",
-                          fontWeight: 600,
+                          padding: "4px 8px",
+                          fontSize: "11px",
+                          fontWeight: 500,
                           border: "none",
                           borderRadius: "var(--radius-sm)",
-                          backgroundColor: "var(--color-primary)",
-                          color: "#fff",
+                          background: "var(--color-text)",
+                          color: "var(--color-surface)",
                           cursor: "pointer",
                         }}
                       >
@@ -2273,12 +2287,12 @@ function ImageManager({
                         onClick={() => setEditingAlt(null)}
                         style={{
                           flex: 1,
-                          padding: "5px 8px",
-                          fontSize: "var(--text-xs)",
-                          fontWeight: 600,
+                          padding: "4px 8px",
+                          fontSize: "11px",
+                          fontWeight: 500,
                           border: "1px solid var(--color-border)",
                           borderRadius: "var(--radius-sm)",
-                          backgroundColor: "var(--color-surface)",
+                          backgroundColor: "transparent",
                           color: "var(--color-text)",
                           cursor: "pointer",
                         }}
@@ -2288,21 +2302,17 @@ function ImageManager({
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "var(--text-xs)",
-                        color: image.altText ? "var(--color-text)" : "var(--color-subtle)",
-                        marginBottom: "8px",
-                        minHeight: "14px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={image.altText || "No alt text"}
-                    >
-                      {image.altText || "No alt text"}
-                    </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: image.altText ? "var(--color-muted)" : "var(--color-subtle)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={image.altText || "No alt text"}
+                  >
+                    {image.altText || "No alt text"}
                   </div>
                 )}
               </div>
@@ -2379,54 +2389,30 @@ function ChecklistSidebar({
 
   return (
     <div>
-      <h3 style={{ 
-        margin: "0 0 20px", 
-        fontFamily: "var(--font-heading)",
-        fontSize: "var(--text-lg)", 
-        fontWeight: 500,
-        color: "var(--color-text)",
-      }}>
-        Launch Checklist
-      </h3>
-      
-      {/* Progress */}
-      <div style={{ marginBottom: "24px" }}>
+      {/* Progress - Minimal */}
+      <div style={{ marginBottom: "20px" }}>
         <div style={{ 
           display: "flex", 
           justifyContent: "space-between",
-          marginBottom: "12px",
-          fontSize: "var(--text-sm)",
+          alignItems: "baseline",
+          marginBottom: "8px",
         }}>
           <span style={{ 
-            color: audit.status === "ready" ? "var(--color-success)" : "var(--color-warning)",
+            fontSize: "var(--text-sm)", 
             fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
+            color: "var(--color-text)",
           }}>
-            {audit.status === "ready" ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                  <path d="M20 6L9 17l-5-5"/>
-                </svg>
-                Ready
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="M12 8v4M12 16h.01"/>
-                </svg>
-                {audit.failedCount} to fix
-              </>
-            )}
+            Checklist
           </span>
-          <span style={{ color: "var(--color-muted)", fontWeight: 500 }}>
+          <span style={{ 
+            fontSize: "var(--text-xs)", 
+            color: "var(--color-muted)",
+          }}>
             {audit.passedCount}/{audit.totalCount}
           </span>
         </div>
         <div style={{
-          height: "8px",
+          height: "4px",
           backgroundColor: "var(--color-surface-strong)",
           borderRadius: "var(--radius-full)",
           overflow: "hidden",
@@ -2435,83 +2421,83 @@ function ChecklistSidebar({
             height: "100%",
             width: `${progressPercent}%`,
             background: audit.status === "ready" 
-              ? "linear-gradient(90deg, var(--color-success), var(--color-success-strong))"
-              : "linear-gradient(90deg, var(--color-primary), var(--color-warning))",
+              ? "var(--color-success)"
+              : "var(--color-text)",
             transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
             borderRadius: "var(--radius-full)",
           }} />
         </div>
+        {audit.status !== "ready" && (
+          <p style={{
+            margin: "8px 0 0",
+            fontSize: "var(--text-xs)",
+            color: "var(--color-muted)",
+          }}>
+            {audit.failedCount} item{audit.failedCount !== 1 ? 's' : ''} to complete
+          </p>
+        )}
       </div>
-
-      {/* Items */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      
+      {/* Items - Minimal list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
         {audit.items.map((item, index) => {
           const isExternalOnly = item.key === "has_collections";
           
           return (
             <div
               key={item.key}
-              className="animate-fade-in-up"
               style={{
                 display: "flex",
-                alignItems: "flex-start",
-                gap: "12px",
+                alignItems: "center",
+                gap: "10px",
                 fontSize: "var(--text-sm)",
-                padding: "12px",
-                background: item.status === "passed" ? "var(--color-success-soft)" : "var(--color-surface-strong)",
-                borderRadius: "var(--radius-md)",
-                animationDelay: `${index * 30}ms`,
-                animationFillMode: "both",
+                padding: "10px 8px",
+                borderRadius: "var(--radius-sm)",
                 border: "none",
                 width: "100%",
                 textAlign: "left",
                 cursor: isExternalOnly ? "default" : "pointer",
-                transition: isExternalOnly ? "none" : "all var(--transition-fast)",
+                transition: "background var(--transition-fast)",
               }}
               onClick={() => !isExternalOnly && onItemClick?.(item.key)}
               onMouseEnter={(e) => {
                 if (!isExternalOnly) {
-                  e.currentTarget.style.transform = "translateX(4px)";
-                  e.currentTarget.style.boxShadow = "var(--shadow-soft)";
+                  e.currentTarget.style.background = "var(--color-surface-strong)";
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isExternalOnly) {
-                  e.currentTarget.style.transform = "translateX(0)";
-                  e.currentTarget.style.boxShadow = "none";
-                }
+                e.currentTarget.style.background = "transparent";
               }}
             >
               <span style={{
-                width: "20px",
-                height: "20px",
+                width: "16px",
+                height: "16px",
                 borderRadius: "50%",
-                background: item.status === "passed" ? "var(--color-success)" : "var(--color-border)",
+                border: item.status === "passed" ? "none" : "1.5px solid var(--color-border-strong)",
+                background: item.status === "passed" ? "var(--color-success)" : "transparent",
                 color: item.status === "passed" ? "#fff" : "var(--color-muted)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}>
-                {item.status === "passed" ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
+                {item.status === "passed" && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <path d="M20 6L9 17l-5-5"/>
-                  </svg>
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    <circle cx="12" cy="12" r="4"/>
                   </svg>
                 )}
               </span>
               <span style={{ 
-                color: item.status === "passed" ? "var(--color-success-strong)" : "var(--color-text)",
-                lineHeight: "1.5",
-                fontWeight: item.status === "passed" ? 400 : 500,
+                color: item.status === "passed" ? "var(--color-muted)" : "var(--color-text)",
+                lineHeight: "1.4",
+                fontWeight: 400,
                 flex: 1,
+                textDecoration: item.status === "passed" ? "line-through" : "none",
+                opacity: item.status === "passed" ? 0.7 : 1,
               }}>
                 {item.label}
               </span>
-              {isExternalOnly && item.status === "failed" && canAutoFixCollection ? (
+              {isExternalOnly && item.status === "failed" && canAutoFixCollection && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -2519,109 +2505,74 @@ function ChecklistSidebar({
                     onAutoFixCollection?.();
                   }}
                   style={{
-                    padding: "4px 8px",
-                    fontSize: "9px",
+                    padding: "3px 8px",
+                    fontSize: "10px",
                     fontWeight: 600,
-                    borderRadius: "var(--radius-full)",
+                    borderRadius: "var(--radius-sm)",
                     border: "none",
-                    background: "var(--color-primary)",
-                    color: "#fff",
+                    background: "var(--color-text)",
+                    color: "var(--color-surface)",
                     cursor: "pointer",
-                    transition: "all var(--transition-fast)",
+                    transition: "opacity var(--transition-fast)",
                     whiteSpace: "nowrap",
-                    boxShadow: "0 2px 6px rgba(59, 130, 246, 0.35)",
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = "0 4px 10px rgba(59, 130, 246, 0.5)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = "0 2px 6px rgba(59, 130, 246, 0.35)";
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.8"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
                 >
-                  Auto-fix
+                  Fix
                 </button>
-              ) : isExternalOnly ? (
-                <svg 
-                  width="14" 
-                  height="14" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2"
-                  aria-hidden="true"
-                  style={{ 
-                    color: "var(--color-subtle)", 
-                    flexShrink: 0,
-                    opacity: 0.5,
-                  }}
-                >
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-              ) : (
-                <svg 
-                  width="14" 
-                  height="14" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2"
-                  aria-hidden="true"
-                  style={{ 
-                    color: "var(--color-subtle)", 
-                    flexShrink: 0,
-                    opacity: 0.5,
-                  }}
-                >
-                  <path d="M9 18l6-6-6-6"/>
-                </svg>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Rescan Button */}
+      {/* Rescan - Minimal text button */}
       {onRescan && (
         <button
           type="button"
           onClick={onRescan}
           disabled={isRescanning}
           style={{
-            marginTop: "24px",
+            marginTop: "16px",
             width: "100%",
-            padding: "12px 16px",
-            fontSize: "var(--text-sm)",
-            fontWeight: 600,
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-full)",
-            backgroundColor: "var(--color-surface)",
-            color: isRescanning ? "var(--color-subtle)" : "var(--color-text)",
+            padding: "10px",
+            fontSize: "var(--text-xs)",
+            fontWeight: 500,
+            border: "none",
+            borderRadius: "var(--radius-sm)",
+            backgroundColor: "transparent",
+            color: isRescanning ? "var(--color-subtle)" : "var(--color-muted)",
             cursor: isRescanning ? "not-allowed" : "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "8px",
+            gap: "6px",
             transition: "all var(--transition-fast)",
+          }}
+          onMouseEnter={(e) => { 
+            if (!isRescanning) e.currentTarget.style.color = "var(--color-text)"; 
+          }}
+          onMouseLeave={(e) => { 
+            e.currentTarget.style.color = isRescanning ? "var(--color-subtle)" : "var(--color-muted)"; 
           }}
         >
           {isRescanning ? (
             <>
-              <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
+              <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
                 <span/>
                 <span/>
                 <span/>
               </span>
-              Rescanning...
+              Rescanning
             </>
           ) : (
             <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M1 4v6h6M23 20v-6h-6"/>
                 <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
               </svg>
-              Rescan checklist
+              Rescan
             </>
           )}
         </button>
@@ -2629,6 +2580,8 @@ function ChecklistSidebar({
     </div>
   );
 }
+
+// Unused old code removed - new minimal design implemented above
 
 // ============================================
 // Main Component
@@ -2693,35 +2646,7 @@ export default function ProductEditor() {
 
   const [generatingImage, setGeneratingImage] = useState(false);
 
-  // Handle checklist item click - scroll to and highlight section
-  const handleChecklistItemClick = useCallback((key: string) => {
-    const sectionId = CHECKLIST_KEY_TO_SECTION[key];
-    
-    // Handle items that aren't editable on this page - open in Shopify admin
-    if (sectionId === null) {
-      if (key === "has_collections") {
-        fetcher.submit({ intent: "open_product" }, { method: "POST" });
-      }
-      return;
-    }
-    
-    if (!sectionId) return;
-
-    const element = document.getElementById(sectionId);
-    if (element) {
-      // Scroll to element with offset for header
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-      
-      // Highlight the section
-      setHighlightedSection(sectionId);
-      
-      // Remove highlight after animation
-      setTimeout(() => {
-        setHighlightedSection(null);
-      }, 2000);
-    }
-  }, [fetcher]);
-
+  // Detect changes
   useEffect(() => {
     const originalDesc = product.descriptionHtml.replace(/<[^>]*>/g, "");
     const changed =
@@ -2735,7 +2660,7 @@ export default function ProductEditor() {
     setHasChanges(changed);
   }, [form, product]);
 
-  // Warn user before leaving page with unsaved changes (browser close/refresh)
+  // Warn user before leaving page with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasChanges) {
@@ -2744,15 +2669,12 @@ export default function ProductEditor() {
         return e.returnValue;
       }
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasChanges]);
 
   // Block in-app navigation when there are unsaved changes
   const blocker = useBlocker(hasChanges);
-
-  // State for unsaved changes dialog
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
   useEffect(() => {
@@ -2764,7 +2686,6 @@ export default function ProductEditor() {
   useEffect(() => {
     if (fetcher.data?.message) {
       shopify.toast.show(fetcher.data.message);
-      // Clear pre-generation state after successful save
       setPreGenerationValues({});
       setAiGeneratedFields(new Set());
     }
@@ -2803,15 +2724,12 @@ export default function ProductEditor() {
     field: string,
     mode: AIGenerateMode
   ) => {
-    // Save current value for potential revert (only if not already saved)
     const currentValue = form[field as keyof typeof form];
     if (currentValue && !preGenerationValues[field]) {
       setPreGenerationValues(prev => ({ ...prev, [field]: currentValue }));
     }
 
-    // Add field to generating set to show overlay
     setGenerating(prev => new Set([...prev, field]));
-    // Set generating mode for overlay text
     setGeneratingModes(prev => ({ ...prev, [field]: mode }));
 
     const formData = new FormData();
@@ -2824,7 +2742,6 @@ export default function ProductEditor() {
     })
       .then(response => response.json())
       .then(data => {
-        // Remove field from generating set and modes
         setGenerating(currentGenerating => {
           const next = new Set(currentGenerating);
           next.delete(field);
@@ -2843,7 +2760,6 @@ export default function ProductEditor() {
             message: data.error,
           });
         } else {
-          // Apply the generated content directly
           if (type === "tags") {
             const tags = Array.isArray(data.suggestion)
               ? data.suggestion
@@ -2852,13 +2768,11 @@ export default function ProductEditor() {
           } else {
             updateField(field, data.suggestion);
           }
-          // Mark field as AI-generated (for inline revert)
           setAiGeneratedFields(prev => new Set([...prev, field]));
           shopify.toast.show("Applied!");
         }
       })
       .catch(() => {
-        // Remove field from generating set and modes
         setGenerating(currentGenerating => {
           const next = new Set(currentGenerating);
           next.delete(field);
@@ -2876,18 +2790,15 @@ export default function ProductEditor() {
       });
   }, [product.id, updateField, shopify, form, preGenerationValues]);
 
-  // Revert to pre-generation value (inline, before save)
   const revertToPreGeneration = useCallback((field: string) => {
     const originalValue = preGenerationValues[field];
     if (originalValue !== undefined) {
       updateField(field, originalValue);
-      // Remove from AI-generated tracking
       setAiGeneratedFields(prev => {
         const next = new Set(prev);
         next.delete(field);
         return next;
       });
-      // Remove from pre-generation values
       setPreGenerationValues(prev => {
         const next = { ...prev };
         delete next[field];
@@ -2897,6 +2808,26 @@ export default function ProductEditor() {
     }
   }, [preGenerationValues, updateField, shopify]);
 
+  // Handle checklist item click - scroll to and highlight section
+  const handleChecklistItemClick = useCallback((key: string) => {
+    const sectionId = CHECKLIST_KEY_TO_SECTION[key];
+    
+    // Handle items that aren't editable on this page - open in Shopify admin
+    if (sectionId === null) {
+      if (key === "has_collections") {
+        fetcher.submit({ intent: "open_product" }, { method: "POST" });
+      }
+      return;
+    }
+    
+    if (!sectionId) return;
+
+    const element = document.getElementById(sectionId);
+    if (element) {
+      // Scroll to element with offset for header
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [fetcher]);
 
   const closeImagePromptModal = useCallback(() => {
     setImagePromptModal(prev => ({
@@ -3064,19 +2995,25 @@ export default function ProductEditor() {
   const isRescanning = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px", minHeight: "100%" }}>
-      {/* Page Header */}
-      <div 
-        className="animate-fade-in-up"
-        style={{ 
-          display: "flex", 
-          alignItems: "center", 
+    <div style={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      gap: "32px", 
+      minHeight: "100%",
+      maxWidth: "1200px",
+      margin: "0 auto",
+      padding: "8px 0 48px",
+    }}>
+      {/* Page Header - Minimal */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
           justifyContent: "space-between",
           gap: "16px",
-          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <button
             type="button"
             onClick={() => navigate("/app")}
@@ -3086,132 +3023,122 @@ export default function ProductEditor() {
               justifyContent: "center",
               width: "36px",
               height: "36px",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--color-border)",
-              background: "var(--color-surface)",
+              borderRadius: "50%",
+              border: "none",
+              background: "transparent",
               cursor: "pointer",
               color: "var(--color-muted)",
               transition: "all var(--transition-fast)",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             aria-label="Back to dashboard"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
           </button>
           <div>
             <h1 style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)",
+              fontSize: "var(--text-2xl)",
               fontWeight: 600,
               color: "var(--color-text)",
               margin: 0,
+              letterSpacing: "-0.02em",
             }}>
               {product.title}
             </h1>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
-              <span 
-                style={{ 
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  padding: "3px 10px",
-                  borderRadius: "var(--radius-full)",
-                  fontSize: "var(--text-xs)",
-                  fontWeight: 600,
-                  background: audit?.status === "ready" ? "var(--color-success-soft)" : "var(--color-warning-soft)", 
-                  color: audit?.status === "ready" ? "var(--color-success)" : "var(--color-warning)",
-                }}
-              >
-                {audit?.status === "ready" ? (
-                  <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg> Ready</>
-                ) : (
-                  <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg> {audit?.failedCount ?? 0} to fix</>
-                )}
-              </span>
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                {audit?.passedCount ?? 0}/{audit?.totalCount ?? 0} checks passed
-              </span>
-            </div>
+            <p style={{
+              margin: "4px 0 0",
+              fontSize: "var(--text-sm)",
+              color: "var(--color-muted)",
+            }}>
+              Edit product details
+            </p>
           </div>
+        </div>
+        
+        {/* Header Actions - Moved here for cleaner look */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button
+            type="button"
+            onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
+            style={{
+              padding: "10px 16px",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+              border: "none",
+              borderRadius: "var(--radius-full)",
+              background: "transparent",
+              color: "var(--color-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "all var(--transition-fast)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            Shopify
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!hasChanges || isSaving}
+            style={{
+              padding: "10px 24px",
+              fontSize: "var(--text-sm)",
+              fontWeight: 600,
+              border: "none",
+              borderRadius: "var(--radius-full)",
+              background: hasChanges ? "var(--color-text)" : "var(--color-surface-strong)",
+              color: hasChanges ? "var(--color-surface)" : "var(--color-subtle)",
+              cursor: (!hasChanges || isSaving) ? "default" : "pointer",
+              opacity: isSaving ? 0.7 : 1,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all var(--transition-fast)",
+            }}
+          >
+            {isSaving ? (
+              <>
+                <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                  <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
+                  <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
+                  <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
+                </span>
+                Saving
+              </>
+            ) : hasChanges ? "Save changes" : "Saved"}
+          </button>
         </div>
       </div>
 
       {/* Main Content Grid */}
-      <div className="section-grid split" style={{ gap: "24px", alignItems: "flex-start" }}>
+      <div className="section-grid split" style={{ gap: "48px", alignItems: "flex-start" }}>
           {/* Main Editor */}
-          <div style={{ display: "grid", gap: "20px" }}>
-            {/* Product Info Card */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "48px" }}>
+            
+            {/* Product Hero - Featured Image & Title */}
             <div
               id="section-info"
-              className="card animate-fade-in-up"
-              style={{
-                padding: "28px",
-                animationDelay: "50ms",
-                animationFillMode: "both",
-                transition: "box-shadow 0.3s ease, border-color 0.3s ease",
-                boxShadow: highlightedSection === "section-info" ? "0 0 0 3px var(--color-primary-soft), var(--shadow-card)" : undefined,
-                borderColor: highlightedSection === "section-info" ? "var(--color-primary)" : undefined,
-              }}
+              style={{ display: "flex", flexDirection: "column", gap: "40px" }}
             >
-              {/* Generate All Header */}
-              {aiAvailable && (
-                <div style={{ 
-                  display: "flex", 
-                  justifyContent: "flex-end",
-                  marginBottom: "24px",
-                  paddingBottom: "20px",
-                  borderBottom: "1px solid var(--color-border)",
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
-                    disabled={generatingAll || generating.size > 0}
-                    style={{
-                      padding: "10px 20px",
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 600,
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-full)",
-                      background: "var(--color-surface)",
-                      color: (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-text)",
-                      cursor: (generatingAll || generating.size > 0) ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      transition: "all var(--transition-fast)",
-                    }}
-                  >
-                    {generatingAll ? (
-                      <>
-                        <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
-                          <span/>
-                          <span/>
-                          <span/>
-                        </span>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6l2.1 2.1m0-12.8l-2.1 2.1m-8.6 8.6l-2.1 2.1"/>
-                        </svg>
-                        Generate fields
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-              
-              <div style={{ display: "flex", gap: "24px", marginBottom: "32px" }}>
-                {/* Product Image */}
+              <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+                {/* Product Image - Larger, more prominent */}
                 <div style={{
-                  width: "120px",
-                  height: "120px",
-                  borderRadius: "var(--radius-lg)",
+                  width: "140px",
+                  height: "140px",
+                  borderRadius: "var(--radius-xl)",
                   overflow: "hidden",
                   backgroundColor: "var(--color-surface-strong)",
-                  border: "1px solid var(--color-border)",
                   flexShrink: 0,
                 }}>
                   {product.featuredImage ? (
@@ -3228,29 +3155,19 @@ export default function ProductEditor() {
                       alignItems: "center",
                       justifyContent: "center",
                       color: "var(--color-subtle)",
-                      fontSize: "32px",
                     }}>
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
                       </svg>
                     </div>
                   )}
                 </div>
 
-                {/* Title & Type */}
-                <div style={{ flex: 1 }}>
-                  <div 
-                    id="field-title"
-                    style={{
-                      padding: "12px",
-                      margin: "-12px",
-                      marginBottom: "12px",
-                      borderRadius: "var(--radius-md)",
-                      transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-                      backgroundColor: highlightedSection === "field-title" ? "var(--color-primary-soft)" : "transparent",
-                      boxShadow: highlightedSection === "field-title" ? "0 0 0 2px var(--color-primary)" : "none",
-                    }}
-                  >
+                {/* Title & Basic Info */}
+                <div style={{ flex: 1, paddingTop: "4px" }}>
+                  <div id="field-title">
                     <EditableField
                       label="Title"
                       value={form.title}
@@ -3268,19 +3185,8 @@ export default function ProductEditor() {
                       onInlineRevert={() => revertToPreGeneration("title")}
                     />
                   </div>
-                  <div style={{ display: "flex", gap: "16px" }}>
-                    <div 
-                      id="field-vendor"
-                      style={{ 
-                        flex: 1,
-                        padding: "12px",
-                        margin: "-12px",
-                        borderRadius: "var(--radius-md)",
-                        transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-                        backgroundColor: highlightedSection === "field-vendor" ? "var(--color-primary-soft)" : "transparent",
-                        boxShadow: highlightedSection === "field-vendor" ? "0 0 0 2px var(--color-primary)" : "none",
-                      }}
-                    >
+                  <div style={{ display: "flex", gap: "24px" }}>
+                    <div id="field-vendor" style={{ flex: 1 }}>
                       <EditableField
                         label="Vendor"
                         value={form.vendor}
@@ -3288,18 +3194,7 @@ export default function ProductEditor() {
                         placeholder="Brand or vendor"
                       />
                     </div>
-                    <div 
-                      id="field-product-type"
-                      style={{ 
-                        flex: 1,
-                        padding: "12px",
-                        margin: "-12px",
-                        borderRadius: "var(--radius-md)",
-                        transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-                        backgroundColor: highlightedSection === "field-product-type" ? "var(--color-primary-soft)" : "transparent",
-                        boxShadow: highlightedSection === "field-product-type" ? "0 0 0 2px var(--color-primary)" : "none",
-                      }}
-                    >
+                    <div id="field-product-type" style={{ flex: 1 }}>
                       <EditableField
                         label="Product Type"
                         value={form.productType}
@@ -3311,18 +3206,8 @@ export default function ProductEditor() {
                 </div>
               </div>
 
-              <div 
-                id="field-description"
-                style={{
-                  padding: "12px",
-                  margin: "-12px",
-                  marginBottom: "12px",
-                  borderRadius: "var(--radius-md)",
-                  transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-                  backgroundColor: highlightedSection === "field-description" ? "var(--color-primary-soft)" : "transparent",
-                  boxShadow: highlightedSection === "field-description" ? "0 0 0 2px var(--color-primary)" : "none",
-                }}
-              >
+              {/* Description - Full width */}
+              <div id="field-description">
                 <EditableField
                   label="Description"
                   value={form.description}
@@ -3333,7 +3218,6 @@ export default function ProductEditor() {
                   showAI={aiAvailable}
                   multiline
                   placeholder="Describe your product..."
-                  helpText="Supports plain text, will be converted to HTML"
                   fieldVersions={fieldVersions.description}
                   onRevert={(field, version) => handleRevert(field, version)}
                   field="description"
@@ -3343,17 +3227,8 @@ export default function ProductEditor() {
                 />
               </div>
 
-              <div 
-                id="field-tags"
-                style={{
-                  padding: "12px",
-                  margin: "-12px",
-                  borderRadius: "var(--radius-md)",
-                  transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-                  backgroundColor: highlightedSection === "field-tags" ? "var(--color-primary-soft)" : "transparent",
-                  boxShadow: highlightedSection === "field-tags" ? "0 0 0 2px var(--color-primary)" : "none",
-                }}
-              >
+              {/* Tags */}
+              <div id="field-tags">
                 <TagsInput
                   tags={form.tags}
                   onChange={(v) => updateField("tags", v)}
@@ -3371,19 +3246,11 @@ export default function ProductEditor() {
               </div>
             </div>
 
-            {/* Images Card */}
-            <div
-              id="section-images"
-              className="card animate-fade-in-up"
-              style={{
-                padding: "28px",
-                animationDelay: "100ms",
-                animationFillMode: "both",
-                transition: "box-shadow 0.3s ease, border-color 0.3s ease",
-                boxShadow: highlightedSection === "section-images" ? "0 0 0 3px var(--color-primary-soft), var(--shadow-card)" : undefined,
-                borderColor: highlightedSection === "section-images" ? "var(--color-primary)" : undefined,
-              }}
-            >
+            {/* Subtle divider */}
+            <div style={{ height: "1px", background: "var(--color-border)", opacity: 0.5 }} />
+
+            {/* Images Section */}
+            <div id="section-images">
               <ImageManager
                 images={product.images}
                 featuredImageId={product.featuredImageId}
@@ -3396,36 +3263,28 @@ export default function ProductEditor() {
               />
             </div>
 
-            {/* SEO Card */}
-            <div
-              id="section-seo"
-              className="card animate-fade-in-up"
-              style={{
-                padding: "28px",
-                animationDelay: "150ms",
-                animationFillMode: "both",
-                transition: "box-shadow 0.3s ease, border-color 0.3s ease",
-                boxShadow: highlightedSection === "section-seo" ? "0 0 0 3px var(--color-primary-soft), var(--shadow-card)" : undefined,
-                borderColor: highlightedSection === "section-seo" ? "var(--color-primary)" : undefined,
-              }}
-            >
+            {/* Subtle divider */}
+            <div style={{ height: "1px", background: "var(--color-border)", opacity: 0.5 }} />
+
+            {/* SEO Section */}
+            <div id="section-seo">
               <h3 style={{ 
-                margin: "0 0 24px", 
+                margin: "0 0 32px", 
                 fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)", 
-                fontWeight: 500,
+                fontSize: "var(--text-lg)", 
+                fontWeight: 600,
                 color: "var(--color-text)",
+                letterSpacing: "-0.01em",
               }}>
                 Search Engine Listing
               </h3>
               
-              {/* Preview */}
+              {/* Preview - Cleaner styling */}
               <div style={{
-                padding: "24px",
+                padding: "20px 24px",
                 backgroundColor: "var(--color-surface-strong)",
                 borderRadius: "var(--radius-lg)",
-                marginBottom: "28px",
-                border: "1px solid var(--color-border)",
+                marginBottom: "32px",
               }}>
                 <div style={{ 
                   color: "#1a0dab", 
@@ -3459,18 +3318,7 @@ export default function ProductEditor() {
                 </div>
               </div>
 
-              <div 
-                id="field-seo-title"
-                style={{
-                  padding: "12px",
-                  margin: "-12px",
-                  marginBottom: "12px",
-                  borderRadius: "var(--radius-md)",
-                  transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-                  backgroundColor: highlightedSection === "field-seo-title" ? "var(--color-primary-soft)" : "transparent",
-                  boxShadow: highlightedSection === "field-seo-title" ? "0 0 0 2px var(--color-primary)" : "none",
-                }}
-              >
+              <div id="field-seo-title">
                 <EditableField
                   label="SEO Title"
                   value={form.seoTitle}
@@ -3481,7 +3329,7 @@ export default function ProductEditor() {
                   showAI={aiAvailable}
                   placeholder={form.title}
                   maxLength={60}
-                  helpText="Recommended: 50-60 characters"
+                  helpText="50-60 characters recommended"
                   fieldVersions={fieldVersions.seoTitle}
                   onRevert={(field, version) => handleRevert(field, version)}
                   field="seoTitle"
@@ -3491,17 +3339,7 @@ export default function ProductEditor() {
                 />
               </div>
 
-              <div 
-                id="field-seo-description"
-                style={{
-                  padding: "12px",
-                  margin: "-12px",
-                  borderRadius: "var(--radius-md)",
-                  transition: "background-color 0.3s ease, box-shadow 0.3s ease",
-                  backgroundColor: highlightedSection === "field-seo-description" ? "var(--color-primary-soft)" : "transparent",
-                  boxShadow: highlightedSection === "field-seo-description" ? "0 0 0 2px var(--color-primary)" : "none",
-                }}
-              >
+              <div id="field-seo-description">
                 <EditableField
                   label="Meta Description"
                   value={form.seoDescription}
@@ -3513,7 +3351,7 @@ export default function ProductEditor() {
                   multiline
                   placeholder="Describe this product for search engines..."
                   maxLength={160}
-                  helpText="Recommended: 120-155 characters"
+                  helpText="120-155 characters recommended"
                   fieldVersions={fieldVersions.seoDescription}
                   onRevert={(field, version) => handleRevert(field, version)}
                   field="seoDescription"
@@ -3525,93 +3363,71 @@ export default function ProductEditor() {
             </div>
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - Minimal */}
           <div
             style={{
               position: "sticky",
-              top: "20px",
+              top: "24px",
               display: "flex",
               flexDirection: "column",
-              gap: "16px",
+              gap: "24px",
             }}
           >
-            {/* Action Buttons */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* AI Generate All - Minimal button */}
+            {aiAvailable && (
               <button
                 type="button"
-                onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
+                onClick={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
+                disabled={generatingAll || generating.size > 0}
                 style={{
-                  padding: "10px 16px",
+                  width: "100%",
+                  padding: "12px 20px",
                   fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-full)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  cursor: "pointer",
+                  fontWeight: 500,
+                  border: "1px dashed var(--color-border)",
+                  borderRadius: "var(--radius-lg)",
+                  background: "transparent",
+                  color: (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-muted)",
+                  cursor: (generatingAll || generating.size > 0) ? "not-allowed" : "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: "6px",
+                  justifyContent: "center",
+                  gap: "8px",
                   transition: "all var(--transition-fast)",
                 }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-                Open in Shopify
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={!hasChanges || isSaving}
-                style={{
-                  padding: "10px 20px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  border: "none",
-                  borderRadius: "var(--radius-full)",
-                  background: hasChanges ? "var(--color-primary)" : "var(--color-surface-strong)",
-                  color: hasChanges ? "#fff" : "var(--color-muted)",
-                  cursor: (!hasChanges || isSaving) ? "not-allowed" : "pointer",
-                  opacity: isSaving ? 0.7 : 1,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all var(--transition-fast)",
+                onMouseEnter={(e) => { 
+                  if (!(generatingAll || generating.size > 0)) {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.color = "var(--color-primary)";
+                  }
+                }}
+                onMouseLeave={(e) => { 
+                  e.currentTarget.style.borderColor = "var(--color-border)";
+                  e.currentTarget.style.color = (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-muted)";
                 }}
               >
-                {isSaving ? (
+                {generatingAll ? (
                   <>
-                    <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                    <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
                       <span/>
                       <span/>
                       <span/>
                     </span>
-                    Saving...
+                    Generating...
                   </>
                 ) : (
                   <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                      <polyline points="17 21 17 13 7 13 7 21"/>
-                      <polyline points="7 3 7 8 15 8"/>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
                     </svg>
-                    {hasChanges ? "Save changes" : "Saved"}
+                    Generate with AI
                   </>
                 )}
               </button>
-            </div>
+            )}
 
-            <div
-              className="card glass animate-fade-in-up"
-              style={{
-                padding: "24px",
-                animationDelay: "100ms",
-                animationFillMode: "both",
-              }}
-            >
+            {/* Checklist - Minimal styling */}
+            <div>
               <ChecklistSidebar 
                 audit={audit}
                 onRescan={() => fetcher.submit({ intent: "rescan" }, { method: "POST" })}
@@ -3628,7 +3444,6 @@ export default function ProductEditor() {
                 }}
               />
             </div>
-            
           </div>
         </div>
       
@@ -3895,12 +3710,13 @@ export default function ProductEditor() {
                     padding: "8px 16px",
                     fontSize: "var(--text-sm)",
                     fontWeight: 500,
-                    border: "1px solid var(--color-border)",
+                    border: generatingImage ? "1px solid var(--color-border)" : "none",
                     borderRadius: "var(--radius-md)",
-                    backgroundColor: generatingImage ? "var(--color-surface-strong)" : "var(--color-primary)",
-                    color: generatingImage ? "var(--color-subtle)" : "var(--color-surface)",
+                    background: generatingImage ? "var(--color-surface-strong)" : "var(--gradient-primary)",
+                    color: generatingImage ? "var(--color-subtle)" : "#fff",
                     cursor: generatingImage ? "not-allowed" : "pointer",
                     transition: "all var(--transition-fast)",
+                    boxShadow: generatingImage ? "none" : "var(--shadow-primary-glow)",
                   }}
                 >
                   {generatingImage ? "Generating..." : "Generate with Custom"}
