@@ -2,8 +2,8 @@
  * Bulk Fix API Endpoint
  * 
  * Handles bulk operations for multiple products:
- * - Apply default tags (non-AI, Starter+)
- * - Apply default collection (non-AI, Starter+)
+ * - Apply default tags (non-AI, all plans with limits)
+ * - Apply default collection (non-AI, all plans with limits)
  * - Generate alt text for images (AI, Pro only)
  * - Generate SEO descriptions (AI, Pro only)
  */
@@ -11,7 +11,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import { 
-  requireStarter, 
+  requireBulkLimit, 
   requireProWithCredits, 
   planErrorResponse 
 } from "../lib/billing/guards.server";
@@ -80,8 +80,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return planErrorResponse(guard);
     }
   } else {
-    // Starter plan required
-    const guard = await requireStarter(shop);
+    // Check bulk limits (Free: max 10, Pro: max 100)
+    const guard = await requireBulkLimit(shop, productIds.length);
     if (!guard.allowed) {
       return planErrorResponse(guard);
     }
@@ -144,7 +144,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 async function processSingleProduct(
   productId: string,
   intent: BulkFixRequest["intent"],
-  admin: { graphql: Function },
+  admin: { graphql: (query: string, options?: Record<string, unknown>) => Promise<Response> },
   shopDomain: string,
   shopSettings: Awaited<ReturnType<typeof getShopSettings>>,
   openaiConfig: Awaited<ReturnType<typeof getShopOpenAIConfig>>
@@ -189,7 +189,7 @@ async function processSingleProduct(
 
 async function applyDefaultTags(
   product: Product,
-  admin: { graphql: Function },
+  admin: { graphql: (query: string, options?: Record<string, unknown>) => Promise<Response> },
   shopDomain: string,
   shopSettings: Awaited<ReturnType<typeof getShopSettings>>
 ): Promise<BulkFixResult> {
@@ -275,7 +275,7 @@ async function applyDefaultTags(
 
 async function applyDefaultCollection(
   product: Product,
-  admin: { graphql: Function },
+  admin: { graphql: (query: string, options?: Record<string, unknown>) => Promise<Response> },
   shopDomain: string,
   shopSettings: Awaited<ReturnType<typeof getShopSettings>>
 ): Promise<BulkFixResult> {
@@ -351,7 +351,7 @@ async function applyDefaultCollection(
 
 async function generateBulkAltText(
   product: Product,
-  admin: { graphql: Function },
+  admin: { graphql: (query: string, options?: Record<string, unknown>) => Promise<Response> },
   shopDomain: string,
   openaiConfig: Awaited<ReturnType<typeof getShopOpenAIConfig>>
 ): Promise<BulkFixResult> {
@@ -438,7 +438,7 @@ async function generateBulkAltText(
 
 async function generateBulkSeoDesc(
   product: Product,
-  admin: { graphql: Function },
+  admin: { graphql: (query: string, options?: Record<string, unknown>) => Promise<Response> },
   shopDomain: string,
   openaiConfig: Awaited<ReturnType<typeof getShopOpenAIConfig>>
 ): Promise<BulkFixResult> {

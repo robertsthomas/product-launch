@@ -39,12 +39,12 @@
 
 ## Plans
 
-| Feature | Free | Starter ($9.99/mo) | Pro ($19.99/mo) |
-|---------|------|-------------------|-----------------|
-| Product scanning | ✅ | ✅ | ✅ |
-| Manual fixes | ✅ | ✅ | ✅ |
-| AI suggestions | ❌ | 50/month | Unlimited |
-| AI image generation | ❌ | ❌ | ✅ |
+| Feature | Free | Pro ($19/mo) |
+|---------|------|--------------|
+| Product scanning | ✅ | ✅ |
+| Manual fixes | ✅ | ✅ |
+| AI suggestions | ❌ | 100/month |
+| AI image generation | ❌ | ✅ |
 
 ## Tech Stack
 

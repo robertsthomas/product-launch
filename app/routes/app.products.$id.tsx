@@ -17,7 +17,10 @@ import { PRODUCT_QUERY, type Product } from "../lib/checklist";
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
-  const rawId = decodeURIComponent(params.id!);
+  if (!params.id) {
+    throw new Error("Product ID is required");
+  }
+  const rawId = decodeURIComponent(params.id);
   const productId = rawId.startsWith('gid://') ? rawId : `gid://shopify/Product/${rawId}`;
 
   // Fetch product with media info
@@ -2050,7 +2053,7 @@ function TagsInput({
               gap: "4px",
               padding: "6px 12px",
               backgroundColor: "transparent",
-              border: "1px dashed var(--color-border)",
+              border: "1px solid var(--color-border)",
               borderRadius: "var(--radius-full)",
               fontSize: "var(--text-sm)",
               color: isGenerating ? "var(--color-subtle)" : "var(--color-muted)",
@@ -3290,7 +3293,7 @@ export default function ProductEditor() {
                 padding: "8px 14px",
                 fontSize: "var(--text-sm)",
                 fontWeight: 500,
-                border: "1px dashed var(--color-border)",
+                border: "1px solid var(--color-border)",
                 borderRadius: "var(--radius-full)",
                 background: "transparent",
                 color: (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-primary)",
@@ -3335,7 +3338,7 @@ export default function ProductEditor() {
               padding: "10px 16px",
               fontSize: "var(--text-sm)",
               fontWeight: 500,
-              border: "none",
+              border: "1px solid var(--color-border)",
               borderRadius: "var(--radius-full)",
               background: "transparent",
               color: "var(--color-muted)",
@@ -3345,8 +3348,14 @@ export default function ProductEditor() {
               gap: "6px",
               transition: "all var(--transition-fast)",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
+            onMouseEnter={(e) => { 
+              e.currentTarget.style.color = "var(--color-text)";
+              e.currentTarget.style.borderColor = "var(--color-text)";
+            }}
+            onMouseLeave={(e) => { 
+              e.currentTarget.style.color = "var(--color-muted)";
+              e.currentTarget.style.borderColor = "var(--color-border)";
+            }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -3506,21 +3515,27 @@ export default function ProductEditor() {
               </div>
 
               {/* Tags */}
-              <div id="field-tags">
-                <TagsInput
-                  tags={form.tags}
-                  onChange={(v) => updateField("tags", v)}
-                  onGenerateAI={(mode) => generateAIContent("tags", "tags", mode)}
-                  isGenerating={generating.has("tags")}
-                  generatingMode={generatingModes.tags}
-                  showAI={aiAvailable}
-                  fieldVersions={fieldVersions.tags}
-                  onRevert={(field, version) => handleRevert(field, version)}
-                  field="tags"
-                  productId={product.id}
-                  canInlineRevert={aiGeneratedFields.has("tags") && !!preGenerationValues.tags}
-                  onInlineRevert={() => revertToPreGeneration("tags")}
-                />
+              <div style={{ 
+                borderTop: "1px solid var(--color-border)", 
+                marginTop: "24px", 
+                paddingTop: "24px" 
+              }}>
+                <div id="field-tags">
+                  <TagsInput
+                    tags={form.tags}
+                    onChange={(v) => updateField("tags", v)}
+                    onGenerateAI={(mode) => generateAIContent("tags", "tags", mode)}
+                    isGenerating={generating.has("tags")}
+                    generatingMode={generatingModes.tags}
+                    showAI={aiAvailable}
+                    fieldVersions={fieldVersions.tags}
+                    onRevert={(field, version) => handleRevert(field, version)}
+                    field="tags"
+                    productId={product.id}
+                    canInlineRevert={aiGeneratedFields.has("tags") && !!preGenerationValues.tags}
+                    onInlineRevert={() => revertToPreGeneration("tags")}
+                  />
+                </div>
               </div>
             </div>
 

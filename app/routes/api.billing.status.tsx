@@ -24,7 +24,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Dev-only plan override to quickly test UI/feature gates.
-  // Set: BILLING_DEV_PLAN=free|starter|pro (only honored outside production)
+  // Set: BILLING_DEV_PLAN=free|pro (only honored outside production)
   const forcedPlan = getDevPlanOverride();
   const plan = (forcedPlan ?? shop.plan) as keyof typeof PLAN_CONFIG;
   const config = PLAN_CONFIG[plan];
@@ -56,14 +56,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     trialEndsAt: shop.trialEndsAt?.toISOString() || null,
     currentPeriodEnd: shop.currentPeriodEnd?.toISOString() || null,
     features: config.features,
-    aiCredits: plan === "pro" || (plan === "starter" && effectivelyUsingOwnKey) ? {
+    aiCredits: plan === "pro" ? {
       appCreditsUsed: shop.aiCreditsUsed,
-      appCreditsLimit: plan === "pro" ? (inTrial ? PLAN_CONFIG.pro.trialAiCredits : PLAN_CONFIG.pro.aiCredits) : 0,
+      appCreditsLimit: inTrial ? PLAN_CONFIG.pro.trialAiCredits : PLAN_CONFIG.pro.aiCredits,
       appCreditsRemaining: aiCreditsRemaining,
       ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
       hasOwnKey,
       useOwnKey,
-      currentlyUsingOwnKey: (plan === "starter" && effectivelyUsingOwnKey) || (plan === "pro" && effectivelyUsingOwnKey && aiCreditsRemaining <= 0),
+      currentlyUsingOwnKey: effectivelyUsingOwnKey && aiCreditsRemaining <= 0,
       resetsAt: shop.aiCreditsResetAt?.toISOString() || null,
     } : null,
     audits: plan === "free" ? {
@@ -81,7 +81,7 @@ function getDevPlanOverride(): PlanType | null {
   if (process.env.NODE_ENV === "production") return null;
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim();
   console.log("BILLING STATUS getDevPlanOverride - raw:", raw);
-  if (raw === "free" || raw === "starter" || raw === "pro") {
+  if (raw === "free" || raw === "pro") {
     console.log("BILLING STATUS getDevPlanOverride - returning:", raw);
     return raw as PlanType;
   }

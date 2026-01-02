@@ -27,7 +27,7 @@ export function LockedFeatureButton({
 }: LockedFeatureButtonProps) {
   if (locked) {
     return (
-      <Tooltip content={`Requires ${requiredPlan === "pro" ? "Pro" : "Starter"} plan`}>
+      <Tooltip content="Requires Pro plan">
         <Button
           onClick={onLockedClick}
           variant={variant}

@@ -200,13 +200,21 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-shell > main {
   flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+/* Dashboard-specific: no scroll on main, only products list scrolls */
+.app-shell > main:has(.dashboard-no-scroll) {
+  overflow: hidden;
 }
 
 /* ============================================

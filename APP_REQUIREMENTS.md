@@ -41,14 +41,14 @@ Option C:
 > Catch missing SEO and product details before launch. Fix in bulk and generate content with AI.
 
 ### App details (≤500 chars)
-> LaunchReady scans your products for launch issues like missing images, weak SEO titles, short descriptions, missing tags, and incomplete collection assignments. Review a readiness score and checklist per product, then apply guided fixes or generate improved titles, descriptions, tags, alt text, and images with AI. Bulk actions let you update multiple products with progress tracking, undo support, and version history.
+> LaunchReady scans your products for launch issues like missing images, weak SEO titles, short descriptions, missing tags, and incomplete collection assignments. Review a readiness score and checklist per product, then apply guided fixes with confirmation. Pro users get AI-powered suggestions and bulk actions. Version history and undo support keep you confident.
 
 ### Features (3–5, each ≤80 chars)
-- Readiness score and checklist for SEO titles, descriptions, tags, and images
-- SEO preview showing Google-style title and meta description before publish
-- AI suggestions for titles, descriptions, tags, alt text, and product images
-- Bulk actions to fix selected products with progress, batching, and undo support
-- Brand voice presets and custom notes to keep AI content on-brand
+- Readiness score and checklist for SEO, images, tags, and collections
+- Guided fixes with preview and confirmation (no surprises)
+- SEO preview showing Google-style title and meta description
+- AI-powered suggestions for Pro (titles, descriptions, tags, alt text)
+- Bulk actions with version history and undo support
 
 ### App card subtitle (≤62 chars) — pick ONE
 Option A:
@@ -77,12 +77,12 @@ Option C:
 - Provide alt text for each screenshot (keep concise).
 
 ### Recommended 3 screenshots (minimum viable set)
-1) Dashboard — readiness scores + issues summary  
-   Alt text: "LaunchReady dashboard showing launch readiness scores"
-2) Product detail — checklist + fix actions  
-   Alt text: "Product checklist with SEO and content issues"
-3) AI preview — generate + apply flow  
-   Alt text: "AI suggestions to improve product title and description"
+1) Dashboard — readiness scores + product issues  
+   Alt text: "LaunchReady dashboard showing product launch readiness scores"
+2) Product detail — checklist + guided fix with confirmation  
+   Alt text: "Product checklist with guided fix confirmation modal"
+3) AI suggestions (Pro) — preview + apply flow  
+   Alt text: "AI-powered suggestions preview for product title and description"
 
 > **Asset location:** Screenshots folder at `LaunchReady_Brand_Assets_FULL/screenshots/`
 
@@ -93,10 +93,12 @@ Option C:
 Provide in the app submission:
 - **Demo screencast** (2–5 minutes) showing:
   - Install → app open inside Admin → dashboard → product detail
-  - Audit run → checklist failures → apply a fix
-  - AI suggestion preview → apply
-  - Bulk fix flow (confirm + progress)
-  - Settings (template + brand voice)
+  - Audit run → checklist with issues
+  - Free: guided fix with confirmation modal (e.g., apply tags, add collection)
+  - Free: undo / revert last fix
+  - Pro: AI suggestion preview → apply
+  - Pro: bulk AI actions with progress tracking
+  - Settings (templates, brand voice for Pro)
 - **Test credentials** for Shopify review team:
   - If required, provide a test store and/or staff account credentials.
   - Ensure the app works in that environment without manual setup.
@@ -152,11 +154,87 @@ Recommend choosing the category that best matches:
 
 For internal reference only — actual pricing from `app/lib/billing/constants.ts`:
 
-| Plan    | Price   | Trial | AI Credits     | Key Features                              |
-|---------|---------|-------|----------------|-------------------------------------------|
-| Free    | $0      | —     | 0              | Audits only (20/month), no auto-fix       |
-| Starter | $12/mo  | 7 days| 0              | Unlimited audits, auto-fix, version history (24h) |
-| Pro     | $39/mo  | 7 days| 100/mo (15 trial) | All features, AI generation, bulk AI, 30-day history |
+| Plan | Price   | Trial  | AI Credits        | Key Features                                          |
+|------|---------|--------|-------------------|-------------------------------------------------------|
+| Free | $0      | —      | 0                 | See below                                             |
+| Pro  | $19/mo  | 7 days | 100/mo (20 trial) | See below                                             |
+
+### Free Plan (high value, safe)
+- **Unlimited audits**
+- Readiness score + checklist
+- SEO preview
+- Image readiness analyzer
+- Templates (1–2 templates)
+- **Guided fixes (non-AI) with confirmation modals:**
+  - ✅ "Fix this one item" per product
+  - ✅ "Apply recommended tags" with preview
+  - ✅ "Add to default collection" with confirmation
+- **Limited bulk**: max 10 products per bulk action
+- **Version history**: 24 hours
+- **Undo / revert last fix** for confidence
+- ❌ No AI
+
+### Pro Plan ($19/mo)
+- Everything in Free, plus:
+- **AI suggestions** + preview + apply
+- **Monthly AI credits**: 100/mo (20 during 7-day trial)
+- **Bulk AI actions** + higher batch sizes (up to 100)
+- **Brand voice presets** + custom notes
+- **Version history**: 30 days
+
+#### Always-on Monitoring (LaunchReady Monitor)
+- Watches for new/updated products via webhooks
+- Flags regressions automatically:
+  - SEO title removed/too long/too short
+  - Description shortened or removed
+  - Images removed or low count
+  - Alt text missing
+  - Tags removed
+  - Collection removed
+  - Custom rule violations
+- Dashboard: "7 products drifted out of compliance this week"
+
+#### Monthly Catalog Health Report
+- Email + in-app monthly scorecard:
+  - Overall readiness score trend
+  - Top issues this month
+  - Most improved products
+  - Products at risk
+  - Suggestions to improve
+- Download: PDF/CSV export for teams
+
+#### Catalog Standards (Custom Rules)
+- Define store-wide rules:
+  - "All products must have ≥ 6 images"
+  - "SEO title must be 40–60 chars"
+  - "Alt text required for every image"
+  - "Must include required metafields"
+  - "Tag set must include at least 1 from each group"
+- Auto-audit: nightly/weekly scheduled checks
+- Alerts when rules are violated
+
+### AI Credit Schedule (1 credit = 1 generation attempt)
+
+| Action | Credits | Notes |
+|--------|---------|-------|
+| SEO title | 1 | ~120 output tokens |
+| SEO/meta description | 1 | ~250 output tokens |
+| Tag suggestions | 1 | ~120 output tokens |
+| Alt text (per image) | 1 | ~120 output tokens |
+| Full product refresh | 3 | title + meta + tags bundle |
+| Bulk SEO meta | 1/product | per product in bulk |
+
+### Cost controls (keep AI bill < $19/mo per merchant)
+- **Model**: gpt-4o-mini ($0.30/1M input, $1.20/1M output)
+- **Max input tokens**: 2,000 (truncate long product data)
+- **Max output tokens**: 120–700 depending on task
+- **Regen limit**: 3 per field per product per day
+- **Estimated cost**: ~$0.001/credit → 100 credits ≈ $0.10
+
+**Philosophy:**
+- Free = guided fixes, not "auto-run everything"
+- Pro = speed + scale + automation + AI + ongoing monitoring
+- Charge per generation attempt (not per apply) to prevent regen abuse
 
 ---
 

@@ -10,6 +10,8 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getDashboardStats, getShopAudits, auditProduct } from "../lib/services";
 import { initializeShop } from "../lib/services/shop.server";
+import { getDriftSummary } from "../lib/services/monitoring.server";
+import { getShopPlanStatus } from "../lib/billing/guards.server";
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -20,10 +22,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const stats = await getDashboardStats(shop);
   const { audits, total } = await getShopAudits(shop, { limit: 50 });
+  const { plan } = await getShopPlanStatus(shop);
+  
+  // Pro feature: Get compliance monitoring data
+  let monitoring = null;
+  if (plan === "pro") {
+    const driftSummary = await getDriftSummary(shop, 7);
+    monitoring = {
+      driftsThisWeek: driftSummary.total,
+      unresolvedDrifts: driftSummary.unresolved,
+      productsAffected: driftSummary.productsAffected,
+      byType: driftSummary.byType,
+      recentDrifts: driftSummary.recentDrifts.map(d => ({
+        id: d.id,
+        productId: d.productId,
+        productTitle: d.productTitle,
+        driftType: d.driftType,
+        severity: d.severity,
+        detectedAt: d.detectedAt instanceof Date ? d.detectedAt.toISOString() : d.detectedAt,
+        isResolved: d.isResolved,
+      })),
+    };
+  }
 
   return {
     shop,
     stats,
+    plan,
+    monitoring,
     audits: audits.map((audit) => ({
       id: audit.id,
       productId: audit.productId,
@@ -555,7 +581,7 @@ function EmptyState({
 // ============================================
 
 export default function Dashboard() {
-  const { stats, audits } = useLoaderData<typeof loader>();
+  const { stats, audits, plan, monitoring } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const bulkFetcher = useFetcher();
   const navigate = useNavigate();
@@ -570,6 +596,9 @@ export default function Dashboard() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkAction, setBulkAction] = useState<string | null>(null);
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
+  
+  // Monitoring modal state (Pro only)
+  const [showMonitoringModal, setShowMonitoringModal] = useState(false);
 
   // Track scanning state
   useEffect(() => {
@@ -677,12 +706,14 @@ export default function Dashboard() {
 
   return (
     <div
+      className="dashboard-no-scroll"
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "calc(100vh - 60px)",
+        height: "100%",
         overflow: "hidden",
         padding: "0 24px",
+        paddingTop: "24px",
       }}
     >
       {/* Two Column Layout */}
@@ -702,7 +733,6 @@ export default function Dashboard() {
           <div 
             style={{ 
               flexShrink: 0,
-              paddingTop: "12px",
               paddingBottom: "12px",
             }}
           >
@@ -1041,7 +1071,6 @@ export default function Dashboard() {
             display: "flex",
             flexDirection: "column",
             gap: "16px",
-            paddingTop: "12px",
             alignSelf: "start",
           }}
         >
@@ -1154,6 +1183,122 @@ export default function Dashboard() {
               delay={150}
             />
           </div>
+
+          {/* Monitoring Button (Pro only) */}
+          {plan === "pro" && (
+            <button
+              type="button"
+              onClick={() => setShowMonitoringModal(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                padding: "14px 16px",
+                background: monitoring && monitoring.unresolvedDrifts > 0 
+                  ? "var(--color-warning-soft)" 
+                  : "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                cursor: "pointer",
+                transition: "all var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-border)";
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "var(--radius-sm)",
+                  background: monitoring && monitoring.unresolvedDrifts > 0 
+                    ? "var(--color-warning)" 
+                    : "var(--color-surface-strong)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: monitoring && monitoring.unresolvedDrifts > 0 ? "#fff" : "var(--color-muted)",
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>
+                    Catalog Monitor
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                    {monitoring && monitoring.unresolvedDrifts > 0 
+                      ? `${monitoring.unresolvedDrifts} issues to review`
+                      : "All products compliant"
+                    }
+                  </div>
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-subtle)" }}>
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          )}
+
+          {/* Standards Link (Pro only) */}
+          {plan === "pro" && (
+            <button
+              type="button"
+              onClick={() => navigate("/app/standards")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                padding: "14px 16px",
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-lg)",
+                cursor: "pointer",
+                transition: "all var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-primary)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-border)";
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--color-surface-strong)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--color-muted)",
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 11l3 3L22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  </svg>
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>
+                    Catalog Standards
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                    Define custom rules
+                  </div>
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-subtle)" }}>
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1341,6 +1486,283 @@ export default function Dashboard() {
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Monitoring Modal (Pro only) */}
+      {showMonitoringModal && monitoring && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMonitoringModal(false);
+          }}
+        >
+          <div
+            className="animate-fade-in-up"
+            style={{
+              background: "var(--color-surface)",
+              borderRadius: "var(--radius-xl)",
+              width: "100%",
+              maxWidth: "600px",
+              maxHeight: "80vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              padding: "20px 24px",
+              borderBottom: "1px solid var(--color-border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}>
+              <div>
+                <h2 style={{ fontSize: "18px", fontWeight: 600, margin: 0 }}>
+                  Catalog Monitor
+                </h2>
+                <p style={{ fontSize: "13px", color: "var(--color-muted)", margin: "4px 0 0" }}>
+                  Last 7 days compliance overview
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMonitoringModal(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "8px",
+                  color: "var(--color-muted)",
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
+              {/* Summary Cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
+                <div style={{
+                  padding: "16px",
+                  background: "var(--color-surface-secondary)",
+                  borderRadius: "var(--radius-md)",
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--color-text)" }}>
+                    {monitoring.driftsThisWeek}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--color-muted)", textTransform: "uppercase" }}>
+                    Drifts This Week
+                  </div>
+                </div>
+                <div style={{
+                  padding: "16px",
+                  background: monitoring.unresolvedDrifts > 0 ? "var(--color-warning-soft)" : "var(--color-success-soft)",
+                  borderRadius: "var(--radius-md)",
+                  textAlign: "center",
+                }}>
+                  <div style={{ 
+                    fontSize: "28px", 
+                    fontWeight: 600, 
+                    color: monitoring.unresolvedDrifts > 0 ? "var(--color-warning)" : "var(--color-success)" 
+                  }}>
+                    {monitoring.unresolvedDrifts}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--color-muted)", textTransform: "uppercase" }}>
+                    Unresolved
+                  </div>
+                </div>
+                <div style={{
+                  padding: "16px",
+                  background: "var(--color-surface-secondary)",
+                  borderRadius: "var(--radius-md)",
+                  textAlign: "center",
+                }}>
+                  <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--color-text)" }}>
+                    {monitoring.productsAffected}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--color-muted)", textTransform: "uppercase" }}>
+                    Products Affected
+                  </div>
+                </div>
+              </div>
+
+              {/* Issues by Type */}
+              {Object.keys(monitoring.byType).length > 0 && (
+                <div style={{ marginBottom: "24px" }}>
+                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>
+                    Issues by Type
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {Object.entries(monitoring.byType).map(([type, count]) => (
+                      <div key={type} style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 14px",
+                        background: "var(--color-surface-secondary)",
+                        borderRadius: "var(--radius-sm)",
+                      }}>
+                        <span style={{ fontSize: "13px", color: "var(--color-text)" }}>
+                          {type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                        <span style={{ 
+                          fontSize: "13px", 
+                          fontWeight: 600, 
+                          color: "var(--color-warning)",
+                          background: "var(--color-warning-soft)",
+                          padding: "2px 8px",
+                          borderRadius: "var(--radius-full)",
+                        }}>
+                          {count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Drifts */}
+              {monitoring.recentDrifts.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>
+                    Recent Issues
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {monitoring.recentDrifts.slice(0, 5).map((drift) => (
+                      <button
+                        key={drift.id}
+                        type="button"
+                        onClick={() => {
+                          setShowMonitoringModal(false);
+                          navigate(`/app/products/${encodeURIComponent(drift.productId)}`);
+                        }}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "12px 14px",
+                          background: "var(--color-surface)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "var(--radius-sm)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-text)" }}>
+                            {drift.productTitle}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                            {drift.driftType.replace(/_/g, " ")}
+                          </div>
+                        </div>
+                        <div style={{
+                          padding: "4px 8px",
+                          borderRadius: "var(--radius-full)",
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          background: drift.severity === "high" 
+                            ? "var(--color-danger-soft)" 
+                            : drift.severity === "medium"
+                              ? "var(--color-warning-soft)"
+                              : "var(--color-surface-strong)",
+                          color: drift.severity === "high" 
+                            ? "var(--color-danger)" 
+                            : drift.severity === "medium"
+                              ? "var(--color-warning)"
+                              : "var(--color-muted)",
+                        }}>
+                          {drift.severity}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {monitoring.driftsThisWeek === 0 && (
+                <div style={{ textAlign: "center", padding: "32px" }}>
+                  <div style={{
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "50%",
+                    background: "var(--color-success-soft)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 16px",
+                  }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>
+                    All Clear!
+                  </h3>
+                  <p style={{ fontSize: "13px", color: "var(--color-muted)" }}>
+                    No compliance drifts detected in the last 7 days.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: "16px 24px",
+              borderTop: "1px solid var(--color-border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}>
+              <button
+                onClick={() => navigate("/app/standards")}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--color-border)",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                }}
+              >
+                Manage Standards
+              </button>
+              <button
+                onClick={() => setShowMonitoringModal(false)}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "none",
+                  background: "var(--color-text)",
+                  color: "var(--color-surface)",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                }}
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -15,10 +15,15 @@ export interface ShopBillingInfo {
 
 export interface PlanFeatures {
   audits: boolean;
+  guidedFix: boolean;
   autoFix: boolean;
   aiGeneration: boolean;
   bulkAI: boolean;
+  bulkGuidedFix: boolean;
   customRules: boolean;
+  versionHistory: boolean;
+  scheduledAudits: boolean;
+  brandVoice: boolean;
 }
 
 

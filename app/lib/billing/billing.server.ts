@@ -12,7 +12,7 @@ import {
  * Shopify subscription billing (server-side).
  *
  * Responsibilities:
- * - Create/cancel Shopify AppSubscriptions (Starter/Pro)
+ * - Create/cancel Shopify AppSubscriptions (Pro)
  * - Detect the current plan from Shopify (`currentAppInstallation.activeSubscriptions`)
  * - Persist effective plan state in our DB (`shops.plan`, `subscriptionId`, etc.)
  * - Provide feature gates for non-AI features (autofix/custom rules)
@@ -53,7 +53,6 @@ export async function detectPlanFromSubscription(
 
   // Check for managed pricing plan names
   if (name.includes("pro") || name.includes("professional")) return PLANS.PRO;
-  if (name.includes("starter") || name.includes("basic")) return PLANS.STARTER;
 
   // Fallback: check price for managed pricing
   const price = parseFloat(
@@ -62,7 +61,6 @@ export async function detectPlanFromSubscription(
 
   // Price thresholds for managed pricing plans
   if (price >= PLAN_CONFIG[PLANS.PRO].price) return PLANS.PRO;
-  if (price >= PLAN_CONFIG[PLANS.STARTER].price) return PLANS.STARTER;
 
   return PLANS.FREE;
 }
@@ -134,14 +132,9 @@ export async function syncPlanFromShopify(
 // ============================================
 
 export function canUseAutoFix(plan: PlanType): FeatureCheckResult {
-  if (plan === PLANS.FREE) {
-    return {
-      allowed: false,
-      reason: "Auto-fix requires Starter or Pro plan",
-      errorCode: BILLING_ERRORS.AUTOFIX_LOCKED,
-      upgradeRequired: PLANS.STARTER,
-    };
-  }
+  // Free plan gets guided fixes with confirmation
+  // Pro plan gets full auto-fix without confirmation
+  // Both are allowed, but Free requires UI confirmation modals
   return { allowed: true };
 }
 
@@ -281,13 +274,14 @@ export async function checkAuditLimit(
     return { allowed: true };
   }
 
+  // Free plan now has unlimited audits (-1)
   const limit = PLAN_CONFIG[PLANS.FREE].auditsPerMonth;
-  if (shop.auditsThisMonth >= limit) {
+  if (limit !== -1 && shop.auditsThisMonth >= limit) {
     return {
       allowed: false,
       reason: `Monthly audit limit reached (${shop.auditsThisMonth}/${limit})`,
       errorCode: BILLING_ERRORS.AUDIT_LIMIT_REACHED,
-      upgradeRequired: PLANS.STARTER,
+      upgradeRequired: PLANS.PRO,
     };
   }
 

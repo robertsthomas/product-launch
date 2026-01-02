@@ -8,7 +8,7 @@
 import { db } from "~/db";
 import { shops } from "~/db/schema";
 import { eq } from "drizzle-orm";
-import { PLANS, PLAN_CONFIG, BILLING_ERRORS, type PlanType } from "./constants";
+import { PLANS, PLAN_CONFIG, BILLING_ERRORS, BULK_LIMITS, type PlanType } from "./constants";
 import { isInTrial, checkAICredits } from "./billing.server";
 
 interface GuardResult {
@@ -25,7 +25,7 @@ interface GuardResult {
 function getDevPlanOverride(): PlanType | null {
   if (process.env.NODE_ENV === "production") return null;
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim();
-  if (raw === "free" || raw === "starter" || raw === "pro") return raw as PlanType;
+  if (raw === "free" || raw === "pro") return raw as PlanType;
   return null;
 }
 
@@ -57,10 +57,11 @@ export async function getShopPlanStatus(shopDomain: string): Promise<{
 }
 
 /**
- * Enforce Starter plan or higher
- * Required for: non-AI autofix, bulk non-AI operations
+ * Enforce guided fix access (available on all plans)
+ * Free tier: allowed with confirmation modals
+ * Pro tier: allowed without confirmation
  */
-export async function enforceStarter(shopDomain: string): Promise<GuardResult> {
+export async function enforceGuidedFix(shopDomain: string): Promise<GuardResult & { requiresConfirmation: boolean }> {
   const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain);
 
   if (!shop) {
@@ -70,6 +71,7 @@ export async function enforceStarter(shopDomain: string): Promise<GuardResult> {
       plan: PLANS.FREE,
       inTrial: false,
       isDevStore: false,
+      requiresConfirmation: true,
       errorCode: BILLING_ERRORS.SUBSCRIPTION_REQUIRED,
       message: "Shop not found",
     };
@@ -77,23 +79,63 @@ export async function enforceStarter(shopDomain: string): Promise<GuardResult> {
 
   // Dev stores bypass billing
   if (isDevStore) {
-    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true };
+    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true, requiresConfirmation: false };
   }
 
-  // Free tier is not allowed
-  if (plan === PLANS.FREE) {
+  // Free tier requires confirmation modals
+  const requiresConfirmation = plan === PLANS.FREE;
+
+  return { allowed: true, shop, plan, inTrial, isDevStore, requiresConfirmation };
+}
+
+/**
+ * Enforce bulk action limits based on plan
+ * Free: max 10 products
+ * Pro: max 100 products
+ */
+export async function enforceBulkLimit(
+  shopDomain: string,
+  productCount: number
+): Promise<GuardResult & { maxAllowed: number; requiresConfirmation: boolean }> {
+  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain);
+
+  if (!shop) {
+    return {
+      allowed: false,
+      shop: null,
+      plan: PLANS.FREE,
+      inTrial: false,
+      isDevStore: false,
+      maxAllowed: 0,
+      requiresConfirmation: true,
+      errorCode: BILLING_ERRORS.SUBSCRIPTION_REQUIRED,
+      message: "Shop not found",
+    };
+  }
+
+  // Dev stores bypass billing
+  if (isDevStore) {
+    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true, maxAllowed: 100, requiresConfirmation: false };
+  }
+
+  const maxAllowed = PLAN_CONFIG[plan].bulkLimit;
+  const requiresConfirmation = plan === PLANS.FREE;
+
+  if (productCount > maxAllowed) {
     return {
       allowed: false,
       shop,
       plan,
       inTrial,
       isDevStore,
-      errorCode: BILLING_ERRORS.AUTOFIX_LOCKED,
-      message: "Auto-fix requires Starter plan or higher",
+      maxAllowed,
+      requiresConfirmation,
+      errorCode: BILLING_ERRORS.BULK_LIMIT_EXCEEDED,
+      message: `Bulk actions limited to ${maxAllowed} products on ${PLAN_CONFIG[plan].name} plan. Upgrade to Pro for up to 100.`,
     };
   }
 
-  return { allowed: true, shop, plan, inTrial, isDevStore };
+  return { allowed: true, shop, plan, inTrial, isDevStore, maxAllowed, requiresConfirmation };
 }
 
 /**
@@ -196,18 +238,25 @@ export function planErrorResponse(guard: GuardResult, status = 403) {
     {
       error: guard.message,
       errorCode: guard.errorCode,
-      requiredPlan: guard.plan === PLANS.FREE ? PLANS.STARTER : PLANS.PRO,
+      requiredPlan: PLANS.PRO,
     },
     { status }
   );
 }
 
 /**
- * Require Starter and return error response if not allowed
- * Usage: const guard = await requireStarter(shop); if (!guard.allowed) return planErrorResponse(guard);
+ * Require guided fix access (all plans, returns confirmation requirement)
  */
-export async function requireStarter(shopDomain: string) {
-  const guard = await enforceStarter(shopDomain);
+export async function requireGuidedFix(shopDomain: string) {
+  const guard = await enforceGuidedFix(shopDomain);
+  return guard;
+}
+
+/**
+ * Require bulk action within plan limits
+ */
+export async function requireBulkLimit(shopDomain: string, productCount: number) {
+  const guard = await enforceBulkLimit(shopDomain, productCount);
   return guard;
 }
 

@@ -64,46 +64,35 @@ function AppNavigation() {
   const isDashboard = location.pathname === "/app";
   const isSettings = location.pathname.startsWith("/app/settings");
 
+  const navItems = [
+    { to: "/app", label: "Dashboard", isActive: isDashboard },
+    { to: "/app/settings", label: "Settings", isActive: isSettings },
+  ];
+
   return (
     <nav style={{ display: "flex", gap: "8px" }}>
-      <Link
-        to="/app"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "10px 18px",
-          borderRadius: "var(--radius-full)",
-          fontSize: "var(--text-sm)",
-          fontWeight: 600,
-          color: isDashboard ? "#fff" : "var(--color-text)",
-          background: isDashboard ? "var(--gradient-primary)" : "var(--color-surface)",
-          border: isDashboard ? "none" : "1px solid var(--color-border)",
-          transition: "all var(--transition-fast)",
-          textDecoration: "none",
-          boxShadow: isDashboard ? "var(--shadow-primary-glow)" : "none",
-        }}
-      >
-        Dashboard
-      </Link>
-      <Link
-        to="/app/settings"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "10px 18px",
-          borderRadius: "var(--radius-full)",
-          fontSize: "var(--text-sm)",
-          fontWeight: 600,
-          color: isSettings ? "#fff" : "var(--color-text)",
-          background: isSettings ? "var(--gradient-primary)" : "var(--color-surface)",
-          border: isSettings ? "none" : "1px solid var(--color-border)",
-          transition: "all var(--transition-fast)",
-          textDecoration: "none",
-          boxShadow: isSettings ? "var(--shadow-primary-glow)" : "none",
-        }}
-      >
-        Settings
-      </Link>
+      {navItems.map(({ to, label, isActive }) => (
+        <Link
+          key={to}
+          to={to}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "10px 18px",
+            borderRadius: "var(--radius-full)",
+            fontSize: "var(--text-sm)",
+            fontWeight: 600,
+            color: isActive ? "#fff" : "var(--color-text)",
+            background: isActive ? "var(--gradient-primary)" : "var(--color-surface)",
+            border: isActive ? "none" : "1px solid var(--color-border)",
+            transition: "all var(--transition-fast)",
+            textDecoration: "none",
+            boxShadow: isActive ? "var(--shadow-primary-glow)" : "none",
+          }}
+        >
+          {label}
+        </Link>
+      ))}
     </nav>
   );
 }

@@ -12,7 +12,7 @@ export type VersionSource =
 
 /**
  * Save a field version before changes are made.
- * Respects plan-based retention: Free=none, Starter=24hr, Pro=30 days
+ * Respects plan-based retention: Free=none, Pro=30 days
  */
 export const saveFieldVersion = async (
   shopId: string,

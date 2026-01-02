@@ -10,7 +10,6 @@ import { isUsingOwnOpenAIKey } from "../services/shop.server";
  *
  * Rules implemented:
  * - Free: AI locked
- * - Starter + own key: AI allowed (uses their key only)
  * - Pro trial: fixed total credit cap (e.g. 15)
  * - Pro paid: monthly credit cap (e.g. 100), then switch to own key if available
  * - Pro + own key: Use app's 100 credits first, then unlimited with their key
@@ -35,9 +34,7 @@ interface AIGateResult {
  * Call this BEFORE running any AI operation.
  * 
  * Rules:
- * - Free: AI locked
- * - Starter + own key: AI allowed (uses their key, unlimited)
- * - Starter without own key: AI locked
+ * - Free: AI locked (upgrade to Pro)
  * - Pro + own key: Use app's 100 credits first, then their key (unlimited)
  * - Pro without own key: 100 credits/month, then locked
  */
@@ -73,27 +70,7 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
     return {
       allowed: false,
       errorCode: BILLING_ERRORS.AI_FEATURE_LOCKED,
-      message: hasOwnKey 
-        ? "Upgrade to Starter or Pro to use AI features with your API key"
-        : "AI features require Starter or Pro plan",
-    };
-  }
-
-  // Starter plan
-  if (plan === PLANS.STARTER) {
-    if (hasOwnKey) {
-      // Starter + own key: use their key (unlimited)
-      return { 
-        allowed: true, 
-        usingOwnKey: true,
-        ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
-      };
-    }
-    // Starter without own key: locked
-    return {
-      allowed: false,
-      errorCode: BILLING_ERRORS.AI_FEATURE_LOCKED,
-      message: "Add your own OpenAI API key or upgrade to Pro for AI features",
+      message: "AI features require Pro plan",
     };
   }
 
@@ -167,7 +144,6 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
  * 
  * Logic:
  * - Dev stores: no tracking
- * - Starter + own key: track own key usage
  * - Pro: consume app credits first, then track own key usage
  */
 export async function consumeAICredit(
@@ -201,23 +177,13 @@ export async function consumeAICredit(
     ? PLAN_CONFIG[PLANS.PRO].trialAiCredits
     : PLAN_CONFIG[PLANS.PRO].aiCredits;
 
-  // Starter + own key: only track own key usage
-  if (plan === PLANS.STARTER && hasOwnKey) {
-    const newOwnKeyCount = (shop.ownKeyCreditsUsed || 0) + 1;
-    await db
-      .update(shops)
-      .set({
-        ownKeyCreditsUsed: newOwnKeyCount,
-        aiCreditsResetAt: shop.aiCreditsResetAt || getNextMonthReset(),
-        updatedAt: new Date(),
-      })
-      .where(eq(shops.shopDomain, shopDomain));
-
+  // Free plan: AI not available
+  if (plan === PLANS.FREE) {
     return {
       creditsRemaining: 0,
       creditsLimit: 0,
-      usingOwnKey: true,
-      ownKeyCreditsUsed: newOwnKeyCount,
+      usingOwnKey: false,
+      ownKeyCreditsUsed: 0,
     };
   }
 
@@ -349,19 +315,19 @@ export async function getAICreditStatus(
     };
   }
 
-  // Starter: only own key (no app credits)
-  if (plan === PLANS.STARTER) {
+  // Free plan: AI not available
+  if (plan === PLANS.FREE) {
     return {
-      allowed: hasOwnKey,
+      allowed: false,
       plan,
       appCreditsUsed: 0,
       appCreditsLimit: 0,
       appCreditsRemaining: 0,
-      ownKeyCreditsUsed: shop.ownKeyCreditsUsed || 0,
+      ownKeyCreditsUsed: 0,
       hasOwnKey,
-      currentlyUsingOwnKey: hasOwnKey,
+      currentlyUsingOwnKey: false,
       inTrial: false,
-      resetsAt: shop.aiCreditsResetAt,
+      resetsAt: null,
     };
   }
 
@@ -394,7 +360,7 @@ function getDevPlanOverride(): PlanType | null {
   if (process.env.NODE_ENV === "production") return null;
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim();
   console.log("ai-gating getDevPlanOverride - raw:", raw);
-  if (raw === "free" || raw === "starter" || raw === "pro") return raw as PlanType;
+  if (raw === "free" || raw === "pro") return raw as PlanType;
   return null;
 }
 

@@ -5,7 +5,7 @@ import { isDevStore, syncPlanFromShopify } from "~/lib/billing";
 import { PLANS } from "~/lib/billing/constants";
 
 /**
- * POST /api/billing/upgrade?plan=starter|pro
+ * POST /api/billing/upgrade?plan=pro
  *
  * With managed pricing, subscriptions are created through Shopify's hosted plan selection page.
  * This endpoint now redirects merchants to Shopify's hosted pricing page.
@@ -13,10 +13,10 @@ import { PLANS } from "~/lib/billing/constants";
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const plan = url.searchParams.get("plan") as "starter" | "pro";
+  const plan = url.searchParams.get("plan") as "pro";
 
-  if (!plan || !["starter", "pro"].includes(plan)) {
-    return Response.json({ error: "Invalid plan. Must be 'starter' or 'pro'" }, { status: 400 });
+  if (!plan || plan !== "pro") {
+    return Response.json({ error: "Invalid plan. Must be 'pro'" }, { status: 400 });
   }
 
   try {

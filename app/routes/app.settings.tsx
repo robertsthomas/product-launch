@@ -32,10 +32,10 @@ type VersionHistoryItem = {
 };
 
 // Get dev plan override for local testing
-function getDevPlanOverride(): "free" | "starter" | "pro" | null {
+function getDevPlanOverride(): "free" | "pro" | null {
   if (process.env.NODE_ENV === "production") return null;
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim();
-  if (raw === "free" || raw === "starter" || raw === "pro") return raw;
+  if (raw === "free" || raw === "pro") return raw;
   return null;
 }
 
@@ -256,7 +256,6 @@ export default function Settings() {
   const getRetentionText = () => {
     switch (shop.plan) {
       case "pro": return "30 days";
-      case "starter": return "24 hours";
       default: return "Not available on Free plan";
     }
   };
@@ -575,7 +574,7 @@ export default function Settings() {
                   border: "1px solid var(--color-border)",
                 }}>
                   <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                    Version history is not available on the Free plan. Upgrade to Starter for 24hr retention or Pro for 30 day retention to save and restore previous versions of your product fields.
+                    Version history is not available on the Free plan. Upgrade to Pro for 30 day retention to save and restore previous versions of your product fields.
                   </p>
                 </div>
               ) : (
@@ -832,68 +831,6 @@ export default function Settings() {
             </div>
           )}
 
-          {/* Starter plan - show simple message */}
-          {aiCredits.plan === "starter" && (
-            <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "50ms", animationFillMode: "both" }}>
-              <h2 style={{ 
-                margin: "0 0 16px", 
-                fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)", 
-                fontWeight: 500,
-                color: "var(--color-text)",
-              }}>
-                AI Credits
-              </h2>
-              
-              {aiCredits.hasOwnKey ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <div style={{
-                    padding: "16px",
-                    borderRadius: "var(--radius-md)",
-                    backgroundColor: "rgba(34, 197, 94, 0.1)",
-                    border: "1px solid rgba(34, 197, 94, 0.3)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                  }}>
-                    <div style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "50%",
-                      backgroundColor: "#22c55e",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#fff",
-                    }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M20 6L9 17l-5-5"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, color: "#16a34a" }}>
-                        Using your API key
-                      </p>
-                      <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                        {aiCredits.ownKeyCreditsUsed > 0 ? `${aiCredits.ownKeyCreditsUsed} generations this month` : "Unlimited AI generations"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{
-                  padding: "16px",
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: "var(--color-surface-strong)",
-                  border: "1px solid var(--color-border)",
-                }}>
-                  <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                    Add your OpenAI API key below to unlock AI features on Starter plan, or upgrade to Pro for 100 monthly credits included.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* OpenAI API Key */}
           <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
@@ -925,10 +862,8 @@ export default function Settings() {
               <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
                 Add your own OpenAI API key to unlock AI features. 
                 {shop.plan === "free" 
-                  ? " Upgrade to Starter or Pro to use AI with your own key."
-                  : shop.plan === "starter"
-                    ? " With your own key, you get unlimited AI generations."
-                    : " With your own key, you bypass the monthly credit limit."
+                  ? " Upgrade to Pro to use AI with your own key."
+                  : " With your own key, you bypass the monthly credit limit."
                 }
               </p>
 
@@ -1204,7 +1139,7 @@ export default function Settings() {
                   </button>
                   {shop.plan === "free" && (
                     <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)", textAlign: "center" }}>
-                      Upgrade to Starter or Pro to use your own API key
+                      Upgrade to Pro to use your own API key
                     </p>
                   )}
                 </form>

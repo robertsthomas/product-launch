@@ -15,7 +15,7 @@ export function useUpgrade() {
   const fetcher = useFetcher<UpgradeResponse>();
 
   const upgrade = useCallback(
-    async (plan: "starter" | "pro") => {
+    async (plan: "pro" = "pro") => {
       fetcher.submit(null, {
         method: "POST",
         action: `/api/billing/upgrade?plan=${plan}`,

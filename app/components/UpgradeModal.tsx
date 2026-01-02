@@ -60,25 +60,18 @@ export function UpgradeModal({
               What you'll get with {targetConfig.name}:
             </Text>
             
-            {requiredPlan === PLANS.PRO && (
-              <BlockStack gap="100">
-                <FeatureItem>AI-powered SEO title generation</FeatureItem>
-                <FeatureItem>AI-powered description writing</FeatureItem>
-                <FeatureItem>Automatic tag suggestions</FeatureItem>
-                <FeatureItem>Image alt text generation</FeatureItem>
-                <FeatureItem>Custom checklist rules</FeatureItem>
-                <FeatureItem>100 AI credits per month</FeatureItem>
-              </BlockStack>
-            )}
-            
-            {requiredPlan === PLANS.STARTER && (
-              <BlockStack gap="100">
-                <FeatureItem>Unlimited product audits</FeatureItem>
-                <FeatureItem>One-click auto-fix for issues</FeatureItem>
-                <FeatureItem>Automatic collection assignment</FeatureItem>
-                <FeatureItem>Tag management</FeatureItem>
-              </BlockStack>
-            )}
+            <BlockStack gap="100">
+              <FeatureItem>AI-powered SEO title generation</FeatureItem>
+              <FeatureItem>AI-powered description writing</FeatureItem>
+              <FeatureItem>Automatic tag suggestions</FeatureItem>
+              <FeatureItem>Image alt text generation</FeatureItem>
+              <FeatureItem>Custom checklist rules</FeatureItem>
+              <FeatureItem>100 AI credits per month (15 during trial)</FeatureItem>
+              <FeatureItem>Bulk AI actions (up to 100 products)</FeatureItem>
+              <FeatureItem>Brand voice presets</FeatureItem>
+              <FeatureItem>Scheduled audits + monthly reports</FeatureItem>
+              <FeatureItem>30-day version history</FeatureItem>
+            </BlockStack>
           </BlockStack>
 
           <Box
