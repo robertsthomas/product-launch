@@ -6,7 +6,7 @@ const TARGET = 'admin.product-details.block.render';
 export default reactExtension(TARGET, () => <ProductScoreBlock />);
 
 function ProductScoreBlock() {
-  const { data } = useApi(TARGET);
+  const { data, i18n } = useApi(TARGET);
   const [score, setScore] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -88,8 +88,8 @@ function ProductScoreBlock() {
     return (
       <Box padding="base" style={{ backgroundColor: "#ffffff", border: "1px solid #e2e5eb", borderRadius: "10px" }}>
         <InlineStack spacing="base" alignment="center">
-          <ProgressIndicator accessibilityLabel="Loading" />
-          <Text size="small" style={{ color: "#64748b" }}>Loading score...</Text>
+          <ProgressIndicator accessibilityLabel={i18n.translate("loading")} />
+          <Text size="small" style={{ color: "#64748b" }}>{i18n.translate("loadingScore")}</Text>
         </InlineStack>
       </Box>
     );
@@ -109,10 +109,10 @@ function ProductScoreBlock() {
           <>
             <InlineStack spacing="base" alignment="space-between" blockAlignment="center">
               <Text size="base" fontWeight="semibold" style={{ color: "#1e2530" }}>
-                Product Score
+                {i18n.translate("productScore")}
               </Text>
               <Badge tone={getScoreTone(score)} size="small">
-                {score >= 80 ? "Excellent" : score >= 60 ? "Good" : "Needs Work"}
+                {score >= 80 ? i18n.translate("excellent") : score >= 60 ? i18n.translate("good") : i18n.translate("needsWork")}
               </Badge>
             </InlineStack>
             <InlineStack spacing="base" alignment="center">
@@ -141,17 +141,17 @@ function ProductScoreBlock() {
         ) : (
           <BlockStack spacing="tight">
             <Text size="base" fontWeight="semibold" style={{ color: "#1e2530" }}>
-              Product Score
+              {i18n.translate("productScore")}
             </Text>
             <Text size="small" style={{ color: "#64748b" }}>
-              No score yet
+              {i18n.translate("noScore")}
             </Text>
           </BlockStack>
         )}
         <Link
           to={productId ? `/app/products/${encodeURIComponent(productId)}` : '/app'}
         >
-          Open in App
+          {i18n.translate("openInApp")}
         </Link>
       </BlockStack>
     </Box>

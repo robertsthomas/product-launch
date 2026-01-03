@@ -1,0 +1,12 @@
+{
+  "name": "Startbereitschafts-Score",
+  "description": "Zeigt den Startbereitschafts-Score des Produkts an",
+  "loading": "Wird geladen",
+  "loadingScore": "Score wird geladen...",
+  "productScore": "Startbereitschaft",
+  "excellent": "Ausgezeichnet",
+  "good": "Gut",
+  "needsWork": "Verbesserungsbedarf",
+  "noScore": "Noch nicht geprüft",
+  "openInApp": "In App öffnen"
+}

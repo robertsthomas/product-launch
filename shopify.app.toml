@@ -1,58 +1,54 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-# IMPORTANT: For managed pricing, configure welcome links in the Partner Dashboard
-# Go to Apps > Your App > Distribution > Manage Listing > Pricing Content
-# For each plan, set a welcome link to redirect merchants after subscription approval
-# Example: /app (for embedded apps) or https://yourapp.com/welcome (for external apps)
-
 client_id = "479c0f4598b92323ac11cc6cfe129112"
-name = "Launch Ready"
-handle = "launch-ready"
-# Production URL on Google Cloud Run
+name = "launch-ready"
 application_url = "https://launch-ready-539004348118.us-central1.run.app"
 embedded = true
+handle = "launch-ready"
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "awesome-subscriptions.myshopify.com"
+dev_store_url = "kool-kitchen-8484.myshopify.com"
 
 [webhooks]
 api_version = "2025-01"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
+  uri = "/webhooks/privacy"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
   uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
-  topics = [ "app_subscriptions/update" ]
-  uri = "/webhooks/app/subscriptions_update"
-
-  [[webhooks.subscriptions]]
-  topics = [ "products/create" ]
-  uri = "/webhooks/products/create"
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
   topics = [ "products/update" ]
   uri = "/webhooks/products/update"
 
   [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "/webhooks/app/subscriptions_update"
+
+  [[webhooks.subscriptions]]
   topics = [ "shop/update" ]
   uri = "/webhooks/shop/update"
 
   [[webhooks.subscriptions]]
-  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
-  uri = "/webhooks/privacy"
+  topics = [ "products/create" ]
+  uri = "/webhooks/products/create"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,write_files"
+scopes = "write_files,write_products"
 
 [auth]
-redirect_urls = [ "https://launch-ready-539004348118.us-central1.run.app/api/auth" ]
+redirect_urls = [
+  "https://launch-ready-539004348118.us-central1.run.app/api/auth"
+]
 
 [product.metafields.product_score.current_score]
 type = "single_line_text_field"

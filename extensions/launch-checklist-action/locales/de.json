@@ -1,0 +1,39 @@
+{
+  "name": "Startbereit",
+  "title": "Start-Checkliste",
+  "loading": "Wird geladen...",
+  "noProduct": "Kein Produkt ausgewählt",
+  "notScanned": "Nicht geprüft",
+  "scanToCheck": "Prüfen Sie dieses Produkt, um zu sehen, ob es startbereit ist.",
+  "scanNow": "Produkt prüfen",
+  "scanning": "Wird geprüft...",
+  "ready": "Startbereit",
+  "needsWork": "{{count}} Probleme zu beheben",
+  "checksPassed": "Prüfungen bestanden",
+  "openInApp": "In App öffnen",
+  "viewInApp": "Details anzeigen",
+  "fixInApp": "Öffnen Sie die App, um Probleme mit KI-Unterstützung zu beheben.",
+  "fixInApp_button": "Mit KI beheben",
+  "rescan": "Erneut prüfen",
+  "andMore": "+{{count}} weitere",
+  "close": "Schließen",
+  "error": "Etwas ist schiefgelaufen",
+  "tryAgain": "Erneut versuchen",
+  "lastScanned": "Zuletzt geprüft {{time}}",
+  "checks": {
+    "title": "Titel (10+ Zeichen)",
+    "description": "Beschreibung (50+ Zeichen)",
+    "images": "Produktbilder (3+)",
+    "imageAlt": "Alle Bilder haben Alt-Text",
+    "seoTitle": "SEO-Titel festgelegt",
+    "seoDescription": "SEO-Beschreibung (80+ Zeichen)",
+    "collections": "Zu Kollektion hinzugefügt",
+    "productType": "Produkttyp festgelegt",
+    "vendor": "Anbieter/Marke festgelegt",
+    "tags": "Produkt-Tags hinzugefügt"
+  },
+  "status": {
+    "passed": "Bestanden",
+    "failed": "Fehlgeschlagen"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Puntuación de lanzamiento",
+  "description": "Muestra la puntuación de preparación para el lanzamiento del producto",
+  "loading": "Cargando",
+  "loadingScore": "Cargando puntuación...",
+  "productScore": "Puntuación de lanzamiento",
+  "excellent": "Excelente",
+  "good": "Bueno",
+  "needsWork": "Necesita trabajo",
+  "noScore": "Aún no analizado",
+  "openInApp": "Abrir en la app"
+}

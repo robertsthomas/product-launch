@@ -105,10 +105,25 @@ export default function App() {
       <div className="app-shell">
         <header className="app-header">
           <div className="page-shell app-header-content" style={{ padding: "0 24px" }}>
-            <div className="brand">
-              {/* <LogoIcon /> */}
+            <Link 
+              to="/app"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                textDecoration: "none",
+                cursor: "pointer",
+                transition: "opacity var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "0.8";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = "1";
+              }}
+            >
               <span className="brand-title">Launch Ready</span>
-            </div>
+            </Link>
             <AppNavigation />
           </div>
         </header>

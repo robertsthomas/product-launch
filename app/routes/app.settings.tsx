@@ -31,6 +31,8 @@ type VersionHistoryItem = {
   createdAt: string;
 };
 
+type SettingsTab = "automation" | "ai" | "brand-voice" | "version-history" | "checklist";
+
 // Get dev plan override for local testing
 function getDevPlanOverride(): "free" | "pro" | null {
   if (process.env.NODE_ENV === "production") return null;
@@ -226,12 +228,68 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { success: false };
 };
 
+// Tab configuration
+const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
+  {
+    key: "automation",
+    label: "Automation",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+    ),
+  },
+  {
+    key: "ai",
+    label: "AI & Credits",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="1"/>
+        <circle cx="19" cy="12" r="1"/>
+        <circle cx="5" cy="12" r="1"/>
+        <path d="M12 9v6M12 2v2M12 20v2M4.22 4.22l1.41 1.41M17.37 17.37l1.41 1.41M4.22 19.78l1.41-1.41M17.37 6.63l1.41-1.41M2 12h2M20 12h2"/>
+      </svg>
+    ),
+  },
+  {
+    key: "brand-voice",
+    label: "Brand Voice",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    ),
+  },
+  {
+    key: "version-history",
+    label: "Version History",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+    ),
+  },
+  {
+    key: "checklist",
+    label: "Checklist Rules",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M9 11l3 3L22 4"/>
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+      </svg>
+    ),
+  },
+];
+
 export default function Settings() {
   const { shop, template, collections, brandVoiceProfiles, aiCredits } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const versionFetcher = useFetcher();
   const navigate = useNavigate();
   const shopify = useAppBridge();
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>("automation");
 
   useEffect(() => {
     if (fetcher.data?.message) {
@@ -260,20 +318,11 @@ export default function Settings() {
     }
   };
 
-  // Version history modal state
-  const [versionHistoryModal, setVersionHistoryModal] = useState<{
-    isOpen: boolean;
-    versions: VersionHistoryItem[];
-    loading: boolean;
-    reverting: string | null;
-    expandedProducts: Set<string>;
-  }>({
-    isOpen: false,
-    versions: [],
-    loading: false,
-    reverting: null,
-    expandedProducts: new Set(),
-  });
+  // Version history state
+  const [versions, setVersions] = useState<VersionHistoryItem[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [reverting, setReverting] = useState<string | null>(null);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
 
   // Format relative time using date-fns
   const formatTimeAgo = (dateStr: string) => {
@@ -281,7 +330,7 @@ export default function Settings() {
   };
 
   // Sort versions by most recent first, then group by product
-  const sortedVersions = [...versionHistoryModal.versions].sort(
+  const sortedVersions = [...versions].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
@@ -294,39 +343,39 @@ export default function Settings() {
   }, {} as Record<string, { title: string; versions: VersionHistoryItem[] }>);
 
   const toggleProductExpanded = (productId: string) => {
-    setVersionHistoryModal(prev => {
-      const newSet = new Set(prev.expandedProducts);
+    setExpandedProducts(prev => {
+      const newSet = new Set(prev);
       if (newSet.has(productId)) {
         newSet.delete(productId);
       } else {
         newSet.add(productId);
       }
-      return { ...prev, expandedProducts: newSet };
+      return newSet;
     });
   };
 
-  const openVersionHistoryModal = useCallback(() => {
-    setVersionHistoryModal(prev => ({ ...prev, isOpen: true, loading: true }));
+  const loadVersionHistory = useCallback(() => {
+    setVersionsLoading(true);
     versionFetcher.load("/api/versions");
   }, [versionFetcher]);
+
+  // Load version history when tab changes to version-history
+  useEffect(() => {
+    if (activeTab === "version-history" && versions.length === 0 && !versionsLoading) {
+      loadVersionHistory();
+    }
+  }, [activeTab, versions.length, versionsLoading, loadVersionHistory]);
 
   // Handle version fetcher response
   useEffect(() => {
     if (versionFetcher.state === "idle" && versionFetcher.data) {
-      setVersionHistoryModal(prev => ({
-        ...prev,
-        versions: versionFetcher.data?.versions || [],
-        loading: false,
-      }));
+      setVersions(versionFetcher.data?.versions || []);
+      setVersionsLoading(false);
     }
   }, [versionFetcher.state, versionFetcher.data]);
 
-  const closeVersionHistoryModal = useCallback(() => {
-    setVersionHistoryModal({ isOpen: false, versions: [], loading: false, reverting: null, expandedProducts: new Set() });
-  }, []);
-
   const revertVersion = useCallback((version: VersionHistoryItem) => {
-    setVersionHistoryModal(prev => ({ ...prev, reverting: version.id }));
+    setReverting(version.id);
     versionFetcher.submit(
       {
         versionId: version.id,
@@ -341,12 +390,13 @@ export default function Settings() {
   useEffect(() => {
     if (versionFetcher.state === "idle" && versionFetcher.data?.success) {
       shopify.toast.show("Reverted successfully");
-      closeVersionHistoryModal();
+      setReverting(null);
+      loadVersionHistory(); // Refresh the list
     } else if (versionFetcher.state === "idle" && versionFetcher.data?.error) {
       shopify.toast.show(versionFetcher.data.error);
-      setVersionHistoryModal(prev => ({ ...prev, reverting: null }));
+      setReverting(null);
     }
-  }, [versionFetcher.state, versionFetcher.data, shopify, closeVersionHistoryModal]);
+  }, [versionFetcher.state, versionFetcher.data, shopify, loadVersionHistory]);
 
   const formatFieldName = (field: string) => {
     const names: Record<string, string> = {
@@ -375,9 +425,9 @@ export default function Settings() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "0", minHeight: "100%", width: "100%" }}>
       {/* Page Header */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px", maxWidth: "800px" }}>
         <button
           type="button"
           onClick={() => navigate("/app")}
@@ -401,6 +451,7 @@ export default function Settings() {
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
         </button>
+        <div>
         <h1
           style={{
             fontFamily: "var(--font-heading)",
@@ -412,73 +463,137 @@ export default function Settings() {
         >
           Settings
         </h1>
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+            Manage your account settings and preferences.
+          </p>
+        </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "24px", alignItems: "start", maxWidth: "1200px" }}>
-        {/* Left Column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          {/* Automation */}
-          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "50ms", animationFillMode: "both" }}>
-            <h2 style={{ 
-              margin: "0 0 20px", 
-              fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)", 
+      {/* Tab Navigation */}
+      <div style={{ 
+        display: "flex", 
+        gap: "0", 
+        borderBottom: "1px solid var(--color-border)",
+        marginBottom: "32px",
+        width: "100%",
+      }}>
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "12px 20px",
+              fontSize: "var(--text-sm)",
               fontWeight: 500,
+              color: activeTab === tab.key ? "var(--color-text)" : "var(--color-muted)",
+              background: "transparent",
+              border: "none",
+              borderBottom: activeTab === tab.key ? "2px solid var(--color-text)" : "2px solid transparent",
+              cursor: "pointer",
+              transition: "all var(--transition-fast)",
+              marginBottom: "-1px",
+            }}
+          >
+            <span style={{ color: activeTab === tab.key ? "var(--color-text)" : "var(--color-muted)" }}>
+              {tab.icon}
+            </span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div style={{ flex: 1, overflowY: "scroll", width: "100%" }}>
+        {/* Automation & Auto-fix Tab */}
+        {activeTab === "automation" && (
+          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+              {/* Automation Section */}
+              <div>
+            <h2 style={{ 
+                  margin: "0 0 8px", 
+              fontFamily: "var(--font-heading)",
+                  fontSize: "var(--text-lg)", 
+                  fontWeight: 600,
               color: "var(--color-text)",
             }}>
               Automation
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+                <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                  Configure when products are automatically scanned for launch readiness.
+                </p>
+                <div className="card" style={{ padding: "24px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer" }}>
                 <input
                   type="checkbox"
                   checked={shop.autoRunOnCreate}
                   onChange={(e) => updateSetting("autoRunOnCreate", e.target.checked)}
                   style={{
-                    width: "16px",
-                    height: "16px",
+                          width: "18px",
+                          height: "18px",
                     cursor: "pointer",
                     accentColor: "var(--color-primary)",
                     flexShrink: 0,
+                          marginTop: "2px",
                   }}
                 />
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text)", fontWeight: 500 }}>
+                      <div>
+                        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)", fontWeight: 500, display: "block" }}>
                   Scan new products automatically
                 </span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                          Run an audit whenever a new product is created in your store.
+                        </span>
+                      </div>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer" }}>
                 <input
                   type="checkbox"
                   checked={shop.autoRunOnUpdate}
                   onChange={(e) => updateSetting("autoRunOnUpdate", e.target.checked)}
                   style={{
-                    width: "16px",
-                    height: "16px",
+                          width: "18px",
+                          height: "18px",
                     cursor: "pointer",
                     accentColor: "var(--color-primary)",
                     flexShrink: 0,
+                          marginTop: "2px",
                   }}
                 />
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text)", fontWeight: 500 }}>
+                      <div>
+                        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)", fontWeight: 500, display: "block" }}>
                   Re-scan when products are updated
                 </span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                          Re-run audits whenever product details are modified.
+                        </span>
+                      </div>
               </label>
+                  </div>
             </div>
           </div>
 
-          {/* Auto-fix Settings - Combined */}
-          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
+              {/* Auto-fix Settings Section */}
+              <div>
             <h2 style={{ 
-              margin: "0 0 20px", 
+                  margin: "0 0 8px", 
               fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)", 
-              fontWeight: 500,
+                  fontSize: "var(--text-lg)", 
+                  fontWeight: 600,
               color: "var(--color-text)",
             }}>
-              Auto-fix Settings
+                  Auto-fix Defaults
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                  Set default values used when applying quick fixes to products.
+                </p>
+                <div className="card" style={{ padding: "24px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               {/* Default Collection */}
               <div>
                 <label style={{ 
@@ -486,17 +601,18 @@ export default function Settings() {
                   fontSize: "var(--text-sm)", 
                   fontWeight: 600, 
                   color: "var(--color-text)",
-                  marginBottom: "8px",
+                        marginBottom: "6px",
                 }}>
                   Default collection
                 </label>
-                <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                      <p style={{ margin: "0 0 10px", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
                   Products will be added to this collection when using "Add to Collection" auto-fix.
                 </p>
                 <select
                   value={shop.defaultCollectionId ?? ""}
                   onChange={(e) => updateSetting("defaultCollectionId", e.target.value)}
                   className="input-elevated"
+                        style={{ maxWidth: "400px" }}
                 >
                   <option value="">Select a collection</option>
                   {collections.map((c: { id: string; title: string }) => (
@@ -505,9 +621,6 @@ export default function Settings() {
                 </select>
               </div>
 
-              {/* Divider */}
-              <div style={{ height: "1px", backgroundColor: "var(--color-border)" }} />
-
               {/* Default Tags */}
               <div>
                 <label style={{ 
@@ -515,11 +628,11 @@ export default function Settings() {
                   fontSize: "var(--text-sm)", 
                   fontWeight: 600, 
                   color: "var(--color-text)",
-                  marginBottom: "8px",
+                        marginBottom: "6px",
                 }}>
                   Default tags
                 </label>
-                <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                      <p style={{ margin: "0 0 10px", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
                   These tags will be added when using "Apply Default Tags" auto-fix.
                 </p>
                 <input
@@ -527,6 +640,7 @@ export default function Settings() {
                   placeholder="Enter tags separated by commas"
                   defaultValue={shop.defaultTags?.join(", ") || ""}
                   className="input-elevated"
+                        style={{ maxWidth: "400px" }}
                   onBlur={(e) => {
                     fetcher.submit(
                       { intent: "update_default_tags", defaultTags: e.target.value },
@@ -535,14 +649,14 @@ export default function Settings() {
                   }}
                 />
                 {shop.defaultTags && shop.defaultTags.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "12px" }}>
                     {shop.defaultTags.map((tag) => (
                       <span key={tag} style={{
-                        padding: "3px 10px",
+                              padding: "4px 12px",
                         borderRadius: "var(--radius-full)",
                         background: "var(--color-primary-soft)",
                         color: "var(--color-primary)",
-                        fontSize: "11px",
+                              fontSize: "12px",
                         fontWeight: 500,
                       }}>
                         {tag}
@@ -553,223 +667,63 @@ export default function Settings() {
               </div>
             </div>
           </div>
-
-          {/* Version History */}
-          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "150ms", animationFillMode: "both" }}>
-            <h2 style={{ 
-              margin: "0 0 20px", 
-              fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)", 
-              fontWeight: 500,
-              color: "var(--color-text)",
-            }}>
-              Version History
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {shop.plan === "free" ? (
-                <div style={{
-                  padding: "16px",
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: "var(--color-surface-strong)",
-                  border: "1px solid var(--color-border)",
-                }}>
-                  <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                    Version history is not available on the Free plan. Upgrade to Pro for 30 day retention to save and restore previous versions of your product fields.
-                  </p>
                 </div>
-              ) : (
-                <>
-                  <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={shop.versionHistoryEnabled}
-                      onChange={(e) => updateSetting("versionHistoryEnabled", e.target.checked)}
-                      style={{
-                        width: "16px",
-                        height: "16px",
-                        cursor: "pointer",
-                        accentColor: "var(--color-primary)",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text)", fontWeight: 500 }}>
-                      Save version history for AI-generated fields
-                    </span>
-                  </label>
-                  <div style={{
-                    padding: "12px 16px",
-                    borderRadius: "var(--radius-md)",
-                    backgroundColor: "var(--color-primary-soft)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M12 6v6l4 2"/>
-                    </svg>
-                    <span style={{ fontSize: "var(--text-sm)", color: "var(--color-primary)", fontWeight: 500 }}>
-                      Retention: {getRetentionText()}
-                    </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={openVersionHistoryModal}
-                    style={{
-                      padding: "10px 16px",
-                      fontSize: "var(--text-xs)",
-                      fontWeight: 600,
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-surface)",
-                      color: "var(--color-text)",
-                      cursor: "pointer",
-                      transition: "all var(--transition-fast)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      width: "100%",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                      <path d="M3 3v5h5"/>
-                    </svg>
-                    View all version history
-                  </button>
-                </>
-              )}
             </div>
-          </div>
-        </div>
+        )}
 
-        {/* Right Column */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          {/* AI Credits */}
+        {/* AI & Credits Tab */}
+        {activeTab === "ai" && (
+          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+              {/* AI Credits Section */}
           {aiCredits.plan === "pro" && (
-            <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "50ms", animationFillMode: "both" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+                <div>
                 <h2 style={{ 
-                  margin: 0, 
+                    margin: "0 0 8px", 
                   fontFamily: "var(--font-heading)",
-                  fontSize: "var(--text-xl)", 
-                  fontWeight: 500,
+                    fontSize: "var(--text-lg)", 
+                    fontWeight: 600,
                   color: "var(--color-text)",
                 }}>
                   AI Credits
                 </h2>
+                  <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                    Track your monthly AI credit usage. Credits reset on the 1st of each month.
+                  </p>
+                  <div className="card" style={{ padding: "24px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                      {/* Progress bar */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                          <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                            {aiCredits.appCreditsUsed} / {aiCredits.appCreditsLimit} credits used
+                          </span>
                 {aiCredits.resetsAt && (
-                  <span style={{
-                    fontSize: "var(--text-xs)",
-                    color: "var(--color-muted)",
-                  }}>
+                            <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
                     Resets {new Date(aiCredits.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 )}
               </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {/* iOS-style stacked progress bar */}
-                <div>
-                  {/* Progress bar container */}
                   <div style={{
-                    height: "24px",
+                          height: "12px",
                     borderRadius: "6px",
                     backgroundColor: "var(--color-surface-strong)",
                     overflow: "hidden",
-                    display: "flex",
                     border: "1px solid var(--color-border)",
                   }}>
-                    {/* App Credits segment */}
-                    {aiCredits.appCreditsLimit > 0 && (
                       <div
                         style={{
                           width: `${Math.min(100, (aiCredits.appCreditsUsed / aiCredits.appCreditsLimit) * 100)}%`,
                           height: "100%",
-                          backgroundColor: "#6366f1",
+                              backgroundColor: aiCredits.appCreditsRemaining <= 10 ? "#ef4444" : "#6366f1",
                           transition: "width 0.5s ease",
-                          minWidth: aiCredits.appCreditsUsed > 0 ? "4px" : "0",
                         }}
                       />
-                    )}
-                    {/* Own Key Credits segment - shown when own key is used */}
-                    {aiCredits.hasOwnKey && aiCredits.ownKeyCreditsUsed > 0 && (
-                      <div
-                        style={{
-                          // For own key usage, show it proportionally (e.g., every 10 = 1% of bar for visual)
-                          width: `${Math.min(100 - (aiCredits.appCreditsUsed / aiCredits.appCreditsLimit) * 100, Math.max(4, aiCredits.ownKeyCreditsUsed / 2))}%`,
-                          height: "100%",
-                          backgroundColor: "#22c55e",
-                          transition: "width 0.5s ease",
-                          minWidth: "4px",
-                        }}
-                      />
-                    )}
                   </div>
-
-                  {/* Legend */}
-                  <div style={{ 
-                    display: "flex", 
-                    gap: "16px", 
-                    marginTop: "12px",
-                    flexWrap: "wrap",
-                  }}>
-                    {/* App Credits */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div style={{
-                        width: "12px",
-                        height: "12px",
-                        borderRadius: "3px",
-                        backgroundColor: "#6366f1",
-                      }} />
-                      <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)" }}>
-                        App Credits
-                      </span>
-                      <span style={{ 
-                        fontSize: "var(--text-sm)", 
-                        fontWeight: 600,
-                        color: aiCredits.appCreditsRemaining <= 10 ? "#ef4444" : "var(--color-text)",
-                      }}>
-                        {aiCredits.appCreditsUsed}/{aiCredits.appCreditsLimit}
-                      </span>
                     </div>
 
-                    {/* Own API Key */}
-                    {aiCredits.hasOwnKey && (
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <div style={{
-                          width: "12px",
-                          height: "12px",
-                          borderRadius: "3px",
-                          backgroundColor: "#22c55e",
-                        }} />
-                        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)" }}>
-                          Your API Key
-                        </span>
-                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
-                          {aiCredits.ownKeyCreditsUsed > 0 ? `${aiCredits.ownKeyCreditsUsed} used` : "Ready"}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Available space */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div style={{
-                        width: "12px",
-                        height: "12px",
-                        borderRadius: "3px",
-                        backgroundColor: "var(--color-surface-strong)",
-                        border: "1px solid var(--color-border)",
-                      }} />
-                      <span style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                        Available
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status message */}
+                      {/* Status */}
                 <div style={{
                   padding: "12px 16px",
                   borderRadius: "var(--radius-md)",
@@ -778,13 +732,6 @@ export default function Settings() {
                     : aiCredits.appCreditsRemaining <= 10 
                       ? "rgba(239, 68, 68, 0.1)"
                       : "var(--color-primary-soft)",
-                  border: `1px solid ${
-                    aiCredits.currentlyUsingOwnKey 
-                      ? "rgba(34, 197, 94, 0.3)" 
-                      : aiCredits.appCreditsRemaining <= 10 
-                        ? "rgba(239, 68, 68, 0.3)"
-                        : "var(--color-primary-soft)"
-                  }`,
                 }}>
                   <p style={{ 
                     margin: 0, 
@@ -799,47 +746,27 @@ export default function Settings() {
                     {aiCredits.currentlyUsingOwnKey ? (
                       <>✓ Using your API key — unlimited generations</>
                     ) : aiCredits.appCreditsRemaining <= 0 ? (
-                      aiCredits.hasOwnKey ? (
-                        shop.useOwnOpenAIKey ? (
-                          <>App credits exhausted. Now using your API key.</>
-                        ) : (
-                          <>App credits exhausted. Enable your API key to continue.</>
-                        )
-                      ) : (
                         <>No credits remaining. Add your API key for unlimited access.</>
-                      )
                     ) : aiCredits.appCreditsRemaining <= 10 ? (
-                      <>Only {aiCredits.appCreditsRemaining} credits left this month.{!aiCredits.hasOwnKey ? " Add your API key to continue after." : shop.useOwnOpenAIKey ? "" : " Enable your API key to continue after."}</>
+                            <>Only {aiCredits.appCreditsRemaining} credits left this month.</>
                     ) : (
-                      <>{aiCredits.appCreditsRemaining} credits remaining this month.{aiCredits.hasOwnKey && shop.useOwnOpenAIKey && " Your API key kicks in after."}{aiCredits.hasOwnKey && !shop.useOwnOpenAIKey && " Your API key is paused."}</>
+                            <>{aiCredits.appCreditsRemaining} credits remaining this month.</>
                     )}
                   </p>
                 </div>
-
-                {/* Hint for users without own key */}
-                {!aiCredits.hasOwnKey && aiCredits.appCreditsRemaining <= 50 && (
-                  <p style={{ 
-                    margin: 0, 
-                    fontSize: "var(--text-xs)", 
-                    color: "var(--color-muted)",
-                    textAlign: "center",
-                  }}>
-                    💡 Add your OpenAI API key below for unlimited AI generations
-                  </p>
-                )}
               </div>
+            </div>
             </div>
           )}
 
-
-          {/* OpenAI API Key */}
-          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+              {/* OpenAI API Key Section */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
               <h2 style={{ 
                 margin: 0, 
                 fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)", 
-                fontWeight: 500,
+                    fontSize: "var(--text-lg)", 
+                    fontWeight: 600,
                 color: "var(--color-text)",
               }}>
                 OpenAI API Key
@@ -857,18 +784,13 @@ export default function Settings() {
                 </span>
               )}
             </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                Add your own OpenAI API key to unlock AI features. 
-                {shop.plan === "free" 
-                  ? " Upgrade to Pro to use AI with your own key."
-                  : " With your own key, you bypass the monthly credit limit."
-                }
-              </p>
-
+                <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                  Add your own OpenAI API key for unlimited AI generations. 
+                  {shop.plan === "free" && " Upgrade to Pro to use this feature."}
+                </p>
+                <div className="card" style={{ padding: "24px" }}>
               {shop.hasOpenaiApiKey ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {/* Saved key display */}
                   <div style={{
                     display: "flex",
@@ -900,7 +822,7 @@ export default function Settings() {
                     )}
                   </div>
 
-                  {/* Toggle to enable/disable own key */}
+                      {/* Toggle */}
                   {shop.plan === "pro" && (
                     <div style={{
                       display: "flex",
@@ -910,10 +832,9 @@ export default function Settings() {
                       borderRadius: "var(--radius-md)",
                       backgroundColor: shop.useOwnOpenAIKey ? "rgba(34, 197, 94, 0.08)" : "var(--color-surface-strong)",
                       border: `1px solid ${shop.useOwnOpenAIKey ? "rgba(34, 197, 94, 0.2)" : "var(--color-border)"}`,
-                      transition: "all var(--transition-fast)",
                     }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                        <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                          <div>
+                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)", display: "block" }}>
                           Use my API key
                         </span>
                         <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
@@ -958,18 +879,15 @@ export default function Settings() {
                     </div>
                   )}
 
-                  {/* Model Selection - only when using own key */}
+                      {/* Model Selection */}
                   {shop.useOwnOpenAIKey && (
                     <div style={{
                       padding: "16px",
                       borderRadius: "var(--radius-md)",
                       backgroundColor: "var(--color-surface-strong)",
                       border: "1px solid var(--color-border)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "12px",
                     }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
                           <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                           <path d="M2 17l10 5 10-5"/>
@@ -979,82 +897,48 @@ export default function Settings() {
                           Model Selection
                         </span>
                       </div>
-                      
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                        {/* Text Model */}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                         <div>
-                          <label style={{ 
-                            display: "block",
-                            fontSize: "var(--text-xs)", 
-                            fontWeight: 500, 
-                            color: "var(--color-muted)",
-                            marginBottom: "6px",
-                          }}>
+                              <label style={{ display: "block", fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--color-muted)", marginBottom: "6px" }}>
                             Text Generation
                           </label>
                           <select
                             value={shop.openaiTextModel || ""}
                             onChange={(e) => {
                               fetcher.submit(
-                                { 
-                                  intent: "update_openai_models", 
-                                  textModel: e.target.value,
-                                  imageModel: shop.openaiImageModel || "",
-                                },
+                                    { intent: "update_openai_models", textModel: e.target.value, imageModel: shop.openaiImageModel || "" },
                                 { method: "POST" }
                               );
                             }}
                             className="input-elevated"
-                            style={{ fontSize: "var(--text-sm)" }}
                           >
                             <option value="">Default (GPT-4.1 Mini)</option>
                             {OPENAI_TEXT_MODELS.map((model) => (
-                              <option key={model.id} value={model.id}>
-                                {model.name}
-                              </option>
+                                  <option key={model.id} value={model.id}>{model.name}</option>
                             ))}
                           </select>
                         </div>
-
-                        {/* Image/Vision Model */}
                         <div>
-                          <label style={{ 
-                            display: "block",
-                            fontSize: "var(--text-xs)", 
-                            fontWeight: 500, 
-                            color: "var(--color-muted)",
-                            marginBottom: "6px",
-                          }}>
+                              <label style={{ display: "block", fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--color-muted)", marginBottom: "6px" }}>
                             Image Analysis
                           </label>
                           <select
                             value={shop.openaiImageModel || ""}
                             onChange={(e) => {
                               fetcher.submit(
-                                { 
-                                  intent: "update_openai_models", 
-                                  textModel: shop.openaiTextModel || "",
-                                  imageModel: e.target.value,
-                                },
+                                    { intent: "update_openai_models", textModel: shop.openaiTextModel || "", imageModel: e.target.value },
                                 { method: "POST" }
                               );
                             }}
                             className="input-elevated"
-                            style={{ fontSize: "var(--text-sm)" }}
                           >
                             <option value="">Default (GPT-4.1 Mini)</option>
                             {OPENAI_IMAGE_MODELS.map((model) => (
-                              <option key={model.id} value={model.id}>
-                                {model.name}
-                              </option>
+                                  <option key={model.id} value={model.id}>{model.name}</option>
                             ))}
                           </select>
                         </div>
                       </div>
-
-                      <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                        Choose which OpenAI models to use with your API key. More capable models may cost more.
-                      </p>
                     </div>
                   )}
 
@@ -1062,32 +946,21 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (confirm("Are you sure you want to remove your API key? AI features will use the app's default key (subject to credit limits).")) {
-                        fetcher.submit(
-                          { intent: "remove_openai_key" },
-                          { method: "POST" }
-                        );
+                          if (confirm("Are you sure you want to remove your API key?")) {
+                            fetcher.submit({ intent: "remove_openai_key" }, { method: "POST" });
                       }
                     }}
                     style={{
                       padding: "10px 16px",
-                      fontSize: "var(--text-xs)",
-                      fontWeight: 600,
+                          fontSize: "var(--text-sm)",
+                          fontWeight: 500,
                       borderRadius: "var(--radius-md)",
                       border: "1px solid var(--color-border)",
                       background: "var(--color-surface)",
                       color: "var(--color-text)",
                       cursor: "pointer",
-                      transition: "all var(--transition-fast)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      justifyContent: "center",
                     }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
                     Remove API Key
                   </button>
                 </div>
@@ -1108,104 +981,107 @@ export default function Settings() {
                     placeholder="sk-..."
                     required
                     className="input-elevated"
-                    style={{ fontFamily: "monospace" }}
+                        style={{ fontFamily: "monospace", maxWidth: "400px" }}
                   />
                   <button
                     type="submit"
                     disabled={fetcher.state !== "idle" || shop.plan === "free"}
                     style={{
-                      padding: "10px 16px",
-                      fontSize: "var(--text-xs)",
-                      fontWeight: 600,
+                          padding: "10px 20px",
+                          fontSize: "var(--text-sm)",
+                          fontWeight: 500,
                       borderRadius: "var(--radius-md)",
                       border: "none",
                       background: shop.plan === "free" ? "var(--color-surface-strong)" : "var(--gradient-primary)",
                       color: shop.plan === "free" ? "var(--color-muted)" : "#fff",
                       cursor: shop.plan === "free" ? "not-allowed" : "pointer",
-                      transition: "all var(--transition-fast)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      justifyContent: "center",
-                      opacity: fetcher.state !== "idle" ? 0.7 : 1,
+                          maxWidth: "200px",
                     }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                      <polyline points="17 21 17 13 7 13 7 21"/>
-                      <polyline points="7 3 7 8 15 8"/>
-                    </svg>
                     {fetcher.state !== "idle" ? "Saving..." : "Save API Key"}
                   </button>
                   {shop.plan === "free" && (
-                    <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)", textAlign: "center" }}>
-                      Upgrade to Pro to use your own API key
+                        <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                          Upgrade to Pro to use your own API key
                     </p>
                   )}
                 </form>
               )}
 
               <div style={{
+                    marginTop: "16px",
                 padding: "12px 16px",
                 borderRadius: "var(--radius-md)",
                 backgroundColor: "var(--color-surface-strong)",
                 border: "1px solid var(--color-border)",
               }}>
                 <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                  <strong>Security:</strong> Your API key is encrypted and stored securely. We never share or expose your key. 
+                      <strong>Security:</strong> Your API key is encrypted and stored securely. 
                   Get your key from{" "}
-                  <a 
-                    href="https://platform.openai.com/api-keys" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ color: "var(--color-primary)" }}
-                  >
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-primary)" }}>
                     OpenAI Platform
                   </a>.
                 </p>
               </div>
             </div>
           </div>
+            </div>
+          </div>
+        )}
 
-          {/* Brand Voice (Pro only) */}
-          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "100ms", animationFillMode: "both" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+        {/* Brand Voice Tab */}
+        {activeTab === "brand-voice" && (
+          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
               <h2 style={{ 
-                margin: 0, 
+              margin: "0 0 8px", 
                 fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)", 
-                fontWeight: 500,
+              fontSize: "var(--text-lg)", 
+              fontWeight: 600,
                 color: "var(--color-text)",
               }}>
                 AI Brand Voice
               </h2>
-              {shop.plan !== "pro" && (
+            <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+              Customize how AI generates content to match your brand's personality and tone.
+            </p>
+            
+            {shop.plan !== "pro" ? (
+              <div className="card" style={{ padding: "32px", textAlign: "center" }}>
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "50%",
+                  backgroundColor: "var(--color-primary-soft)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 16px",
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </div>
+                <h3 style={{ margin: "0 0 8px", fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--color-text)" }}>
+                  Unlock Brand Voice
+                </h3>
+                <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)", maxWidth: "400px", marginLeft: "auto", marginRight: "auto" }}>
+                  AI Brand Voice profiles let you customize how AI generates content. Upgrade to Pro to access this feature.
+                </p>
                 <span style={{
-                  padding: "2px 8px",
+                  display: "inline-block",
+                  padding: "4px 12px",
                   borderRadius: "var(--radius-full)",
                   background: "rgba(167, 139, 250, 0.15)",
                   color: "#8b5cf6",
-                  fontSize: "10px",
+                  fontSize: "12px",
                   fontWeight: 600,
                 }}>
                   PRO
                 </span>
-              )}
-            </div>
-            
-            {shop.plan !== "pro" ? (
-              <div style={{
-                padding: "16px",
-                borderRadius: "var(--radius-md)",
-                backgroundColor: "var(--color-surface-strong)",
-                border: "1px solid var(--color-border)",
-              }}>
-                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                  AI Brand Voice profiles let you customize how AI generates content to match your brand's personality. Available on Pro plan.
-                </p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className="card" style={{ padding: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                 {/* Voice Preset */}
                 <div>
                   <label style={{ 
@@ -1213,11 +1089,11 @@ export default function Settings() {
                     fontSize: "var(--text-sm)", 
                     fontWeight: 600, 
                     color: "var(--color-text)",
-                    marginBottom: "8px",
+                      marginBottom: "12px",
                   }}>
                     Voice Preset
                   </label>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
                     {BRAND_VOICE_PRESETS.map((preset) => {
                       const profile = brandVoiceProfiles[preset];
                       const isSelected = shop.brandVoicePreset === preset;
@@ -1236,14 +1112,10 @@ export default function Settings() {
                             );
                           }}
                           style={{
-                            padding: "12px 8px",
+                              padding: "16px 12px",
                             borderRadius: "var(--radius-md)",
-                            border: isSelected 
-                              ? "2px solid var(--color-primary)" 
-                              : "1px solid var(--color-border)",
-                            background: isSelected 
-                              ? "var(--color-primary-soft)" 
-                              : "var(--color-surface)",
+                              border: isSelected ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
+                              background: isSelected ? "var(--color-primary-soft)" : "var(--color-surface)",
                             cursor: "pointer",
                             transition: "all var(--transition-fast)",
                             textAlign: "center",
@@ -1253,14 +1125,11 @@ export default function Settings() {
                             fontSize: "var(--text-sm)", 
                             fontWeight: 600, 
                             color: isSelected ? "var(--color-primary)" : "var(--color-text)",
-                            marginBottom: "2px",
+                              marginBottom: "4px",
                           }}>
                             {profile.name}
                           </div>
-                          <div style={{ 
-                            fontSize: "9px", 
-                            color: "var(--color-muted)",
-                          }}>
+                            <div style={{ fontSize: "10px", color: "var(--color-muted)", lineHeight: 1.3 }}>
                             {profile.description}
                           </div>
                         </button>
@@ -1276,15 +1145,18 @@ export default function Settings() {
                     fontSize: "var(--text-sm)", 
                     fontWeight: 600, 
                     color: "var(--color-text)",
-                    marginBottom: "8px",
+                      marginBottom: "6px",
                   }}>
                     Custom Brand Notes (optional)
                   </label>
+                    <p style={{ margin: "0 0 10px", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                      Add specific instructions that will be included in every AI generation.
+                    </p>
                   <textarea
-                    placeholder="Add specific instructions about your brand voice, e.g., 'Always mention our commitment to sustainability' or 'Use playful emojis sparingly'"
+                      placeholder="e.g., 'Always mention our commitment to sustainability' or 'Use playful emojis sparingly'"
                     defaultValue={shop.brandVoiceNotes || ""}
                     className="input-elevated"
-                    rows={3}
+                      rows={4}
                     style={{ resize: "vertical" }}
                     onBlur={(e) => {
                       fetcher.submit(
@@ -1297,190 +1169,131 @@ export default function Settings() {
                       );
                     }}
                   />
+                  </div>
                 </div>
               </div>
             )}
           </div>
+        )}
 
-          {/* Checklist Rules */}
-        {template && (
-          <div className="card animate-fade-in-up" style={{ padding: "28px", animationDelay: "150ms", animationFillMode: "both" }}>
+        {/* Version History Tab */}
+        {activeTab === "version-history" && (
+          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
             <h2 style={{ 
-              margin: "0 0 20px", 
+                margin: 0, 
               fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)", 
-              fontWeight: 500,
+                fontSize: "var(--text-lg)", 
+                fontWeight: 600,
               color: "var(--color-text)",
             }}>
-              Checklist Rules
+                Version History
             </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-              {template.items.map((item) => (
-                <label
-                  key={item.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    padding: "12px 14px",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--color-border)",
-                    background: item.isEnabled ? "var(--color-surface)" : "var(--color-surface-strong)",
-                    cursor: "pointer",
-                    transition: "all var(--transition-fast)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-primary)";
-                    e.currentTarget.style.boxShadow = "var(--shadow-soft)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-border)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.isEnabled}
-                    onChange={(e) => toggleRule(item.id, e.target.checked)}
-                    style={{
-                      width: "16px",
-                      height: "16px",
-                      cursor: "pointer",
-                      accentColor: "var(--color-primary)",
-                      flexShrink: 0,
-                    }}
-                  />
+              {shop.plan === "pro" && (
                   <span style={{ 
-                    fontSize: "var(--text-xs)", 
-                    color: item.isEnabled ? "var(--color-text)" : "var(--color-muted)", 
-                    flex: 1,
-                    fontWeight: 500,
-                    lineHeight: 1.3,
-                  }}>
-                    {item.label}
-                  </span>
-                  {item.autoFixable && (
-                    <span style={{
-                      padding: "2px 6px",
+                  padding: "4px 12px",
                       borderRadius: "var(--radius-full)",
-                      fontSize: "9px",
-                      fontWeight: 600,
                       backgroundColor: "var(--color-primary-soft)",
                       color: "var(--color-primary)",
-                      whiteSpace: "nowrap",
+                  fontSize: "12px",
+                  fontWeight: 500,
                     }}>
-                      Auto-fix
+                  Retention: {getRetentionText()}
                     </span>
                   )}
-                </label>
-              ))}
             </div>
-          </div>
-        )}
-        </div>
-      </div>
+            <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+              View and restore previous versions of AI-generated content.
+            </p>
 
-      {/* Version History Modal */}
-      {versionHistoryModal.isOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(45, 42, 38, 0.5)",
+            {shop.plan === "free" ? (
+              <div className="card" style={{ padding: "32px", textAlign: "center" }}>
+                <div style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "50%",
+                  backgroundColor: "var(--color-surface-strong)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 1100,
-            padding: "20px",
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeVersionHistoryModal();
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "var(--color-surface)",
-              borderRadius: "var(--radius-lg)",
-              padding: "28px",
-              maxWidth: "700px",
-              width: "100%",
-              maxHeight: "80vh",
-              display: "flex",
-              flexDirection: "column",
-              boxShadow: "var(--shadow-lg)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{
-                margin: 0,
-                fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)",
-                fontWeight: 600,
-                color: "var(--color-text)",
-              }}>
-                Version History
-              </h2>
-              <button
-                type="button"
-                onClick={closeVersionHistoryModal}
+                  margin: "0 auto 16px",
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-muted)" strokeWidth="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                  </svg>
+                </div>
+                <h3 style={{ margin: "0 0 8px", fontSize: "var(--text-lg)", fontWeight: 600, color: "var(--color-text)" }}>
+                  Version History Unavailable
+                </h3>
+                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)", maxWidth: "400px", marginLeft: "auto", marginRight: "auto" }}>
+                  Upgrade to Pro for 30 day retention to save and restore previous versions of your product fields.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Toggle */}
+                <div className="card" style={{ padding: "16px 20px" }}>
+                  <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+                    <div>
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)", display: "block" }}>
+                        Save version history for AI-generated fields
+                      </span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                        When enabled, previous values are saved before AI changes are applied.
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={shop.versionHistoryEnabled}
+                      onChange={(e) => updateSetting("versionHistoryEnabled", e.target.checked)}
                 style={{
-                  padding: "8px",
-                  border: "none",
-                  background: "transparent",
+                        width: "18px",
+                        height: "18px",
                   cursor: "pointer",
-                  color: "var(--color-muted)",
+                        accentColor: "var(--color-primary)",
                 }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-              </button>
+                    />
+                  </label>
             </div>
 
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {versionHistoryModal.loading ? (
+                {/* Versions List */}
+                <div className="card" style={{ padding: "0", overflow: "hidden" }}>
+                  {versionsLoading ? (
                 <div style={{ textAlign: "center", padding: "40px", color: "var(--color-muted)" }}>
                   Loading...
                 </div>
-              ) : versionHistoryModal.versions.length === 0 ? (
+                  ) : versions.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "40px", color: "var(--color-muted)" }}>
-                  No version history found
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: "12px", opacity: 0.5 }}>
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                      </svg>
+                      <p style={{ margin: 0 }}>No version history found</p>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {Object.entries(groupedVersions).map(([productId, { title, versions }]) => {
-                    const isExpanded = versionHistoryModal.expandedProducts.has(productId);
+                    <div>
+                      {Object.entries(groupedVersions).map(([productId, { title, versions: productVersions }], idx) => {
+                        const isExpanded = expandedProducts.has(productId);
                     return (
-                      <div
-                        key={productId}
-                        style={{
-                          borderRadius: "var(--radius-md)",
-                          border: "1px solid var(--color-border)",
-                          background: "var(--color-surface)",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {/* Product header - clickable to expand */}
+                          <div key={productId} style={{ borderTop: idx > 0 ? "1px solid var(--color-border)" : "none" }}>
                         <button
                           type="button"
                           onClick={() => toggleProductExpanded(productId)}
                           style={{
                             width: "100%",
-                            padding: "12px 14px",
+                                padding: "16px 20px",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "space-between",
-                            gap: "8px",
+                                gap: "12px",
                             background: "transparent",
                             border: "none",
                             cursor: "pointer",
                             textAlign: "left",
                           }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                             <svg
                               width="12"
                               height="12"
@@ -1501,33 +1314,34 @@ export default function Settings() {
                             </span>
                           </div>
                           <span style={{
-                            padding: "2px 8px",
+                                padding: "2px 10px",
                             borderRadius: "var(--radius-full)",
-                            fontSize: "10px",
-                            fontWeight: 600,
+                                fontSize: "11px",
+                                fontWeight: 500,
                             backgroundColor: "var(--color-surface-strong)",
                             color: "var(--color-muted)",
                           }}>
-                            {versions.length} {versions.length === 1 ? "version" : "versions"}
+                                {productVersions.length} {productVersions.length === 1 ? "version" : "versions"}
                           </span>
                         </button>
 
-                        {/* Expanded versions list */}
                         {isExpanded && (
                           <div style={{
                             borderTop: "1px solid var(--color-border)",
-                            padding: "8px",
+                                padding: "12px 20px",
+                                backgroundColor: "var(--color-surface-strong)",
                             display: "flex",
                             flexDirection: "column",
-                            gap: "6px",
+                                gap: "8px",
                           }}>
-                            {versions.map((version) => (
+                                {productVersions.map((version) => (
                               <div
                                 key={version.id}
                                 style={{
-                                  padding: "10px 12px",
-                                  borderRadius: "var(--radius-sm)",
-                                  background: "var(--color-surface-strong)",
+                                      padding: "12px 16px",
+                                      borderRadius: "var(--radius-md)",
+                                      background: "var(--color-surface)",
+                                      border: "1px solid var(--color-border)",
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "space-between",
@@ -1535,44 +1349,42 @@ export default function Settings() {
                                 }}
                               >
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                                     <span style={{
-                                      padding: "1px 5px",
+                                          padding: "2px 8px",
                                       borderRadius: "var(--radius-full)",
-                                      fontSize: "9px",
+                                          fontSize: "10px",
                                       fontWeight: 600,
                                       backgroundColor: "var(--color-primary-soft)",
                                       color: "var(--color-primary)",
                                     }}>
                                       {formatFieldName(version.field)}
                                     </span>
-                                    <span style={{ fontSize: "10px", color: "var(--color-muted)" }}>
+                                        <span style={{ fontSize: "11px", color: "var(--color-muted)" }}>
                                       {formatSource(version.source)}
                                     </span>
                                   </div>
-                                  <div style={{ fontSize: "10px", color: "var(--color-subtle)" }}>
+                                      <div style={{ fontSize: "11px", color: "var(--color-subtle)" }}>
                                     {formatTimeAgo(version.createdAt)}
                                   </div>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => revertVersion(version)}
-                                  disabled={versionHistoryModal.reverting === version.id}
+                                      disabled={reverting === version.id}
                                   style={{
-                                    padding: "5px 10px",
-                                    fontSize: "10px",
+                                        padding: "6px 12px",
+                                        fontSize: "11px",
                                     fontWeight: 600,
                                     borderRadius: "var(--radius-sm)",
                                     border: "1px solid var(--color-border)",
                                     background: "var(--color-surface)",
                                     color: "var(--color-text)",
-                                    cursor: versionHistoryModal.reverting === version.id ? "not-allowed" : "pointer",
-                                    opacity: versionHistoryModal.reverting === version.id ? 0.5 : 1,
-                                    transition: "all var(--transition-fast)",
-                                    whiteSpace: "nowrap",
+                                        cursor: reverting === version.id ? "not-allowed" : "pointer",
+                                        opacity: reverting === version.id ? 0.5 : 1,
                                   }}
                                 >
-                                  {versionHistoryModal.reverting === version.id ? "..." : "Revert"}
+                                      {reverting === version.id ? "..." : "Revert"}
                                 </button>
                               </div>
                             ))}
@@ -1584,9 +1396,116 @@ export default function Settings() {
                 </div>
               )}
             </div>
+
+                {/* Refresh button */}
+                <button
+                  type="button"
+                  onClick={loadVersionHistory}
+                  disabled={versionsLoading}
+                  style={{
+                    padding: "10px 16px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--color-border)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    cursor: versionsLoading ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    opacity: versionsLoading ? 0.5 : 1,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                  </svg>
+                  {versionsLoading ? "Loading..." : "Refresh"}
+                </button>
           </div>
+            )}
         </div>
       )}
+
+        {/* Checklist Rules Tab */}
+        {activeTab === "checklist" && (
+          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+            <h2 style={{ 
+              margin: "0 0 8px", 
+              fontFamily: "var(--font-heading)",
+              fontSize: "var(--text-lg)", 
+              fontWeight: 600,
+              color: "var(--color-text)",
+            }}>
+              Checklist Rules
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+              Enable or disable individual checklist items. Disabled items won't affect the readiness score.
+            </p>
+
+            {template ? (
+              <div className="card" style={{ padding: "8px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  {template.items.map((item, idx) => (
+                    <label
+                      key={item.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding: "14px 16px",
+                        borderRadius: "var(--radius-md)",
+                        background: item.isEnabled ? "transparent" : "var(--color-surface-strong)",
+                        cursor: "pointer",
+                        transition: "all var(--transition-fast)",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.isEnabled}
+                        onChange={(e) => toggleRule(item.id, e.target.checked)}
+                        style={{
+                          width: "18px",
+                          height: "18px",
+                          cursor: "pointer",
+                          accentColor: "var(--color-primary)",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ 
+                        fontSize: "var(--text-sm)", 
+                        color: item.isEnabled ? "var(--color-text)" : "var(--color-muted)", 
+                        flex: 1,
+                        fontWeight: 500,
+                      }}>
+                        {item.label}
+                      </span>
+                      {item.autoFixable && (
+                        <span style={{
+                          padding: "3px 8px",
+                          borderRadius: "var(--radius-full)",
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          backgroundColor: "var(--color-primary-soft)",
+                          color: "var(--color-primary)",
+                        }}>
+                          Auto-fix
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="card" style={{ padding: "32px", textAlign: "center" }}>
+                <p style={{ margin: 0, color: "var(--color-muted)" }}>No checklist template found</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

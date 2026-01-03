@@ -1,4 +1,12 @@
 {
   "name": "Launch Ready Score",
-  "description": "Displays the product's launch readiness score from Launch Ready"
+  "description": "Displays the product's launch readiness score",
+  "loading": "Loading",
+  "loadingScore": "Loading score...",
+  "productScore": "Launch Score",
+  "excellent": "Excellent",
+  "good": "Good",
+  "needsWork": "Needs Work",
+  "noScore": "Not scanned yet",
+  "openInApp": "Open in App"
 }

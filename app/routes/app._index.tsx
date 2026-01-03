@@ -312,6 +312,7 @@ function ProductRow({
   onToggleSelect?: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100);
 
   return (
@@ -514,6 +515,105 @@ function ProductRow({
         )}
       </div>
 
+      {/* Quick Actions Dropdown - Show when selected */}
+      {isSelected && (
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDropdown(!showDropdown);
+            }}
+            style={{
+              width: "24px",
+              height: "24px",
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text)",
+              flexShrink: 0,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {/* Dropdown Menu */}
+          {showDropdown && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: "0",
+                marginTop: "4px",
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "8px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                zIndex: 1000,
+                minWidth: "180px",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  onClick();
+                  setShowDropdown(false);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--color-text)",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "background var(--transition-fast)",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-strong)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              >
+                📝 View Details
+              </button>
+              {audit.failedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Quick autofix action
+                    setShowDropdown(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    border: "none",
+                    borderTop: "1px solid var(--color-border)",
+                    background: "transparent",
+                    color: "var(--color-primary)",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "background var(--transition-fast)",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-soft)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  ⚡ Quick Fix
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Arrow */}
       <svg 
         width="16" 
@@ -581,7 +681,7 @@ function EmptyState({
 // ============================================
 
 export default function Dashboard() {
-  const { stats, audits, plan, monitoring } = useLoaderData<typeof loader>();
+  const { stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const bulkFetcher = useFetcher();
   const navigate = useNavigate();
@@ -599,6 +699,9 @@ export default function Dashboard() {
   
   // Monitoring modal state (Pro only)
   const [showMonitoringModal, setShowMonitoringModal] = useState(false);
+
+  // Bulk actions dropdown state
+  const [showBulkDropdown, setShowBulkDropdown] = useState(false);
 
   // Track scanning state
   useEffect(() => {
@@ -976,17 +1079,40 @@ export default function Dashboard() {
                         alignItems: "center",
                         gap: "8px",
                         padding: "12px 24px",
-                        background: isScanning ? "var(--color-surface-strong)" : "var(--gradient-primary)",
-                        color: isScanning ? "var(--color-muted)" : "#fff",
-                        border: isScanning ? "1px solid var(--color-border)" : "none",
+                        position: "relative",
+                        background: audits.length > 0 ? "var(--color-surface-strong)" : "var(--gradient-primary)",
+                        color: audits.length > 0 ? "var(--color-text)" : "#fff",
+                        border: audits.length > 0 ? "1px solid var(--color-border)" : "none",
                         borderRadius: "var(--radius-full)",
                         fontSize: "var(--text-sm)",
                         fontWeight: 600,
                         cursor: isScanning ? "not-allowed" : "pointer",
                         transition: "all var(--transition-fast)",
-                        boxShadow: isScanning ? "none" : "var(--shadow-primary-glow)",
+                        boxShadow: isScanning || audits.length > 0 ? "none" : "var(--shadow-primary-glow)",
+                        opacity: isScanning ? 0.7 : 1,
                       }}
                     >
+                      {/* Badge for new products */}
+                      {!isScanning && totalAudits - audits.length > 0 && (
+                        <div style={{
+                          position: "absolute",
+                          top: "-6px",
+                          right: "-6px",
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "50%",
+                          backgroundColor: "#ef4444",
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                        }}>
+                          {Math.min(99, totalAudits - audits.length)}
+                        </div>
+                      )}
+
                       {isScanning ? (
                         <>
                           <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
@@ -1002,7 +1128,7 @@ export default function Dashboard() {
                             <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
                             <path d="M21 3v5h-5" />
                           </svg>
-                          Scan All Products
+                          {audits.length > 0 ? "Re-scan All Products" : "Scan All Products"}
                         </>
                       )}
                     </button>
@@ -1456,36 +1582,208 @@ export default function Dashboard() {
             {/* Divider */}
             <div style={{ width: "1px", height: "20px", background: "var(--color-border)", margin: "0 4px" }} />
 
-            {/* Clear button */}
-            <button
-              type="button"
-              onClick={clearSelection}
-              style={{
-                padding: "8px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "var(--radius-full)",
-                color: "var(--color-muted)",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "var(--color-surface-strong)";
-                e.currentTarget.style.color = "var(--color-text)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--color-muted)";
-              }}
-              title="Clear selection"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
+            {/* More Actions Dropdown */}
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setShowBulkDropdown(!showBulkDropdown)}
+                style={{
+                  padding: "8px 10px",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: "var(--radius-full)",
+                  color: "var(--color-muted)",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                  e.currentTarget.style.color = "var(--color-text)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--color-muted)";
+                }}
+                title="More actions"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {/* Dropdown Menu */}
+              {showBulkDropdown && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "100%",
+                    right: "0",
+                    marginBottom: "8px",
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "10px",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                    zIndex: 1001,
+                    minWidth: "180px",
+                    overflow: "hidden",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Section: AI Actions */}
+                  <div style={{ padding: "6px 12px 4px", fontSize: "10px", fontWeight: 600, color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    AI Generation
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { executeBulkAction("generate_seo_desc"); setShowBulkDropdown(false); }}
+                    disabled={bulkFetcher.state !== "idle"}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      textAlign: "left",
+                      transition: "background var(--transition-fast)",
+                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    SEO Description
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { executeBulkAction("generate_alt_text"); setShowBulkDropdown(false); }}
+                    disabled={bulkFetcher.state !== "idle"}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      textAlign: "left",
+                      transition: "background var(--transition-fast)",
+                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    Image Alt Text
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { executeBulkAction("generate_seo_title"); setShowBulkDropdown(false); }}
+                    disabled={bulkFetcher.state !== "idle"}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      textAlign: "left",
+                      transition: "background var(--transition-fast)",
+                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    SEO Title
+                  </button>
+
+                  {/* Section: Auto Fix Actions */}
+                  <div style={{ borderTop: "1px solid var(--color-border)", marginTop: "4px", padding: "6px 12px 4px", fontSize: "10px", fontWeight: 600, color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Quick Fixes
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { executeBulkAction("apply_tags"); setShowBulkDropdown(false); }}
+                    disabled={bulkFetcher.state !== "idle"}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      textAlign: "left",
+                      transition: "background var(--transition-fast)",
+                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    Apply Tags
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { executeBulkAction("apply_collection"); setShowBulkDropdown(false); }}
+                    disabled={bulkFetcher.state !== "idle"}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      color: "var(--color-text)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      textAlign: "left",
+                      transition: "background var(--transition-fast)",
+                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    Add to Collection
+                  </button>
+
+                  {/* Divider + Clear */}
+                  <div style={{ borderTop: "1px solid var(--color-border)", marginTop: "4px" }}>
+                    <button
+                      type="button"
+                      onClick={() => { clearSelection(); setShowBulkDropdown(false); }}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "none",
+                        background: "transparent",
+                        color: "var(--color-muted)",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "background var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "var(--color-surface-strong)";
+                        e.currentTarget.style.color = "var(--color-text)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "var(--color-muted)";
+                      }}
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

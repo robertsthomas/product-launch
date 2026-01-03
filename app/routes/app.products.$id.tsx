@@ -951,6 +951,8 @@ function GenerateAllModal({
   onGenerate: () => void;
   isGenerating: boolean;
 }) {
+  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({});
+  
   if (!isOpen) return null;
 
   const fields = [
@@ -960,6 +962,13 @@ function GenerateAllModal({
     { key: "seoTitle", label: "SEO Title" },
     { key: "seoDescription", label: "Meta Description" },
   ];
+
+  const toggleExpand = (fieldKey: string) => {
+    setExpandedFields(prev => ({
+      ...prev,
+      [fieldKey]: !prev[fieldKey]
+    }));
+  };
 
   return (
     <div
@@ -978,12 +987,6 @@ function GenerateAllModal({
         backdropFilter: "blur(4px)",
       }}
       onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClose();
-        }
-      }}
       tabIndex={-1}
       role="presentation"
     >
@@ -993,10 +996,13 @@ function GenerateAllModal({
           backgroundColor: "var(--color-surface)",
           borderRadius: "var(--radius-xl)",
           width: "100%",
-          maxWidth: "400px",
+          maxWidth: "500px",
+          maxHeight: "70vh",
           boxShadow: "var(--shadow-elevated)",
           border: "1px solid var(--color-border)",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1020,7 +1026,7 @@ function GenerateAllModal({
               color: "var(--color-text)",
             }}
           >
-            Generate Fields
+            Generate All Fields
           </h2>
           <button
             type="button"
@@ -1038,46 +1044,104 @@ function GenerateAllModal({
               transition: "all var(--transition-fast)",
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
           </button>
         </div>
 
-        {/* Content */}
-        <div style={{ padding: "20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            {fields.map((field) => (
-              <label
-                key={field.key}
+        {/* Content - Scrollable list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0" }}>
+          {fields.map((field, idx) => (
+            <div key={field.key}>
+              <button
+                type="button"
+                onClick={() => {
+                  toggleExpand(field.key);
+                  if (!selectedFields.includes(field.key)) {
+                    onFieldToggle(field.key);
+                  }
+                }}
                 style={{
+                  width: "100%",
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
-                  padding: "12px",
-                  border: `1px solid ${selectedFields.includes(field.key) ? "var(--color-primary)" : "var(--color-border)"}`,
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: selectedFields.includes(field.key) ? "var(--color-primary-soft)" : "var(--color-surface)",
+                  justifyContent: "space-between",
+                  padding: "16px 20px",
+                  border: "none",
+                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
+                  background: selectedFields.includes(field.key) ? "var(--color-primary-soft)" : "transparent",
                   cursor: "pointer",
                   transition: "all var(--transition-fast)",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
+                }}
+                onMouseEnter={(e) => {
+                  if (!selectedFields.includes(field.key)) {
+                    e.currentTarget.style.background = "var(--color-surface-strong)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = selectedFields.includes(field.key) ? "var(--color-primary-soft)" : "transparent";
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={selectedFields.includes(field.key)}
-                  onChange={() => onFieldToggle(field.key)}
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, textAlign: "left" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedFields.includes(field.key)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      onFieldToggle(field.key);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      accentColor: "var(--color-primary)",
+                      cursor: "pointer",
+                    }}
+                  />
+                  <span style={{
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    color: "var(--color-text)",
+                  }}>
+                    {field.label}
+                  </span>
+                </div>
+                <svg 
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
                   style={{
-                    width: "14px",
-                    height: "14px",
-                    accentColor: "var(--color-primary)",
+                    transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform var(--transition-fast)",
+                    color: "var(--color-muted)",
                   }}
-                />
-                {field.label}
-              </label>
-            ))}
-          </div>
+                >
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {/* Expanded field info */}
+              {expandedFields[field.key] && (
+                <div style={{
+                  padding: "12px 20px 12px 52px",
+                  background: "var(--color-surface-strong)",
+                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
+                  fontSize: "var(--text-xs)",
+                  color: "var(--color-muted)",
+                  lineHeight: 1.5,
+                }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "12px", alignItems: "start" }}>
+                    <span style={{ fontWeight: 500 }}>Status:</span>
+                    <span>{selectedFields.includes(field.key) ? "✓ Selected for generation" : "Not selected"}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Footer */}
@@ -1104,6 +1168,7 @@ function GenerateAllModal({
               backgroundColor: "var(--color-surface)",
               color: "var(--color-text)",
               cursor: isGenerating ? "not-allowed" : "pointer",
+              opacity: isGenerating ? 0.5 : 1,
             }}
           >
             Cancel

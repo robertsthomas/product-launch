@@ -1,0 +1,39 @@
+{
+  "name": "Listo para lanzar",
+  "title": "Lista de verificación",
+  "loading": "Cargando...",
+  "noProduct": "Ningún producto seleccionado",
+  "notScanned": "No analizado",
+  "scanToCheck": "Analiza este producto para verificar si está listo para el lanzamiento.",
+  "scanNow": "Analizar producto",
+  "scanning": "Analizando...",
+  "ready": "Listo para lanzar",
+  "needsWork": "{{count}} problemas a corregir",
+  "checksPassed": "verificaciones aprobadas",
+  "openInApp": "Abrir en la app",
+  "viewInApp": "Ver detalles",
+  "fixInApp": "Abre la aplicación para corregir problemas con asistencia de IA.",
+  "fixInApp_button": "Corregir con IA",
+  "rescan": "Volver a analizar",
+  "andMore": "+{{count}} más",
+  "close": "Cerrar",
+  "error": "Algo salió mal",
+  "tryAgain": "Reintentar",
+  "lastScanned": "Último análisis {{time}}",
+  "checks": {
+    "title": "Título (10+ caracteres)",
+    "description": "Descripción (50+ caracteres)",
+    "images": "Imágenes del producto (3+)",
+    "imageAlt": "Todas las imágenes tienen texto alt",
+    "seoTitle": "Título SEO configurado",
+    "seoDescription": "Descripción SEO (80+ caracteres)",
+    "collections": "Añadido a una colección",
+    "productType": "Tipo de producto configurado",
+    "vendor": "Proveedor/marca configurado",
+    "tags": "Etiquetas de producto añadidas"
+  },
+  "status": {
+    "passed": "Aprobado",
+    "failed": "Fallido"
+  }
+}

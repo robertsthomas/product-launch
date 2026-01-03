@@ -1,4 +1,12 @@
 {
-  "name": "Bloc de score de produit",
-  "description": "Affiche le score calculé du produit et permet la modification dans l'application"
+  "name": "Score de lancement",
+  "description": "Affiche le score de préparation au lancement du produit",
+  "loading": "Chargement",
+  "loadingScore": "Chargement du score...",
+  "productScore": "Score de lancement",
+  "excellent": "Excellent",
+  "good": "Bon",
+  "needsWork": "À améliorer",
+  "noScore": "Pas encore analysé",
+  "openInApp": "Ouvrir dans l'app"
 }
