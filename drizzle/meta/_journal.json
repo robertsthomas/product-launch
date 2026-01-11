@@ -22,6 +22,13 @@
       "when": 1765946122057,
       "tag": "0002_luxuriant_luckman",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1768111861228,
+      "tag": "0003_empty_flatman",
+      "breakpoints": true
     }
   ]
 }

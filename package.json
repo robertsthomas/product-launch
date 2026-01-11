@@ -30,6 +30,7 @@
     "node": ">=20.19 <22 || >=22.12"
   },
   "dependencies": {
+    "@openrouter/sdk": "^0.3.12",
     "@paralleldrive/cuid2": "^2.2.2",
     "@react-router/dev": "^7.9.3",
     "@react-router/fs-routes": "^7.9.3",

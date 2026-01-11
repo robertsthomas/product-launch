@@ -23,6 +23,7 @@ interface HistoryEntry {
   newValue?: unknown;
   description?: string | null;
   metadata?: Record<string, unknown> | null;
+  aiModel?: string | null;
   createdAt: Date | string;
 }
 
@@ -218,6 +219,33 @@ function TimelineEntry({ entry, isFirst, isLast }: TimelineEntryProps) {
               </div>
             )}
 
+            {/* AI Model indicator for AI-generated content */}
+            {(entry.changeType === "ai_fix" || entry.metadata?.aiAction) && entry.aiModel && (
+              <div style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--color-muted)",
+                marginTop: "4px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                  <path d="M2 17l10 5 10-5"/>
+                  <path d="M2 12l10 5 10-5"/>
+                </svg>
+                <code style={{
+                  padding: "1px 5px",
+                  background: "rgba(167, 139, 250, 0.1)",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: "10px",
+                  color: "#8b5cf6",
+                }}>
+                  {formatModelName(entry.aiModel)}
+                </code>
+              </div>
+            )}
+
             {/* Score change for audits */}
             {entry.changeType === "audit" && entry.score !== undefined && (
               <div style={{
@@ -392,6 +420,38 @@ function formatFieldName(field: string): string {
     product_type: "Product Type",
   };
   return names[field] || field.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatModelName(model: string): string {
+  // Format model names for better readability
+  // e.g. "anthropic/claude-sonnet-4.5" => "Claude Sonnet 4.5"
+  // e.g. "openai/gpt-4o-mini" => "GPT-4o Mini"
+  const parts = model.split("/");
+  const modelName = parts[parts.length - 1];
+  
+  // Handle common patterns
+  if (modelName.includes("claude")) {
+    return modelName
+      .replace("claude-", "Claude ")
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, l => l.toUpperCase());
+  }
+  
+  if (modelName.includes("gpt")) {
+    return modelName
+      .replace("gpt-", "GPT-")
+      .replace("-mini", " Mini")
+      .replace("-turbo", " Turbo")
+      .toUpperCase()
+      .split("-")
+      .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+      .join(" ");
+  }
+  
+  // Default: capitalize and clean up
+  return modelName
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, l => l.toUpperCase());
 }
 
 export default HistoryTimeline;

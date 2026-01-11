@@ -229,6 +229,7 @@ export const productFieldVersions = sqliteTable("product_field_versions", {
   value: text("value").notNull(), // The field value (JSON string for arrays like tags)
   version: integer("version").default(1).notNull(), // Version number for ordering
   source: text("source", { enum: ["manual", "ai_generate", "ai_expand", "ai_improve", "ai_replace"] }).notNull(),
+  aiModel: text("ai_model"), // The AI model used (e.g. "anthropic/claude-sonnet-4.5", "openai/gpt-4o-mini")
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
 

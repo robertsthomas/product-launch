@@ -20,6 +20,18 @@ import { BRAND_VOICE_PRESETS, type BrandVoicePreset, OPENAI_TEXT_MODELS, OPENAI_
 import { BRAND_VOICE_PROFILES } from "../lib/ai/prompts";
 import { TEMPLATE_PRESETS } from "../lib/checklist/types";
 
+// Helper to strip HTML tags
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/&amp;/g, '&')  // Replace &amp; with &
+    .replace(/&lt;/g, '<')   // Replace &lt; with <
+    .replace(/&gt;/g, '>')   // Replace &gt; with >
+    .replace(/&quot;/g, '"') // Replace &quot; with "
+    .trim();
+}
+
 type VersionHistoryItem = {
   id: string;
   productId: string;
@@ -322,7 +334,7 @@ export default function Settings() {
   const [versions, setVersions] = useState<VersionHistoryItem[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [reverting, setReverting] = useState<string | null>(null);
-  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [selectedProductHistory, setSelectedProductHistory] = useState<{ productId: string; title: string } | null>(null);
 
   // Format relative time using date-fns
   const formatTimeAgo = (dateStr: string) => {
@@ -341,18 +353,6 @@ export default function Settings() {
     acc[version.productId].versions.push(version);
     return acc;
   }, {} as Record<string, { title: string; versions: VersionHistoryItem[] }>);
-
-  const toggleProductExpanded = (productId: string) => {
-    setExpandedProducts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(productId)) {
-        newSet.delete(productId);
-      } else {
-        newSet.add(productId);
-      }
-      return newSet;
-    });
-  };
 
   const loadVersionHistory = useCallback(() => {
     setVersionsLoading(true);
@@ -425,9 +425,18 @@ export default function Settings() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0", minHeight: "100%", width: "100%" }}>
+    <div style={{ 
+      display: "flex", 
+      flexDirection: "column", 
+      gap: "0", 
+      minHeight: "100%", 
+      width: "100%",
+      maxWidth: "800px", 
+      margin: "0 auto",
+      scrollbarGutter: "stable"
+    }}>
       {/* Page Header */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px", maxWidth: "800px" }}>
+      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
         <button
           type="button"
           onClick={() => navigate("/app")}
@@ -507,10 +516,10 @@ export default function Settings() {
       </div>
 
       {/* Tab Content */}
-      <div style={{ flex: 1, overflowY: "scroll", width: "100%" }}>
+      <div style={{ flex: 1, width: "100%" }}>
         {/* Automation & Auto-fix Tab */}
         {activeTab === "automation" && (
-          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+          <div className="animate-fade-in-up">
             <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
               {/* Automation Section */}
               <div>
@@ -674,7 +683,7 @@ export default function Settings() {
 
         {/* AI & Credits Tab */}
         {activeTab === "ai" && (
-          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+          <div className="animate-fade-in-up">
             <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
               {/* AI Credits Section */}
           {aiCredits.plan === "pro" && (
@@ -1031,7 +1040,7 @@ export default function Settings() {
 
         {/* Brand Voice Tab */}
         {activeTab === "brand-voice" && (
-          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+          <div className="animate-fade-in-up">
               <h2 style={{ 
               margin: "0 0 8px", 
                 fontFamily: "var(--font-heading)",
@@ -1093,7 +1102,11 @@ export default function Settings() {
                   }}>
                     Voice Preset
                   </label>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
+                    <div style={{ 
+                      display: "grid", 
+                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", 
+                      gap: "12px" 
+                    }}>
                     {BRAND_VOICE_PRESETS.map((preset) => {
                       const profile = brandVoiceProfiles[preset];
                       const isSelected = shop.brandVoicePreset === preset;
@@ -1112,13 +1125,29 @@ export default function Settings() {
                             );
                           }}
                           style={{
-                              padding: "16px 12px",
-                            borderRadius: "var(--radius-md)",
-                              border: isSelected ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
-                              background: isSelected ? "var(--color-primary-soft)" : "var(--color-surface)",
+                            padding: "16px 12px",
+                            borderRadius: "var(--radius-lg)",
+                            border: isSelected ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
+                            background: isSelected ? "var(--color-primary-soft)" : "var(--color-surface)",
                             cursor: "pointer",
                             transition: "all var(--transition-fast)",
                             textAlign: "center",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            minHeight: "100px",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = "var(--color-primary-light)";
+                              e.currentTarget.style.backgroundColor = "var(--color-surface-strong)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = "var(--color-border)";
+                              e.currentTarget.style.backgroundColor = "var(--color-surface)";
+                            }
                           }}
                         >
                           <div style={{ 
@@ -1129,7 +1158,13 @@ export default function Settings() {
                           }}>
                             {profile.name}
                           </div>
-                            <div style={{ fontSize: "10px", color: "var(--color-muted)", lineHeight: 1.3 }}>
+                            <div style={{ 
+                              fontSize: "11px", 
+                              color: "var(--color-muted)", 
+                              lineHeight: 1.4,
+                              maxWidth: "100%",
+                              wordBreak: "break-word"
+                            }}>
                             {profile.description}
                           </div>
                         </button>
@@ -1178,7 +1213,7 @@ export default function Settings() {
 
         {/* Version History Tab */}
         {activeTab === "version-history" && (
-          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+          <div className="animate-fade-in-up">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
             <h2 style={{ 
                 margin: 0, 
@@ -1274,12 +1309,11 @@ export default function Settings() {
               ) : (
                     <div>
                       {Object.entries(groupedVersions).map(([productId, { title, versions: productVersions }], idx) => {
-                        const isExpanded = expandedProducts.has(productId);
-                    return (
+                        return (
                           <div key={productId} style={{ borderTop: idx > 0 ? "1px solid var(--color-border)" : "none" }}>
                         <button
                           type="button"
-                          onClick={() => toggleProductExpanded(productId)}
+                          onClick={() => setSelectedProductHistory({ productId, title })}
                           style={{
                             width: "100%",
                                 padding: "16px 20px",
@@ -1291,105 +1325,44 @@ export default function Settings() {
                             border: "none",
                             cursor: "pointer",
                             textAlign: "left",
+                            transition: "background-color var(--transition-fast)",
                           }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                         >
                               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                             <svg
-                              width="12"
-                              height="12"
+                              width="16"
+                              height="16"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
                               strokeWidth="2"
-                              style={{
-                                color: "var(--color-muted)",
-                                transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                                transition: "transform 0.15s ease",
-                              }}
+                              style={{ color: "var(--color-muted)" }}
                             >
-                              <path d="M9 18l6-6-6-6"/>
+                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                              <path d="M3 3v5h5"/>
                             </svg>
                             <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
                               {title}
                             </span>
                           </div>
-                          <span style={{
-                                padding: "2px 10px",
-                            borderRadius: "var(--radius-full)",
-                                fontSize: "11px",
-                                fontWeight: 500,
-                            backgroundColor: "var(--color-surface-strong)",
-                            color: "var(--color-muted)",
-                          }}>
-                                {productVersions.length} {productVersions.length === 1 ? "version" : "versions"}
-                          </span>
-                        </button>
-
-                        {isExpanded && (
-                          <div style={{
-                            borderTop: "1px solid var(--color-border)",
-                                padding: "12px 20px",
-                                backgroundColor: "var(--color-surface-strong)",
-                            display: "flex",
-                            flexDirection: "column",
-                                gap: "8px",
-                          }}>
-                                {productVersions.map((version) => (
-                              <div
-                                key={version.id}
-                                style={{
-                                      padding: "12px 16px",
-                                      borderRadius: "var(--radius-md)",
-                                      background: "var(--color-surface)",
-                                      border: "1px solid var(--color-border)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  gap: "12px",
-                                }}
-                              >
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                                    <span style={{
-                                          padding: "2px 8px",
-                                      borderRadius: "var(--radius-full)",
-                                          fontSize: "10px",
-                                      fontWeight: 600,
-                                      backgroundColor: "var(--color-primary-soft)",
-                                      color: "var(--color-primary)",
-                                    }}>
-                                      {formatFieldName(version.field)}
-                                    </span>
-                                        <span style={{ fontSize: "11px", color: "var(--color-muted)" }}>
-                                      {formatSource(version.source)}
-                                    </span>
-                                  </div>
-                                      <div style={{ fontSize: "11px", color: "var(--color-subtle)" }}>
-                                    {formatTimeAgo(version.createdAt)}
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => revertVersion(version)}
-                                      disabled={reverting === version.id}
-                                  style={{
-                                        padding: "6px 12px",
-                                        fontSize: "11px",
-                                    fontWeight: 600,
-                                    borderRadius: "var(--radius-sm)",
-                                    border: "1px solid var(--color-border)",
-                                    background: "var(--color-surface)",
-                                    color: "var(--color-text)",
-                                        cursor: reverting === version.id ? "not-allowed" : "pointer",
-                                        opacity: reverting === version.id ? 0.5 : 1,
-                                  }}
-                                >
-                                      {reverting === version.id ? "..." : "Revert"}
-                                </button>
-                              </div>
-                            ))}
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <span style={{
+                                  padding: "2px 10px",
+                              borderRadius: "var(--radius-full)",
+                                  fontSize: "11px",
+                                  fontWeight: 500,
+                              backgroundColor: "var(--color-surface-strong)",
+                              color: "var(--color-muted)",
+                            }}>
+                                  {productVersions.length} {productVersions.length === 1 ? "version" : "versions"}
+                            </span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-muted)" strokeWidth="2">
+                              <path d="M9 18l6-6-6-6"/>
+                            </svg>
                           </div>
-                        )}
+                        </button>
                       </div>
                     );
                   })}
@@ -1431,7 +1404,7 @@ export default function Settings() {
 
         {/* Checklist Rules Tab */}
         {activeTab === "checklist" && (
-          <div className="animate-fade-in-up" style={{ maxWidth: "800px" }}>
+          <div className="animate-fade-in-up">
             <h2 style={{ 
               margin: "0 0 8px", 
               fontFamily: "var(--font-heading)",
@@ -1505,6 +1478,265 @@ export default function Settings() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Product History Modal */}
+      <ProductHistoryModal
+        isOpen={!!selectedProductHistory}
+        onClose={() => setSelectedProductHistory(null)}
+        productTitle={selectedProductHistory?.title || ""}
+        versions={selectedProductHistory ? groupedVersions[selectedProductHistory.productId].versions : []}
+        onRevert={revertVersion}
+        revertingId={reverting}
+        formatFieldName={formatFieldName}
+        formatSource={formatSource}
+        formatTimeAgo={formatTimeAgo}
+      />
+    </div>
+  );
+}
+
+// ============================================
+// Product History Modal Component
+// ============================================
+
+function ProductHistoryModal({
+  isOpen,
+  onClose,
+  productTitle,
+  versions,
+  onRevert,
+  revertingId,
+  formatFieldName,
+  formatSource,
+  formatTimeAgo,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  productTitle: string;
+  versions: VersionHistoryItem[];
+  onRevert: (version: VersionHistoryItem) => void;
+  revertingId: string | null;
+  formatFieldName: (field: string) => string;
+  formatSource: (source: string) => string;
+  formatTimeAgo: (date: string) => string;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(45, 42, 38, 0.4)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: "20px",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="animate-scale-in"
+        style={{
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "var(--radius-xl)",
+          width: "100%",
+          maxWidth: "600px",
+          maxHeight: "80vh",
+          boxShadow: "var(--shadow-elevated)",
+          border: "1px solid var(--color-border)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "20px 24px",
+            borderBottom: "1px solid var(--color-border)",
+            background: "var(--color-surface-strong)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: "var(--font-heading)",
+                fontSize: "var(--text-xl)",
+                fontWeight: 500,
+                color: "var(--color-text)",
+              }}
+            >
+              {productTitle}
+            </h2>
+            <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+              Version history for this product
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "8px",
+              borderRadius: "var(--radius-md)",
+              color: "var(--color-muted)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all var(--transition-fast)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+          {versions.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-muted)" }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: "0 auto 12px", opacity: 0.5 }}>
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+              <p style={{ margin: 0 }}>No version history found for this product</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {versions.map((version) => (
+              <div
+                key={version.id}
+                style={{
+                  padding: "16px 20px",
+                  borderRadius: "var(--radius-lg)",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                    <span style={{
+                      padding: "3px 10px",
+                      borderRadius: "var(--radius-full)",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      backgroundColor: "var(--color-primary-soft)",
+                      color: "var(--color-primary)",
+                    }}>
+                      {formatFieldName(version.field)}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                      {formatSource(version.source)}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--color-muted)", marginLeft: "auto" }}>
+                      {formatTimeAgo(version.createdAt)}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    fontSize: "var(--text-sm)", 
+                    color: "var(--color-text)", 
+                    lineHeight: 1.5,
+                    background: "var(--color-surface-strong)",
+                    padding: "10px 12px",
+                    borderRadius: "var(--radius-md)",
+                    overflowX: "auto",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    maxHeight: "120px",
+                    overflowY: "auto",
+                  }}>
+                    {version.field === 'description' || version.field === 'descriptionHtml'
+                      ? stripHtml(version.value)
+                      : version.value
+                    }
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRevert(version)}
+                  disabled={revertingId === version.id}
+                  style={{
+                    padding: "10px 18px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 600,
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--color-border)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    cursor: revertingId === version.id ? "not-allowed" : "pointer",
+                    opacity: revertingId === version.id ? 0.5 : 1,
+                    transition: "all var(--transition-fast)",
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => { 
+                    if (revertingId !== version.id) {
+                      e.currentTarget.style.backgroundColor = "var(--color-surface-strong)";
+                      e.currentTarget.style.borderColor = "var(--color-primary)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "var(--color-surface)";
+                    e.currentTarget.style.borderColor = "var(--color-border)";
+                  }}
+                >
+                  {revertingId === version.id ? "Reverting..." : "Revert"}
+                </button>
+              </div>
+            ))}
+          </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "16px 24px",
+            borderTop: "1px solid var(--color-border)",
+            display: "flex",
+            justifyContent: "flex-end",
+            background: "var(--color-surface-strong)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "10px 20px",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text)",
+              cursor: "pointer",
+              transition: "all var(--transition-fast)",
+            }}
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

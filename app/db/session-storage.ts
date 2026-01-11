@@ -28,7 +28,8 @@ export class DrizzleSessionStorage implements SessionStorage {
 
     try {
       // Try to update existing session
-      const existing = await db.select().from(sessions).where(eq(sessions.id, session.id)).get();
+      const results = await db.select().from(sessions).where(eq(sessions.id, session.id));
+      const existing = results[0];
       
       if (existing) {
         await db.update(sessions).set(sessionData).where(eq(sessions.id, session.id));
@@ -44,7 +45,8 @@ export class DrizzleSessionStorage implements SessionStorage {
 
   async loadSession(id: string): Promise<Session | undefined> {
     try {
-      const row = await db.select().from(sessions).where(eq(sessions.id, id)).get();
+      const results = await db.select().from(sessions).where(eq(sessions.id, id));
+      const row = results[0];
       
       if (!row) {
         return undefined;
@@ -109,7 +111,7 @@ export class DrizzleSessionStorage implements SessionStorage {
 
   async findSessionsByShop(shop: string): Promise<Session[]> {
     try {
-      const rows = await db.select().from(sessions).where(eq(sessions.shop, shop)).all();
+      const rows = await db.select().from(sessions).where(eq(sessions.shop, shop));
       
       return rows.map((row) => {
         const session = new Session({

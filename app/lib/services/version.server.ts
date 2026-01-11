@@ -19,7 +19,8 @@ export const saveFieldVersion = async (
   productId: string,
   field: string,
   currentValue: string | string[],
-  source: VersionSource
+  source: VersionSource,
+  aiModel?: string
 ) => {
   // Get shop settings to check plan and version history enabled
   const [shopData] = await db
@@ -66,6 +67,7 @@ export const saveFieldVersion = async (
     value: Array.isArray(currentValue) ? JSON.stringify(currentValue) : currentValue,
     version: nextVersion,
     source,
+    aiModel: aiModel || null,
   });
 
   // Clean up old versions beyond retention period
@@ -89,8 +91,47 @@ export const getShopId = async (shopDomain: string): Promise<string | null> => {
   const [shop] = await db
     .select({ id: shops.id })
     .from(shops)
-    .where(eq(shops.domain, shopDomain))
+    .where(eq(shops.shopDomain, shopDomain))
     .limit(1);
   
   return shop?.id ?? null;
+};
+
+/**
+ * Get version history for a specific product field
+ */
+export const getFieldVersionHistory = async (
+  shopId: string,
+  productId: string,
+  field: string,
+  limit = 10
+): Promise<Array<{
+  id: string;
+  value: string;
+  version: number;
+  source: VersionSource;
+  aiModel: string | null;
+  createdAt: Date;
+}>> => {
+  const versions = await db
+    .select()
+    .from(productFieldVersions)
+    .where(
+      and(
+        eq(productFieldVersions.shopId, shopId),
+        eq(productFieldVersions.productId, productId),
+        eq(productFieldVersions.field, field)
+      )
+    )
+    .orderBy(desc(productFieldVersions.createdAt))
+    .limit(limit);
+
+  return versions.map(v => ({
+    id: v.id,
+    value: v.value,
+    version: v.version,
+    source: v.source as VersionSource,
+    aiModel: v.aiModel,
+    createdAt: v.createdAt instanceof Date ? v.createdAt : new Date(v.createdAt),
+  }));
 };

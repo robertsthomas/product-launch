@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@openrouter/sdk':
+        specifier: ^0.3.12
+        version: 0.3.12
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.3.1
@@ -52,7 +55,7 @@ importers:
         version: 5.1.32
       openai:
         specifier: ^6.9.1
-        version: 6.9.1(ws@8.18.3)
+        version: 6.9.1(ws@8.18.3)(zod@4.3.5)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -947,6 +950,9 @@ packages:
   '@npmcli/promise-spawn@6.0.2':
     resolution: {integrity: sha512-gGq0NJkIGSwdbUt4yhdF8ZrmkGKVz9vAdVzpOfnom+V8PLSmSOVhZwbNvZZS1EYcJN5hzzKBxmmVVAInM6HQLg==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
+  '@openrouter/sdk@0.3.12':
+    resolution: {integrity: sha512-jwWpNyfeBLzHos2TqLIYp574jEkBSb/M46zY4uIJtlfept/3Rni7l6UQAHRqL8gPVdQCmYBaDL6NXR6uJZ0QiA==}
 
   '@paralleldrive/cuid2@2.3.1':
     resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
@@ -3348,6 +3354,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
+
 snapshots:
 
   '@ardatan/relay-compiler@12.0.3(graphql@16.12.0)':
@@ -4311,6 +4320,10 @@ snapshots:
   '@npmcli/promise-spawn@6.0.2':
     dependencies:
       which: 3.0.1
+
+  '@openrouter/sdk@0.3.12':
+    dependencies:
+      zod: 4.3.5
 
   '@paralleldrive/cuid2@2.3.1':
     dependencies:
@@ -5986,9 +5999,10 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  openai@6.9.1(ws@8.18.3):
+  openai@6.9.1(ws@8.18.3)(zod@4.3.5):
     optionalDependencies:
       ws: 8.18.3
+      zod: 4.3.5
 
   ora@5.4.1:
     dependencies:
@@ -6704,3 +6718,5 @@ snapshots:
       yargs-parser: 21.1.1
 
   yocto-queue@0.1.0: {}
+
+  zod@4.3.5: {}

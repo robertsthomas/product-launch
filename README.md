@@ -92,12 +92,16 @@
 Create a `.env` file with:
 
 ```bash
-# Required for AI suggestions
-OPENAI_API_KEY=sk-your-openai-api-key
-OPENAI_MODEL=gpt-4.1-mini
-OPENAI_IMAGE_MODEL=gpt-4.1-mini
+# Required for AI text generation (titles, descriptions, SEO, alt text)
+OPENROUTER_API_KEY=sk-your-openrouter-api-key
+OPENROUTER_MODEL=openrouter/auto
+OPENROUTER_IMAGE_MODEL=openrouter/auto
 
-# Optional: Kie.ai for image generation
+# Optional: OpenAI API key (for DALL-E image generation fallback or direct text generation)
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+
+# Optional: Kie.ai for enhanced image generation (preferred over DALL-E)
 KIE_API_KEY=your-kie-api-key
 
 # Shopify app handle (from Partner Dashboard)
@@ -108,7 +112,9 @@ SHOPIFY_API_KEY=...
 SHOPIFY_API_SECRET=...
 ```
 
-The app works without `OPENAI_API_KEY` but AI features will be disabled.
+The app works without `OPENROUTER_API_KEY` but AI features will be disabled. OpenRouter provides access to 300+ models at typically lower cost than direct OpenAI API. The `openrouter/auto` model automatically selects the best model for each prompt.
+
+Users can also provide their own OpenAI API key to use OpenAI directly instead of OpenRouter for text generation.
 
 ### Database Commands
 

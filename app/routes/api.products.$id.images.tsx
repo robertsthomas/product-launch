@@ -4,11 +4,21 @@ import { auditProduct } from "../lib/services/audit.server";
 import { generateImageAltText, generateProductImage, isAIAvailable } from "../lib/ai";
 import { checkAIGate, consumeAICredit } from "../lib/billing/ai-gating.server";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
+import { getShopOpenAIConfig } from "../lib/services/shop.server";
+
+// Helper function to fetch product data
+async function getProduct(productId: string, admin: any): Promise<Product | null> {
+  const productResponse = await admin.graphql(PRODUCT_QUERY, {
+    variables: { id: productId },
+  });
+  const productJson = await productResponse.json();
+  return productJson.data?.product as Product | null;
+}
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
-  const productId = decodeURIComponent(params.id!);
+  const productId = decodeURIComponent(params.id || "");
   const formData = await request.formData();
   const intent = formData.get("intent");
 
@@ -164,8 +174,8 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
   // Generate alt text with AI
   if (intent === "generate_alt") {
-    formData.get("imageId"); // imageId passed but not needed for generation
-    const imageIndex = parseInt(formData.get("imageIndex") as string, 10);
+    const imageId = formData.get("imageId") as string;
+    const imageIndex = Number.parseInt(formData.get("imageIndex") as string, 10);
 
     // Check AI availability and credits
     if (!isAIAvailable()) {
@@ -184,15 +194,20 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     }
 
     // Fetch product for context
-    const productResponse = await admin.graphql(PRODUCT_QUERY, {
-      variables: { id: productId },
-    });
-    const productJson = await productResponse.json();
-    const product = productJson.data?.product as Product | null;
-
+    const product = await getProduct(productId, admin);
     if (!product) {
       return Response.json({ error: "Product not found" }, { status: 404 });
     }
+
+    const image = product.images?.nodes?.find(img => img.id === imageId) || product.images?.nodes?.[imageIndex];
+
+    // Get the shop's OpenAI configuration
+    const openaiConfig = await getShopOpenAIConfig(shop);
+    const genOptions = {
+      apiKey: openaiConfig.apiKey || undefined,
+      textModel: openaiConfig.textModel || undefined,
+      imageModel: openaiConfig.imageModel || undefined,
+    };
 
     const altText = await generateImageAltText(
       {
@@ -200,13 +215,104 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         productType: product.productType,
         vendor: product.vendor,
       },
-      imageIndex
+      imageIndex,
+      image?.url || undefined,
+      genOptions
     );
 
     // Consume AI credit after successful generation
     await consumeAICredit(shop);
 
     return Response.json({ altText });
+  }
+
+  // Generate alt text for all images with AI
+  if (intent === "generate_alt_batch") {
+    // Check AI availability and credits
+    if (!isAIAvailable()) {
+      return Response.json(
+        { error: "AI is not configured" },
+        { status: 503 }
+      );
+    }
+
+    const aiGate = await checkAIGate(shop);
+    if (!aiGate.allowed) {
+      return Response.json(
+        { error: aiGate.message },
+        { status: 429 }
+      );
+    }
+
+    // Get product data
+    const product = await getProduct(productId, admin);
+    if (!product) {
+      return Response.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    // Get the shop's OpenAI configuration
+    const openaiConfig = await getShopOpenAIConfig(shop);
+    const genOptions = {
+      apiKey: openaiConfig.apiKey || undefined,
+      textModel: openaiConfig.textModel || undefined,
+      imageModel: openaiConfig.imageModel || undefined,
+    };
+
+    // Generate alt text for all images
+    const altTextPromises = product.images?.nodes?.map(async (image: { id: string; altText: string | null; url: string }, index: number) => {
+      try {
+        const altText = await generateImageAltText(
+          {
+            title: product.title,
+            productType: product.productType,
+            vendor: product.vendor,
+          },
+          index,
+          image.url,
+          genOptions
+        );
+
+        // Update the alt text using productUpdateMedia
+        await admin.graphql(
+          `#graphql
+          mutation productUpdateMedia($productId: ID!, $media: [UpdateMediaInput!]!) {
+            productUpdateMedia(productId: $productId, media: $media) {
+              media {
+                ... on MediaImage {
+                  id
+                  alt
+                }
+              }
+              mediaUserErrors {
+                field
+                message
+              }
+            }
+          }`,
+          {
+            variables: {
+              productId,
+              media: [{
+                id: image.id,
+                alt: altText,
+              }],
+            },
+          }
+        );
+
+        return { id: image.id, altText };
+      } catch (error) {
+        console.error(`Failed to generate alt text for image ${image.id}:`, error);
+        return { id: image.id, error: true };
+      }
+    }) || [];
+
+    await Promise.all(altTextPromises);
+
+    // Consume AI credit after successful generation (consume once for batch)
+    await consumeAICredit(shop);
+
+    return Response.json({ success: true });
   }
 
   // Generate image with AI
@@ -238,6 +344,14 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       return Response.json({ error: "Product not found" }, { status: 404 });
     }
 
+    // Get the shop's OpenAI configuration
+    const openaiConfig = await getShopOpenAIConfig(shop);
+    const genOptions = {
+      apiKey: openaiConfig.apiKey || undefined,
+      textModel: openaiConfig.textModel || undefined,
+      imageModel: openaiConfig.imageModel || undefined,
+    };
+
     try {
       // Generate image URL from DALL-E
       const customPrompt = formData.get("customPrompt") as string;
@@ -248,7 +362,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         vendor: product.vendor,
         existingImages: product.images?.nodes || [],
         customPrompt: customPrompt || undefined,
-      });
+      }, genOptions);
 
       // Download the image
       const imageResponse = await fetch(imageUrl);
@@ -359,49 +473,68 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
       const newImage = createMediaJson.data?.productCreateMedia?.media?.[0];
 
-      // Automatically generate alt text for the new image
-      try {
-        const altText = await generateImageAltText(
-          {
-            title: product.title,
-            productType: product.productType,
-            vendor: product.vendor,
-          },
-          (product.images?.nodes?.length || 0) // Use the new image index
-        );
+      // Optionally generate alt text for the new image
+      const shouldGenerateAlt = formData.get("generateAlt") === "true";
+      if (shouldGenerateAlt) {
+        try {
+          const altText = await generateImageAltText(
+            {
+              title: product.title,
+              productType: product.productType,
+              vendor: product.vendor,
+            },
+            (product.images?.nodes?.length || 0), // Use the new image index
+            newImage?.image?.url || undefined,
+            genOptions
+          );
 
-        // Update the image with the generated alt text
-        if (altText && newImage?.id) {
-          await admin.graphql(
-            `#graphql
-            mutation productUpdateMedia($productId: ID!, $media: [UpdateMediaInput!]!) {
-              productUpdateMedia(productId: $productId, media: $media) {
-                media {
-                  ... on MediaImage {
-                    id
-                    alt
+          // Update the image with the generated alt text
+          if (altText && newImage?.id) {
+            console.log("[Alt Text] Generated alt text:", altText);
+            console.log("[Alt Text] Updating image:", newImage.id);
+            
+            const updateResponse = await admin.graphql(
+              `#graphql
+              mutation productUpdateMedia($productId: ID!, $media: [UpdateMediaInput!]!) {
+                productUpdateMedia(productId: $productId, media: $media) {
+                  media {
+                    ... on MediaImage {
+                      id
+                      alt
+                    }
+                  }
+                  mediaUserErrors {
+                    field
+                    message
                   }
                 }
-                mediaUserErrors {
-                  field
-                  message
-                }
+              }`,
+              {
+                variables: {
+                  productId,
+                  media: [{
+                    id: newImage.id,
+                    alt: altText,
+                  }],
+                },
               }
-            }`,
-            {
-              variables: {
-                productId,
-                media: [{
-                  id: newImage.id,
-                  alt: altText,
-                }],
-              },
+            );
+            
+            const updateJson = await updateResponse.json();
+            const updateErrors = updateJson.data?.productUpdateMedia?.mediaUserErrors;
+            
+            if (updateErrors?.length > 0) {
+              console.error("[Alt Text] Failed to update image alt text:", updateErrors);
+            } else {
+              console.log("[Alt Text] Successfully updated alt text on image");
             }
-          );
+          } else {
+            console.warn("[Alt Text] Skipping alt text update - altText:", !!altText, "newImage.id:", newImage?.id);
+          }
+        } catch (altTextError) {
+          // Don't fail the whole request if alt text generation fails
+          console.error("[Alt Text] Error generating/saving alt text:", altTextError);
         }
-      } catch (altTextError) {
-        // Don't fail the whole request if alt text generation fails
-        console.warn("Failed to generate alt text for new image:", altTextError);
       }
 
       await auditProduct(shop, productId, admin);

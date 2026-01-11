@@ -14,6 +14,18 @@ import { saveFieldVersion, getShopId } from "../lib/services/version.server";
 import { isAIAvailable } from "../lib/ai";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
 
+// Helper to strip HTML tags
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/&amp;/g, '&')  // Replace &amp; with &
+    .replace(/&lt;/g, '<')   // Replace &lt; with <
+    .replace(/&gt;/g, '>')   // Replace &gt; with >
+    .replace(/&quot;/g, '"') // Replace &quot; with "
+    .trim();
+}
+
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
@@ -116,6 +128,27 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       .filter((t: string) => t && t.trim() !== "")
   )].sort() as string[];
 
+  // Fetch collections for the picker
+  const collectionsResponse = await admin.graphql(`#graphql
+    query GetCollections {
+      collections(first: 100) {
+        nodes {
+          id
+          title
+          productsCount {
+            count
+          }
+        }
+      }
+    }
+  `);
+  const collectionsJson = await collectionsResponse.json();
+  const collections = (collectionsJson.data?.collections?.nodes || []).map((c: { id: string; title: string; productsCount?: { count: number } }) => ({
+    id: c.id,
+    title: c.title,
+    productsCount: c.productsCount?.count || 0,
+  }));
+
   return {
     product: {
       id: shopifyProduct.id,
@@ -169,6 +202,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       incompleteCount,
     },
     defaultCollectionId,
+    collections,
     autocomplete: {
       vendors,
       productTypes,
@@ -265,6 +299,47 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       return { success: false, error: errors[0].message };
     }
 
+    // Handle alt text updates
+    const altTextUpdates = formData.getAll("altTextUpdates");
+    if (altTextUpdates.length > 0) {
+      for (const updateStr of altTextUpdates) {
+        const { imageId, altText } = JSON.parse(updateStr as string);
+
+        const response = await admin.graphql(
+          `#graphql
+          mutation productUpdateMedia($productId: ID!, $media: [UpdateMediaInput!]!) {
+            productUpdateMedia(productId: $productId, media: $media) {
+              media {
+                ... on MediaImage {
+                  id
+                  alt
+                }
+              }
+              mediaUserErrors {
+                field
+                message
+              }
+            }
+          }`,
+          {
+            variables: {
+              productId,
+              media: [{
+                id: imageId,
+                alt: altText,
+              }],
+            },
+          }
+        );
+
+        const json = await response.json();
+        const errors = json.data?.productUpdateMedia?.mediaUserErrors;
+        if (errors?.length > 0) {
+          console.error(`Failed to update alt text for image ${imageId}:`, errors[0].message);
+        }
+      }
+    }
+
     await auditProduct(shop, productId, admin);
     return { success: true, message: "Product saved!" };
   }
@@ -305,6 +380,22 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     } catch (error) {
       console.error("Error adding to collection:", error);
       return { success: false, error: "Failed to add to collection" };
+    }
+  }
+
+  if (intent === "set_default_collection") {
+    const collectionId = formData.get("collectionId") as string;
+    if (!collectionId) {
+      return { success: false, error: "No collection selected" };
+    }
+
+    try {
+      const { updateShopSettings } = await import("../lib/services/shop.server");
+      await updateShopSettings(shop, { defaultCollectionId: collectionId });
+      return { success: true, defaultCollectionId: collectionId };
+    } catch (error) {
+      console.error("Error setting default collection:", error);
+      return { success: false, error: "Failed to set default collection" };
     }
   }
 
@@ -562,7 +653,7 @@ function ImageAddDropdown({
           fontSize: "11px",
           fontWeight: 500,
           border: "none",
-          borderRadius: "var(--radius-sm)",
+          borderRadius: "var(--radius-md)",
           backgroundColor: "transparent",
           color: uploading ? "var(--color-subtle)" : "var(--color-muted)",
           cursor: uploading ? "not-allowed" : "pointer",
@@ -658,6 +749,260 @@ function ImageAddDropdown({
   );
 }
 // ============================================
+// Onboarding Modal Component
+// ============================================
+
+function OnboardingModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [step, setStep] = useState(0);
+
+  const slides = [
+    {
+      title: "Welcome to Launch Ready",
+      description: "Your all-in-one toolkit to get products from draft to live in seconds. Let's take a quick tour of the features.",
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" className="animate-rocket">
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.71-2.13.71-2.13l-4.42-.16s-1.29 0-2.13.71zM15 3s-3.33 0-6 2.67a12.11 12.11 0 0 0-3.41 6.83L3 19l5-2 1.39-1.39a12.11 12.11 0 0 0 6.83-3.41C19 9.53 19 6 19 6h2l-3-3z"/>
+          <path d="M12 12l4-4"/>
+        </svg>
+      ),
+      color: "var(--color-primary-soft)",
+    },
+    {
+      title: "AI Optimization",
+      description: "Generate high-converting titles, descriptions, and SEO metadata. Even create stunning product images with AI.",
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
+          <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
+          <path d="M20 4l-1.5 4.5L14 10l4.5 1.5L20 16l1.5-4.5L26 10l-4.5-1.5L20 4z" style={{ transform: "scale(0.5) translate(12px, -12px)" }}/>
+        </svg>
+      ),
+      color: "var(--color-ai-soft)",
+    },
+    {
+      title: "Brand Voice",
+      description: "Make the AI sound like you. Set your unique brand voice and custom instructions in Settings to maintain consistency.",
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <path d="M8 9h8M8 13h6"/>
+        </svg>
+      ),
+      color: "var(--color-highlight-soft)",
+    },
+    {
+      title: "Version History",
+      description: "Every AI generation is saved. Compare current values with previous versions and revert anytime with one click.",
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+          <path d="M12 7v5l3 3"/>
+        </svg>
+      ),
+      color: "var(--color-accent-soft)",
+    },
+    {
+      title: "Smart Checklist",
+      description: "The sidebar keeps you on track. Automatically fix missing collections, tags, and status issues to ensure every product is launch-ready.",
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <path d="M22 4L12 14.01l-3-3"/>
+        </svg>
+      ),
+      color: "var(--color-success-soft)",
+    },
+  ];
+
+  if (!isOpen) return null;
+
+  const currentSlide = slides[step];
+  const isLastStep = step === slides.length - 1;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(45, 42, 38, 0.4)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2000,
+        padding: "20px",
+        backdropFilter: "blur(8px)",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && isLastStep) onClose();
+      }}
+    >
+      <div
+        className="animate-scale-in"
+        style={{
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "var(--radius-xl)",
+          width: "100%",
+          maxWidth: "480px",
+          minHeight: "480px", // Consistent height to prevent shifting
+          boxShadow: "var(--shadow-elevated)",
+          border: "1px solid var(--color-border)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Progress Bar */}
+        <div style={{ display: "flex", height: "4px", background: "var(--color-surface-strong)" }}>
+          {slides.map((_, i) => (
+            <div
+              key={`dot-${i}`}
+              style={{
+                flex: 1,
+                height: "100%",
+                background: i <= step ? "var(--color-primary)" : "transparent",
+                transition: "all var(--transition-slow)",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ 
+          padding: "48px 32px", 
+          textAlign: "center", 
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center"
+        }}>
+          <div
+            style={{
+              width: "88px",
+              height: "88px",
+              borderRadius: "var(--radius-xl)",
+              backgroundColor: currentSlide.color,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 32px",
+              transition: "all var(--transition-base)",
+            }}
+          >
+            {currentSlide.icon}
+          </div>
+
+          <h2
+            style={{
+              margin: "0 0 16px",
+              fontFamily: "var(--font-heading)",
+              fontSize: "var(--text-2xl)",
+              fontWeight: 600,
+              color: "var(--color-text)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {currentSlide.title}
+          </h2>
+
+          <p
+            style={{
+              margin: 0,
+              fontSize: "var(--text-base)",
+              color: "var(--color-muted)",
+              lineHeight: 1.6,
+            }}
+          >
+            {currentSlide.description}
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: "24px 32px",
+            borderTop: "1px solid var(--color-border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "var(--color-surface-strong)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "var(--text-sm)",
+              color: "var(--color-muted)",
+              cursor: "pointer",
+              fontWeight: 500,
+            }}
+          >
+            Skip tour
+          </button>
+
+          <div style={{ display: "flex", gap: "12px" }}>
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={() => setStep(s => s - 1)}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 500,
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                }}
+              >
+                Back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (isLastStep) {
+                  onClose();
+                } else {
+                  setStep(s => s + 1);
+                }
+              }}
+              style={{
+                padding: "10px 24px",
+                fontSize: "var(--text-sm)",
+                fontWeight: 600,
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                background: "var(--gradient-primary)",
+                color: "#fff",
+                cursor: "pointer",
+                boxShadow: "var(--shadow-primary-glow)",
+              }}
+            >
+              {isLastStep ? "Get Started" : "Next"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // AI Upsell Modal Component
 // ============================================
 
@@ -719,9 +1064,9 @@ function AIUpsellModal({
         {/* Header */}
         <div
           style={{
-            padding: "32px 28px",
+            padding: "20px 24px",
             borderBottom: "1px solid var(--color-border)",
-            background: "linear-gradient(135deg, var(--color-primary-soft), var(--color-primary-soft))",
+            background: "var(--color-primary-soft)",
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
@@ -734,7 +1079,7 @@ function AIUpsellModal({
                 margin: 0,
                 fontFamily: "var(--font-heading)",
                 fontSize: "var(--text-xl)",
-                fontWeight: 600,
+                fontWeight: 500,
                 color: "var(--color-text)",
               }}
             >
@@ -742,7 +1087,7 @@ function AIUpsellModal({
             </h2>
             <p
               style={{
-                margin: "6px 0 0",
+                margin: "8px 0 0",
                 fontSize: "var(--text-sm)",
                 color: "var(--color-muted)",
               }}
@@ -760,7 +1105,7 @@ function AIUpsellModal({
               border: "none",
               cursor: "pointer",
               padding: "8px",
-              borderRadius: "var(--radius-sm)",
+              borderRadius: "var(--radius-md)",
               color: "var(--color-muted)",
               display: "flex",
               alignItems: "center",
@@ -783,22 +1128,22 @@ function AIUpsellModal({
         </div>
 
         {/* Content */}
-        <div style={{ padding: "28px" }}>
+        <div style={{ padding: "24px" }}>
           <div
             style={{
-              padding: "20px",
+              padding: "16px",
               backgroundColor: "var(--color-surface-strong)",
-              borderRadius: "var(--radius-lg)",
-              marginBottom: "24px",
+              borderRadius: "var(--radius-md)",
+              marginBottom: "20px",
               border: "1px solid var(--color-border)",
             }}
           >
             <p
               style={{
                 margin: 0,
-                fontSize: "var(--text-base)",
+                fontSize: "var(--text-sm)",
                 color: "var(--color-text)",
-                lineHeight: "1.6",
+                lineHeight: 1.6,
               }}
             >
               {isPlanLimit
@@ -814,61 +1159,61 @@ function AIUpsellModal({
                 border: "1px solid var(--color-success)",
                 borderRadius: "var(--radius-lg)",
                 padding: "16px",
-                marginBottom: "24px",
+              marginBottom: "20px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                alignItems: "flex-start",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  gap: "12px",
-                  alignItems: "flex-start",
-                }}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--color-success)"
+                strokeWidth="2"
+                style={{ flexShrink: 0, marginTop: "2px" }}
+                aria-hidden="true"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--color-success)"
-                  strokeWidth="2"
-                  style={{ flexShrink: 0, marginTop: "2px" }}
-                  aria-hidden="true"
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              <div>
+                <div
+                  style={{
+                    fontWeight: 500,
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-success-strong)",
+                    marginBottom: "4px",
+                  }}
                 >
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: "var(--text-sm)",
-                      color: "var(--color-success-strong)",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    Pro Plan Includes:
-                  </div>
-                  <ul
-                    style={{
-                      margin: 0,
-                      paddingLeft: "20px",
-                      fontSize: "var(--text-sm)",
-                      color: "var(--color-success-strong)",
-                    }}
-                  >
-                    <li>Unlimited AI generations per month</li>
-                    <li>Advanced product optimization</li>
-                    <li>Priority support</li>
-                  </ul>
+                  Pro Plan Includes:
                 </div>
+                <ul
+                  style={{
+                    margin: 0,
+                    paddingLeft: "20px",
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-success-strong)",
+                  }}
+                >
+                  <li>Unlimited AI generations per month</li>
+                  <li>Advanced product optimization</li>
+                  <li>Priority support</li>
+                </ul>
               </div>
             </div>
-          )}
+          </div>
+        )}
         </div>
 
         {/* Footer */}
         <div
           style={{
-            padding: "20px 28px",
+            padding: "16px 24px",
             borderTop: "1px solid var(--color-border)",
             display: "flex",
             gap: "12px",
@@ -880,11 +1225,11 @@ function AIUpsellModal({
             type="button"
             onClick={onClose}
             style={{
-              padding: "12px 24px",
+              padding: "10px 20px",
               fontSize: "var(--text-sm)",
-              fontWeight: 600,
+              fontWeight: 500,
               border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-full)",
+              borderRadius: "var(--radius-md)",
               backgroundColor: "var(--color-surface)",
               color: "var(--color-text)",
               cursor: "pointer",
@@ -899,11 +1244,11 @@ function AIUpsellModal({
               display: "inline-flex",
               alignItems: "center",
               gap: "8px",
-              padding: "12px 24px",
+              padding: "10px 20px",
               fontSize: "var(--text-sm)",
               fontWeight: 600,
               border: "none",
-              borderRadius: "var(--radius-full)",
+              borderRadius: "var(--radius-md)",
               background: "var(--gradient-primary)",
               color: "#fff",
               cursor: "pointer",
@@ -943,6 +1288,8 @@ function GenerateAllModal({
   onFieldToggle,
   onGenerate,
   isGenerating,
+  fieldOptions,
+  setFieldOptions,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -950,9 +1297,11 @@ function GenerateAllModal({
   onFieldToggle: (field: string) => void;
   onGenerate: () => void;
   isGenerating: boolean;
+  fieldOptions: Record<string, string[]>;
+  setFieldOptions: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
 }) {
   const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({});
-  
+
   if (!isOpen) return null;
 
   const fields = [
@@ -961,6 +1310,15 @@ function GenerateAllModal({
     { key: "tags", label: "Tags" },
     { key: "seoTitle", label: "SEO Title" },
     { key: "seoDescription", label: "Meta Description" },
+    {
+      key: "images",
+      label: "Images",
+      hasOptions: true,
+      options: [
+        { key: "image", label: "Generate Image" },
+        { key: "alt", label: "Generate Alt Text" }
+      ]
+    },
   ];
 
   const toggleExpand = (fieldKey: string) => {
@@ -969,6 +1327,7 @@ function GenerateAllModal({
       [fieldKey]: !prev[fieldKey]
     }));
   };
+
 
   return (
     <div
@@ -1036,7 +1395,7 @@ function GenerateAllModal({
               border: "none",
               cursor: "pointer",
               padding: "8px",
-              borderRadius: "var(--radius-sm)",
+              borderRadius: "var(--radius-md)",
               color: "var(--color-muted)",
               display: "flex",
               alignItems: "center",
@@ -1057,8 +1416,16 @@ function GenerateAllModal({
               <button
                 type="button"
                 onClick={() => {
-                  toggleExpand(field.key);
-                  if (!selectedFields.includes(field.key)) {
+                  if (field.hasOptions) {
+                    toggleExpand(field.key);
+                    // Auto-select all options when expanding for the first time
+                    if (!fieldOptions[field.key] && field.options) {
+                      setFieldOptions(prev => ({
+                        ...prev,
+                        [field.key]: field.options?.map(opt => opt.key) || []
+                      }));
+                    }
+                  } else {
                     onFieldToggle(field.key);
                   }
                 }}
@@ -1070,26 +1437,41 @@ function GenerateAllModal({
                   padding: "16px 20px",
                   border: "none",
                   borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
-                  background: selectedFields.includes(field.key) ? "var(--color-primary-soft)" : "transparent",
+                  background: (field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)) ? "var(--color-primary-soft)" : "transparent",
                   cursor: "pointer",
                   transition: "all var(--transition-fast)",
                 }}
                 onMouseEnter={(e) => {
-                  if (!selectedFields.includes(field.key)) {
+                  const isSelected = field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key);
+                  if (!isSelected) {
                     e.currentTarget.style.background = "var(--color-surface-strong)";
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = selectedFields.includes(field.key) ? "var(--color-primary-soft)" : "transparent";
+                  const isSelected = field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key);
+                  e.currentTarget.style.background = isSelected ? "var(--color-primary-soft)" : "transparent";
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, textAlign: "left" }}>
                   <input
                     type="checkbox"
-                    checked={selectedFields.includes(field.key)}
+                    checked={field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)}
                     onChange={(e) => {
                       e.stopPropagation();
-                      onFieldToggle(field.key);
+                      if (field.hasOptions) {
+                        // For fields with options, checkbox controls the options selection
+                        const currentOptions = fieldOptions[field.key] || [];
+                        const allOptions = field.options?.map(opt => opt.key) || [];
+                        if (currentOptions.length > 0) {
+                          // If any options are selected, deselect all
+                          setFieldOptions(prev => ({ ...prev, [field.key]: [] }));
+                        } else {
+                          // If no options are selected, select all
+                          setFieldOptions(prev => ({ ...prev, [field.key]: allOptions }));
+                        }
+                      } else {
+                        onFieldToggle(field.key);
+                      }
                     }}
                     onClick={(e) => e.stopPropagation()}
                     style={{
@@ -1107,39 +1489,81 @@ function GenerateAllModal({
                     {field.label}
                   </span>
                 </div>
-                <svg 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2"
-                  style={{
-                    transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform var(--transition-fast)",
-                    color: "var(--color-muted)",
-                  }}
-                >
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
+                {field.hasOptions && (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{
+                      transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform var(--transition-fast)",
+                      color: "var(--color-muted)",
+                    }}
+                  >
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                )}
               </button>
 
-              {/* Expanded field info */}
-              {expandedFields[field.key] && (
-                <div style={{
-                  padding: "12px 20px 12px 52px",
-                  background: "var(--color-surface-strong)",
-                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
-                  fontSize: "var(--text-xs)",
-                  color: "var(--color-muted)",
-                  lineHeight: 1.5,
-                }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "12px", alignItems: "start" }}>
-                    <span style={{ fontWeight: 500 }}>Status:</span>
-                    <span>{selectedFields.includes(field.key) ? "✓ Selected for generation" : "Not selected"}</span>
+              {/* Expanded options for fields with multiple choices */}
+              {expandedFields[field.key] && field.hasOptions && field.options && (
+                <div
+                  style={{
+                    padding: "12px 20px 16px 48px",
+                    backgroundColor: "var(--color-surface-strong)",
+                    borderBottom: "1px solid var(--color-border)",
+                  }}
+                >
+                  <div style={{ marginBottom: "8px", fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--color-muted)" }}>
+                    Choose what to generate:
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {field.options.map((option) => (
+                      <label
+                        key={option.key}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          cursor: "pointer",
+                          fontSize: "var(--text-sm)",
+                          color: "var(--color-text)",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldOptions[field.key]?.includes(option.key) || false}
+                          onChange={(e) => {
+                            const currentOptions = fieldOptions[field.key] || [];
+                            if (e.target.checked) {
+                              setFieldOptions(prev => ({
+                                ...prev,
+                                [field.key]: [...currentOptions, option.key]
+                              }));
+                            } else {
+                              setFieldOptions(prev => ({
+                                ...prev,
+                                [field.key]: currentOptions.filter(opt => opt !== option.key)
+                              }));
+                            }
+                          }}
+                          style={{
+                            width: "14px",
+                            height: "14px",
+                            accentColor: "var(--color-primary)",
+                            cursor: "pointer",
+                          }}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               )}
+
             </div>
           ))}
         </div>
@@ -1147,50 +1571,93 @@ function GenerateAllModal({
         {/* Footer */}
         <div
           style={{
-            padding: "16px 20px",
+            padding: "16px 24px",
             borderTop: "1px solid var(--color-border)",
             display: "flex",
             gap: "12px",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
+            alignItems: "center",
             background: "var(--color-surface-strong)",
           }}
         >
+          {/* Select All / Deselect All */}
           <button
             type="button"
-            onClick={onClose}
-            disabled={isGenerating}
+            onClick={() => {
+              if (selectedFields.length === fields.length) {
+                selectedFields.forEach(key => onFieldToggle(key));
+              } else {
+                fields.forEach(field => {
+                  if (!selectedFields.includes(field.key)) {
+                    onFieldToggle(field.key);
+                  }
+                });
+              }
+            }}
             style={{
-              padding: "8px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 16px",
               fontSize: "var(--text-sm)",
               fontWeight: 500,
               border: "1px solid var(--color-border)",
               borderRadius: "var(--radius-md)",
               backgroundColor: "var(--color-surface)",
               color: "var(--color-text)",
-              cursor: isGenerating ? "not-allowed" : "pointer",
-              opacity: isGenerating ? 0.5 : 1,
+              cursor: "pointer",
+              transition: "all var(--transition-fast)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-surface-strong)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-surface)";
             }}
           >
-            Cancel
+            {selectedFields.length === fields.length ? "Deselect All" : "Select All"}
           </button>
-          <button
-            type="button"
-            onClick={onGenerate}
-            disabled={isGenerating || selectedFields.length === 0}
-            style={{
-              padding: "8px 16px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 500,
-              border: "none",
-              borderRadius: "var(--radius-md)",
-              background: (isGenerating || selectedFields.length === 0) ? "var(--color-subtle)" : "var(--gradient-primary)",
-              color: "#fff",
-              cursor: (isGenerating || selectedFields.length === 0) ? "not-allowed" : "pointer",
-              boxShadow: (isGenerating || selectedFields.length === 0) ? "none" : "var(--shadow-primary-glow)",
-            }}
-          >
-            {isGenerating ? "Generating..." : `Generate (${selectedFields.length})`}
-          </button>
+
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isGenerating}
+              style={{
+                padding: "10px 20px",
+                fontSize: "var(--text-sm)",
+                fontWeight: 500,
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--color-surface)",
+                color: "var(--color-text)",
+                cursor: isGenerating ? "not-allowed" : "pointer",
+                opacity: isGenerating ? 0.5 : 1,
+                transition: "all var(--transition-fast)",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={isGenerating || selectedFields.length === 0}
+              style={{
+                padding: "10px 20px",
+                fontSize: "var(--text-sm)",
+                fontWeight: 600,
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                background: (isGenerating || selectedFields.length === 0) ? "var(--color-subtle)" : "var(--gradient-primary)",
+                color: "#fff",
+                cursor: (isGenerating || selectedFields.length === 0) ? "not-allowed" : "pointer",
+                boxShadow: (isGenerating || selectedFields.length === 0) ? "none" : "var(--shadow-primary-glow)",
+                transition: "all var(--transition-fast)",
+              }}
+            >
+              {isGenerating ? "Generating..." : "Generate"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1244,7 +1711,7 @@ function AIGenerateDropdown({
           fontSize: "11px",
           fontWeight: 500,
           border: "none",
-          borderRadius: "var(--radius-sm)",
+          borderRadius: "var(--radius-md)",
           background: "transparent",
           color: isGenerating ? "var(--color-subtle)" : "var(--color-muted)",
           cursor: isGenerating ? "not-allowed" : "pointer",
@@ -1445,7 +1912,7 @@ function EditableField({
                 fontSize: "11px",
                 fontWeight: 500,
                 border: "none",
-                borderRadius: "var(--radius-sm)",
+                borderRadius: "var(--radius-md)",
                 backgroundColor: "transparent",
                 color: "var(--color-muted)",
                 cursor: "pointer",
@@ -1801,7 +2268,7 @@ function VersionHistoryDropdown({
           fontSize: "var(--text-xs)",
           fontWeight: 500,
           border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-sm)",
+          borderRadius: "var(--radius-md)",
           backgroundColor: "var(--color-surface)",
           color: "var(--color-primary)",
           cursor: "pointer",
@@ -1839,6 +2306,11 @@ function VersionHistoryDropdown({
               }
             } catch {
               displayValue = version.value;
+            }
+
+            // Strip HTML if this is a description field
+            if (field === 'description' || field === 'descriptionHtml') {
+              displayValue = stripHtml(displayValue);
             }
 
             // Truncate long content for display
@@ -1977,7 +2449,7 @@ function TagsInput({
                 fontSize: "11px",
                 fontWeight: 500,
                 border: "none",
-                borderRadius: "var(--radius-sm)",
+                borderRadius: "var(--radius-md)",
                 backgroundColor: "transparent",
                 color: "var(--color-muted)",
                 cursor: "pointer",
@@ -2163,6 +2635,7 @@ function ImageManager({
   onRefresh,
   generatingImage,
   onOpenImagePromptModal,
+  onAltTextChange,
 }: {
   images: Array<{ id: string; url: string; altText: string | null }>;
   featuredImageId: string | null;
@@ -2172,6 +2645,7 @@ function ImageManager({
   onRefresh: () => void;
   generatingImage?: boolean;
   onOpenImagePromptModal: () => void;
+  onAltTextChange?: (imageId: string, altText: string) => void;
 }) {
   const [editingAlt, setEditingAlt] = useState<string | null>(null);
   const [altTexts, setAltTexts] = useState<Record<string, string>>({});
@@ -2182,9 +2656,9 @@ function ImageManager({
 
   useEffect(() => {
     const initial: Record<string, string> = {};
-    images.forEach(img => {
+    for (const img of images) {
       initial[img.id] = img.altText || "";
-    });
+    }
     setAltTexts(initial);
   }, [images]);
 
@@ -2287,6 +2761,7 @@ function ImageManager({
         shopify.toast.show(data.error);
       } else {
         setAltTexts(prev => ({ ...prev, [imageId]: data.altText }));
+        onAltTextChange?.(imageId, data.altText);
         shopify.toast.show("Alt text generated!");
       }
     } catch {
@@ -2296,29 +2771,11 @@ function ImageManager({
     }
   };
 
-  const handleSaveAlt = async (imageId: string) => {
-    try {
-      const formData = new FormData();
-      formData.append("intent", "update_alt");
-      formData.append("imageId", imageId);
-      formData.append("altText", altTexts[imageId] || "");
-
-      const response = await fetch(
-        `/api/products/${encodeURIComponent(productId)}/images`,
-        { method: "POST", body: formData }
-      );
-      const data = await response.json();
-
-      if (data.error) {
-        shopify.toast.show(data.error);
-      } else {
-        shopify.toast.show("Alt text saved");
-        setEditingAlt(null);
-        onRefresh();
-      }
-    } catch {
-      shopify.toast.show("Failed to save alt text");
-    }
+  const handleSaveAlt = (imageId: string) => {
+    const newAltText = altTexts[imageId] || "";
+    onAltTextChange?.(imageId, newAltText);
+    setEditingAlt(null);
+    shopify.toast.show("Alt text updated");
   };
 
   const openImagePromptModal = useCallback(() => {
@@ -2426,26 +2883,52 @@ function ImageManager({
                 width: "100%",
                 paddingTop: "100%",
                 position: "relative",
-                backgroundColor: "var(--color-surface-strong)",
+                backgroundColor: "var(--color-surface)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                border: "2px dashed var(--color-border)",
+                borderRadius: "var(--radius-md)",
               }}>
                 <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: "8px",
+                  gap: "16px",
                 }}>
-                  <div className="loading-dots" style={{ transform: "scale(0.8)" }}>
-                    <span/>
-                    <span/>
-                    <span/>
-                  </div>
+                  {/* Spinner */}
+                  <svg 
+                    width="48" 
+                    height="48" 
+                    viewBox="0 0 24 24" 
+                    fill="none"
+                    style={{
+                      animation: "spin 1s linear infinite",
+                    }}
+                  >
+                    <circle 
+                      cx="12" 
+                      cy="12" 
+                      r="10" 
+                      stroke="var(--color-border)" 
+                      strokeWidth="3"
+                    />
+                    <path 
+                      d="M12 2a10 10 0 0 1 10 10" 
+                      stroke="var(--color-primary)" 
+                      strokeWidth="3" 
+                      strokeLinecap="round"
+                    />
+                  </svg>
                   <div style={{
-                    fontSize: "var(--text-sm)",
-                    color: "var(--color-primary)",
+                    fontSize: "var(--text-base)",
+                    color: "var(--color-text)",
                     fontWeight: 500,
+                    textAlign: "center",
                   }}>
                     Generating...
                   </div>
@@ -2473,7 +2956,7 @@ function ImageManager({
               }}>
                 <img
                   src={image.url}
-                  alt={image.altText || productTitle}
+                  alt={altTexts[image.id] || image.altText || productTitle}
                   style={{
                     position: "absolute",
                     top: 0,
@@ -2496,7 +2979,7 @@ function ImageManager({
                   fontWeight: 600,
                   background: "rgba(0, 0, 0, 0.7)",
                   color: "#fff",
-                  borderRadius: "var(--radius-sm)",
+                  borderRadius: "var(--radius-md)",
                   textTransform: "uppercase",
                   letterSpacing: "0.03em",
                 }}>
@@ -2543,7 +3026,7 @@ function ImageManager({
                         padding: "6px 8px",
                         fontSize: "11px",
                         border: "1px solid var(--color-border)",
-                        borderRadius: "var(--radius-sm)",
+                        borderRadius: "var(--radius-md)",
                         marginBottom: "6px",
                         outline: "none",
                       }}
@@ -2562,7 +3045,7 @@ function ImageManager({
                           fontSize: "11px",
                           fontWeight: 500,
                           border: "none",
-                          borderRadius: "var(--radius-sm)",
+                          borderRadius: "var(--radius-md)",
                           background: "var(--color-text)",
                           color: "var(--color-surface)",
                           cursor: "pointer",
@@ -2579,7 +3062,7 @@ function ImageManager({
                           fontSize: "11px",
                           fontWeight: 500,
                           border: "1px solid var(--color-border)",
-                          borderRadius: "var(--radius-sm)",
+                          borderRadius: "var(--radius-md)",
                           backgroundColor: "transparent",
                           color: "var(--color-text)",
                           cursor: "pointer",
@@ -2589,18 +3072,55 @@ function ImageManager({
                       </button>
                     </div>
                   </div>
+                ) : generatingAlt === image.id ? (
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-primary)",
+                      fontStyle: "italic",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <svg
+                      width="8"
+                      height="8"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      style={{
+                        animation: "spin 1s linear infinite",
+                      }}
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                      />
+                      <path
+                        d="M12 2a10 10 0 0 1 10 10"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Generating...
+                  </div>
                 ) : (
                   <div
                     style={{
                       fontSize: "11px",
-                      color: image.altText ? "var(--color-muted)" : "var(--color-subtle)",
+                      color: (altTexts[image.id] || image.altText) ? "var(--color-muted)" : "var(--color-subtle)",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
-                    title={image.altText || "No alt text"}
+                    title={altTexts[image.id] || image.altText || "No alt text"}
                   >
-                    {image.altText || "No alt text"}
+                    {altTexts[image.id] || image.altText || "No alt text"}
                   </div>
                 )}
               </div>
@@ -2652,6 +3172,7 @@ function ChecklistSidebar({
   onItemClick,
   onAutoFixCollection,
   canAutoFixCollection,
+  onChooseCollection,
 }: { 
   audit: {
     status: string;
@@ -2670,6 +3191,7 @@ function ChecklistSidebar({
   onItemClick?: (key: string) => void;
   onAutoFixCollection?: () => void;
   canAutoFixCollection?: boolean;
+  onChooseCollection?: () => void;
 }) {
   if (!audit) return null;
 
@@ -2740,7 +3262,7 @@ function ChecklistSidebar({
                 gap: "10px",
                 fontSize: "var(--text-sm)",
                 padding: "10px 8px",
-                borderRadius: "var(--radius-sm)",
+                borderRadius: "var(--radius-md)",
                 border: "none",
                 width: "100%",
                 textAlign: "left",
@@ -2785,21 +3307,25 @@ function ChecklistSidebar({
               }}>
                 {item.label}
               </span>
-              {isExternalOnly && item.status === "failed" && canAutoFixCollection && (
+              {isExternalOnly && item.status === "failed" && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onAutoFixCollection?.();
+                    if (canAutoFixCollection) {
+                      onAutoFixCollection?.();
+                    } else {
+                      onChooseCollection?.();
+                    }
                   }}
                   style={{
                     padding: "3px 8px",
                     fontSize: "10px",
                     fontWeight: 600,
-                    borderRadius: "var(--radius-sm)",
-                    border: "none",
-                    background: "var(--color-text)",
-                    color: "var(--color-surface)",
+                    borderRadius: "var(--radius-md)",
+                    border: canAutoFixCollection ? "none" : "1px solid var(--color-border)",
+                    background: canAutoFixCollection ? "var(--color-text)" : "transparent",
+                    color: canAutoFixCollection ? "var(--color-surface)" : "var(--color-text)",
                     cursor: "pointer",
                     transition: "opacity var(--transition-fast)",
                     whiteSpace: "nowrap",
@@ -2807,7 +3333,7 @@ function ChecklistSidebar({
                   onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.8"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
                 >
-                  Fix
+                  {canAutoFixCollection ? "Fix" : "Choose"}
                 </button>
               )}
             </div>
@@ -2828,7 +3354,7 @@ function ChecklistSidebar({
             fontSize: "var(--text-xs)",
             fontWeight: 500,
             border: "none",
-            borderRadius: "var(--radius-sm)",
+            borderRadius: "var(--radius-md)",
             backgroundColor: "transparent",
             color: isRescanning ? "var(--color-subtle)" : "var(--color-muted)",
             cursor: isRescanning ? "not-allowed" : "pointer",
@@ -2876,7 +3402,8 @@ function ChecklistSidebar({
 // ============================================
 
 export default function ProductEditor() {
-  const { product, audit, aiAvailable, navigation, defaultCollectionId, autocomplete } = useLoaderData<typeof loader>();
+  const { product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete } = useLoaderData<typeof loader>();
+  const [currentDefaultCollectionId, setCurrentDefaultCollectionId] = useState(defaultCollectionId);
   const fetcher = useFetcher<typeof action>();
   const navigate = useNavigate();
   const shopify = useAppBridge();
@@ -2895,7 +3422,23 @@ export default function ProductEditor() {
   const [generatingModes, setGeneratingModes] = useState<Record<string, AIGenerateMode>>({});
   const [fieldVersions, setFieldVersions] = useState<Record<string, Array<{ version: number; value: string; createdAt: Date; source: string }>>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [altTextChanges, setAltTextChanges] = useState<Record<string, string>>({});
   const [generatingAll, setGeneratingAll] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  // Check if onboarding has been seen
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem("launch_ready_onboarding_seen");
+    if (!hasSeenOnboarding) {
+      setOnboardingOpen(true);
+    }
+  }, []);
+
+  const completeOnboarding = () => {
+    localStorage.setItem("launch_ready_onboarding_seen", "true");
+    setOnboardingOpen(false);
+  };
 
   // Track pre-generation values for inline revert (before save)
   const [preGenerationValues, setPreGenerationValues] = useState<Record<string, string | string[]>>({});
@@ -2915,9 +3458,11 @@ export default function ProductEditor() {
   const [imagePromptModal, setImagePromptModal] = useState<{
     isOpen: boolean;
     customPrompt: string;
+    generateAlt: boolean;
   }>({
     isOpen: false,
     customPrompt: "",
+    generateAlt: true,
   });
 
   const openImagePromptModal = useCallback(() => {
@@ -2932,12 +3477,15 @@ export default function ProductEditor() {
     selectedFields: [],
   });
 
+  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({});
+
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
 
   // Detect changes
   useEffect(() => {
     const originalDesc = product.descriptionHtml.replace(/<[^>]*>/g, "");
-    const changed =
+    const formChanged =
       form.title !== product.title ||
       form.description !== originalDesc ||
       form.vendor !== product.vendor ||
@@ -2945,8 +3493,14 @@ export default function ProductEditor() {
       form.tags.join(",") !== product.tags.join(",") ||
       form.seoTitle !== product.seoTitle ||
       form.seoDescription !== product.seoDescription;
-    setHasChanges(changed);
-  }, [form, product]);
+
+    const altTextChanged = Object.keys(altTextChanges).some(imageId => {
+      const originalAlt = product.images?.find((img: { id: string; altText: string | null }) => img.id === imageId)?.altText || "";
+      return altTextChanges[imageId] !== originalAlt;
+    });
+
+    setHasChanges(formChanged || altTextChanged);
+  }, [form, product, altTextChanges]);
 
   // Warn user before leaving page with unsaved changes
   useEffect(() => {
@@ -2976,6 +3530,7 @@ export default function ProductEditor() {
       shopify.toast.show(fetcher.data.message);
       setPreGenerationValues({});
       setAiGeneratedFields(new Set());
+      setAltTextChanges({}); // Clear alt text changes after successful save
     }
     if (fetcher.data?.error) {
       shopify.toast.show(fetcher.data.error);
@@ -3118,10 +3673,11 @@ export default function ProductEditor() {
   }, [fetcher]);
 
   const closeImagePromptModal = useCallback(() => {
-    setImagePromptModal(prev => ({
+    setImagePromptModal({
       isOpen: false,
-      customPrompt: ""
-    }));
+      customPrompt: "",
+      generateAlt: true,
+    });
   }, []);
 
   const handleGenerateImages = useCallback(async () => {
@@ -3131,6 +3687,9 @@ export default function ProductEditor() {
       formData.append("intent", "generate_image");
       if (imagePromptModal.customPrompt.trim()) {
         formData.append("customPrompt", imagePromptModal.customPrompt.trim());
+      }
+      if (imagePromptModal.generateAlt) {
+        formData.append("generateAlt", "true");
       }
 
       const response = await fetch(
@@ -3143,7 +3702,7 @@ export default function ProductEditor() {
       if (data.error) {
         shopify.toast.show(data.error);
       } else {
-        shopify.toast.show("Image generated successfully!");
+        shopify.toast.show(imagePromptModal.generateAlt ? "Image and alt text generated successfully!" : "Image generated successfully!");
         closeImagePromptModal();
         // Reset the custom prompt for next time
         setImagePromptModal(prev => ({ ...prev, customPrompt: "" }));
@@ -3156,7 +3715,7 @@ export default function ProductEditor() {
     } finally {
       setGeneratingImage(false);
     }
-  }, [imagePromptModal.customPrompt, shopify, closeImagePromptModal, product.id]);
+  }, [imagePromptModal.customPrompt, imagePromptModal.generateAlt, shopify, closeImagePromptModal, product.id]);
 
   // Load field versions
   const loadFieldVersions = useCallback(async () => {
@@ -3206,7 +3765,10 @@ export default function ProductEditor() {
 
 
   const handleGenerateSelected = useCallback(async () => {
-    if (generateAllModal.selectedFields.length === 0) return;
+    const selectedFieldKeys = Object.keys(fieldOptions).filter(key => (fieldOptions[key]?.length || 0) > 0);
+    const regularFields = generateAllModal.selectedFields.filter(field => !selectedFieldKeys.includes(field));
+
+    if (selectedFieldKeys.length === 0 && regularFields.length === 0) return;
 
     setGeneratingAll(true);
     setGenerateAllModal(prev => ({ ...prev, isOpen: false }));
@@ -3219,52 +3781,112 @@ export default function ProductEditor() {
       seoDescription: { type: "seo_description", field: "seoDescription" },
     };
 
-    const fields = generateAllModal.selectedFields.map(key => fieldMappings[key as keyof typeof fieldMappings]).filter(Boolean);
+    // Handle regular fields
+    const regularFieldPromises = regularFields.map(key => fieldMappings[key as keyof typeof fieldMappings]).filter(Boolean).map(async (fieldInfo) => {
+      if (!fieldInfo) return;
+      const { type, field } = fieldInfo;
+      try {
+        setGenerating(prev => new Set([...prev, field]));
 
-    setGenerating(new Set(fields.map(f => f!.field)));
+        const formData = new FormData();
+        formData.append("type", type);
 
-    try {
-      await Promise.all(
-        fields.map(async (fieldInfo) => {
-          if (!fieldInfo) return;
-          const { type, field } = fieldInfo;
+        const response = await fetch(
+          `/api/products/${encodeURIComponent(product.id)}/suggest`,
+          { method: "POST", body: formData }
+        );
+        const data = await response.json();
+
+        if (!data.error) {
+          let value = data.suggestion;
+
+          // Handle tags field: convert string to array if needed
+          if (field === "tags" && typeof value === "string") {
+            value = value.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+          }
+
+          updateField(field, value);
+        }
+      } finally {
+        setGenerating(prev => {
+          const next = new Set(prev);
+          next.delete(field);
+          return next;
+        });
+      }
+    });
+
+    // Handle fields with options (currently just images)
+    const optionFieldPromises = selectedFieldKeys.map(async (fieldKey) => {
+      const options = fieldOptions[fieldKey] || [];
+      if (fieldKey === "images") {
+        // Handle image generation options
+        const shouldGenerateImage = options.includes("image");
+        const shouldGenerateAlt = options.includes("alt");
+
+        if (shouldGenerateImage) {
           try {
+            setGeneratingImage(true);
             const formData = new FormData();
-            formData.append("type", type);
+            formData.append("intent", "generate_image");
+            if (shouldGenerateAlt) {
+              formData.append("generateAlt", "true");
+            }
 
             const response = await fetch(
-              `/api/products/${encodeURIComponent(product.id)}/suggest`,
+              `/api/products/${encodeURIComponent(product.id)}/images`,
               { method: "POST", body: formData }
             );
+
             const data = await response.json();
 
-            if (!data.error) {
-              let value = data.suggestion;
-
-              // Handle tags field: convert string to array if needed
-              if (field === "tags" && typeof value === "string") {
-                value = value.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
-              }
-
-              updateField(field, value);
+            if (data.error) {
+              console.error("Failed to generate image:", data.error);
             }
           } finally {
-            setGenerating(prev => {
-              const next = new Set(prev);
-              next.delete(field);
-              return next;
-            });
+            setGeneratingImage(false);
           }
-        })
-      );
-      shopify.toast.show(`${generateAllModal.selectedFields.length} field${generateAllModal.selectedFields.length !== 1 ? 's' : ''} generated!`);
+        } else if (shouldGenerateAlt) {
+          // Only generate alt text for existing images
+          try {
+            const formData = new FormData();
+            formData.append("intent", "generate_alt_batch");
+
+            const response = await fetch(
+              `/api/products/${encodeURIComponent(product.id)}/images`,
+              { method: "POST", body: formData }
+            );
+
+            const data = await response.json();
+
+            if (data.error) {
+              console.error("Failed to generate alt text:", data.error);
+            }
+          } catch (error) {
+            console.error("Alt text generation failed:", error);
+          }
+        }
+      }
+    });
+
+    try {
+      await Promise.all([...regularFieldPromises, ...optionFieldPromises]);
+
+      const totalGenerated = regularFields.length + selectedFieldKeys.length;
+      shopify.toast.show(`${totalGenerated} item${totalGenerated !== 1 ? 's' : ''} generated!`);
+
+      // Refresh if images were generated
+      if (selectedFieldKeys.includes("images") && fieldOptions.images?.includes("image")) {
+        window.location.reload();
+      }
     } catch {
-      shopify.toast.show("Some fields failed to generate");
+      shopify.toast.show("Some items failed to generate");
     } finally {
       setGeneratingAll(false);
       setGenerateAllModal(prev => ({ ...prev, selectedFields: [] }));
+      setFieldOptions({});
     }
-  }, [product.id, shopify, updateField, generateAllModal.selectedFields]);
+  }, [product.id, shopify, updateField, generateAllModal.selectedFields, fieldOptions]);
 
   const handleSave = () => {
     const formData = new FormData();
@@ -3276,7 +3898,17 @@ export default function ProductEditor() {
     formData.append("tags", form.tags.join(","));
     formData.append("seoTitle", form.seoTitle);
     formData.append("seoDescription", form.seoDescription);
+
+    // Add alt text changes
+    Object.entries(altTextChanges).forEach(([imageId, altText]) => {
+      formData.append("altTextUpdates", JSON.stringify({ imageId, altText }));
+    });
+
     fetcher.submit(formData, { method: "POST" });
+  };
+
+  const handleAltTextChange = (imageId: string, altText: string) => {
+    setAltTextChanges(prev => ({ ...prev, [imageId]: altText }));
   };
 
   const isSaving = fetcher.state !== "idle";
@@ -3344,122 +3976,6 @@ export default function ProductEditor() {
               Edit product details
             </p>
           </div>
-        </div>
-        
-        {/* Header Actions - Moved here for cleaner look */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {/* AI Generate Button */}
-          {aiAvailable && (
-            <button
-              type="button"
-              onClick={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
-              disabled={generatingAll || generating.size > 0}
-              style={{
-                padding: "8px 14px",
-                fontSize: "var(--text-sm)",
-                fontWeight: 500,
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-full)",
-                background: "transparent",
-                color: (generatingAll || generating.size > 0) ? "var(--color-subtle)" : "var(--color-primary)",
-                cursor: (generatingAll || generating.size > 0) ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                transition: "all var(--transition-fast)",
-              }}
-              onMouseEnter={(e) => {
-                if (!(generatingAll || generating.size > 0)) {
-                  e.currentTarget.style.borderColor = "var(--color-primary)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-border)";
-              }}
-            >
-              {generatingAll ? (
-                <>
-                  <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                    <span/>
-                    <span/>
-                    <span/>
-                  </span>
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-                  </svg>
-                  Generate All
-                </>
-              )}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
-            style={{
-              padding: "10px 16px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 500,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-full)",
-              background: "transparent",
-              color: "var(--color-muted)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              transition: "all var(--transition-fast)",
-            }}
-            onMouseEnter={(e) => { 
-              e.currentTarget.style.color = "var(--color-text)";
-              e.currentTarget.style.borderColor = "var(--color-text)";
-            }}
-            onMouseLeave={(e) => { 
-              e.currentTarget.style.color = "var(--color-muted)";
-              e.currentTarget.style.borderColor = "var(--color-border)";
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-              <polyline points="15 3 21 3 21 9"/>
-              <line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
-            Open in Shopify
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!hasChanges || isSaving}
-            style={{
-              padding: "10px 24px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              border: "none",
-              borderRadius: "var(--radius-full)",
-              background: hasChanges ? "var(--color-text)" : "var(--color-surface-strong)",
-              color: hasChanges ? "var(--color-surface)" : "var(--color-subtle)",
-              cursor: (!hasChanges || isSaving) ? "default" : "pointer",
-              opacity: isSaving ? 0.7 : 1,
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              transition: "all var(--transition-fast)",
-            }}
-          >
-            {isSaving ? (
-              <>
-                <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                  <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
-                  <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
-                  <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
-                </span>
-                Saving
-              </>
-            ) : hasChanges ? "Save changes" : "Saved"}
-          </button>
         </div>
       </div>
 
@@ -3623,6 +4139,7 @@ export default function ProductEditor() {
                 onRefresh={() => window.location.reload()}
                 generatingImage={generatingImage}
                 onOpenImagePromptModal={openImagePromptModal}
+                onAltTextChange={handleAltTextChange}
               />
             </div>
 
@@ -3741,30 +4258,164 @@ export default function ProductEditor() {
               gap: "24px",
             }}
           >
-            {/* Checklist - Minimal styling */}
+            {/* Checklist with integrated actions */}
             <div
               style={{
-                padding: "24px",
                 border: "1px solid var(--color-border)",
                 borderRadius: "var(--radius-lg)",
-                backgroundColor: "var(--color-surface)"
+                backgroundColor: "var(--color-surface)",
+                overflow: "hidden",
               }}
             >
-              <ChecklistSidebar 
-                audit={audit}
-                onRescan={() => fetcher.submit({ intent: "rescan" }, { method: "POST" })}
-                isRescanning={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"}
-                onItemClick={handleChecklistItemClick}
-                canAutoFixCollection={!!defaultCollectionId}
-                onAutoFixCollection={() => {
-                  if (defaultCollectionId) {
-                    fetcher.submit(
-                      { intent: "add_to_collection", collectionId: defaultCollectionId },
-                      { method: "POST" }
-                    );
-                  }
-                }}
-              />
+              {/* Action Buttons - Stacked vertically */}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                padding: "16px",
+                borderBottom: "1px solid var(--color-border)",
+                backgroundColor: "var(--color-surface-strong)",
+              }}>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={!hasChanges || isSaving}
+                  style={{
+                    padding: "10px 16px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 600,
+                    border: "none",
+                    borderRadius: "var(--radius-md)",
+                    background: hasChanges ? "var(--color-text)" : "var(--color-surface)",
+                    color: hasChanges ? "var(--color-surface)" : "var(--color-subtle)",
+                    cursor: (!hasChanges || isSaving) ? "default" : "pointer",
+                    opacity: isSaving ? 0.7 : 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    transition: "all var(--transition-fast)",
+                    width: "100%",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                        <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
+                        <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
+                        <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
+                      </span>
+                      Saving
+                    </>
+                  ) : hasChanges ? "Save changes" : "Saved"}
+                </button>
+                {aiAvailable && (
+                  <button
+                    type="button"
+                    onClick={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
+                    disabled={generatingAll}
+                    style={{
+                      padding: "10px 16px",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
+                      border: "1px solid var(--color-primary)",
+                      borderRadius: "var(--radius-md)",
+                      background: "transparent",
+                      color: "var(--color-primary)",
+                      cursor: generatingAll ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      transition: "all var(--transition-fast)",
+                      opacity: generatingAll ? 0.6 : 1,
+                      width: "100%",
+                      whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={(e) => { 
+                      if (!generatingAll) {
+                        e.currentTarget.style.background = "var(--color-primary-soft)";
+                      }
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {generatingAll ? (
+                      <>
+                        <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                          <span/>
+                          <span/>
+                          <span/>
+                        </span>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
+                        </svg>
+                        Generate All
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
+                  style={{
+                    padding: "10px 16px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                    background: "transparent",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    transition: "all var(--transition-fast)",
+                    width: "100%",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.currentTarget.style.background = "var(--color-surface)";
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  Open in Shopify
+                </button>
+              </div>
+
+              {/* Checklist content */}
+              <div style={{ padding: "24px" }}>
+                <ChecklistSidebar 
+                  audit={audit}
+                  onRescan={() => fetcher.submit({ intent: "rescan" }, { method: "POST" })}
+                  isRescanning={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"}
+                  onItemClick={handleChecklistItemClick}
+                  canAutoFixCollection={!!currentDefaultCollectionId}
+                  onAutoFixCollection={() => {
+                    if (currentDefaultCollectionId) {
+                      fetcher.submit(
+                        { intent: "add_to_collection", collectionId: currentDefaultCollectionId },
+                        { method: "POST" }
+                      );
+                    }
+                  }}
+                  onChooseCollection={() => setCollectionPickerOpen(true)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -3779,36 +4430,48 @@ export default function ProductEditor() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(45, 42, 38, 0.5)",
+            backgroundColor: "rgba(45, 42, 38, 0.4)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1100,
             padding: "20px",
+            backdropFilter: "blur(4px)",
           }}
         >
           <div
+            className="animate-scale-in"
             style={{
               backgroundColor: "var(--color-surface)",
-              borderRadius: "var(--radius-lg)",
-              padding: "28px",
-              maxWidth: "400px",
+              borderRadius: "var(--radius-xl)",
+              maxWidth: "420px",
               width: "100%",
-              boxShadow: "var(--shadow-lg)",
+              boxShadow: "var(--shadow-elevated)",
+              border: "1px solid var(--color-border)",
+              overflow: "hidden",
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+            {/* Header */}
+            <div style={{
+              padding: "20px 24px",
+              borderBottom: "1px solid var(--color-border)",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              background: "var(--color-warning-soft)",
+            }}>
               <div style={{
-                width: "40px",
-                height: "40px",
+                width: "36px",
+                height: "36px",
                 borderRadius: "var(--radius-full)",
-                backgroundColor: "var(--color-warning-soft)",
+                backgroundColor: "var(--color-surface)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                   <line x1="12" y1="9" x2="12" y2="13"/>
                   <line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -3817,22 +4480,35 @@ export default function ProductEditor() {
               <h3 style={{
                 margin: 0,
                 fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-lg)",
-                fontWeight: 600,
+                fontSize: "var(--text-xl)",
+                fontWeight: 500,
                 color: "var(--color-text)",
               }}>
                 Unsaved changes
               </h3>
             </div>
-            <p style={{
-              margin: "0 0 24px",
-              fontSize: "var(--text-sm)",
-              color: "var(--color-muted)",
-              lineHeight: 1.5,
+
+            {/* Content */}
+            <div style={{ padding: "24px" }}>
+              <p style={{
+                margin: 0,
+                fontSize: "var(--text-sm)",
+                color: "var(--color-muted)",
+                lineHeight: 1.6,
+              }}>
+                You have unsaved changes that will be lost if you leave this page. Are you sure you want to continue?
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: "16px 24px",
+              borderTop: "1px solid var(--color-border)",
+              display: "flex",
+              gap: "12px",
+              justifyContent: "flex-end",
+              background: "var(--color-surface-strong)",
             }}>
-              You have unsaved changes that will be lost if you leave this page. Are you sure you want to continue?
-            </p>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
               <button
                 type="button"
                 onClick={() => {
@@ -3842,7 +4518,7 @@ export default function ProductEditor() {
                 style={{
                   padding: "10px 20px",
                   fontSize: "var(--text-sm)",
-                  fontWeight: 600,
+                  fontWeight: 500,
                   borderRadius: "var(--radius-md)",
                   border: "1px solid var(--color-border)",
                   background: "var(--color-surface)",
@@ -3901,6 +4577,7 @@ export default function ProductEditor() {
             justifyContent: "center",
             zIndex: 1000,
             padding: "20px",
+            backdropFilter: "blur(4px)",
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -3917,37 +4594,53 @@ export default function ProductEditor() {
           role="presentation"
         >
           <div
+            className="animate-scale-in"
             style={{
               backgroundColor: "var(--color-surface)",
-              borderRadius: "var(--radius-lg)",
+              borderRadius: "var(--radius-xl)",
               boxShadow: "var(--shadow-elevated)",
+              border: "1px solid var(--color-border)",
               width: "100%",
               maxWidth: "500px",
-              padding: "24px",
+              overflow: "hidden",
             }}
+            onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
           >
-            <h3
+            {/* Header */}
+            <div
               style={{
-                margin: "0 0 16px 0",
-                fontSize: "var(--text-lg)",
-                fontWeight: 600,
-                color: "var(--color-text)",
+                padding: "20px 24px",
+                borderBottom: "1px solid var(--color-border)",
+                background: "var(--color-surface-strong)",
               }}
             >
-              Customize Image Generation
-            </h3>
+              <h3
+                style={{
+                  margin: 0,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "var(--text-xl)",
+                  fontWeight: 500,
+                  color: "var(--color-text)",
+                }}
+              >
+                Customize Image Generation
+              </h3>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: "24px" }}>
 
             <p
               style={{
                 margin: "0 0 20px 0",
                 fontSize: "var(--text-sm)",
-                color: "var(--color-text-subtle)",
+                color: "var(--color-muted)",
                 lineHeight: 1.5,
               }}
             >
-              <strong>Optional:</strong> Add specific instructions for how you want the image to look. Leave blank to use AI-generated defaults. The AI will maintain the product's appearance while incorporating your style preferences.
+Describe your desired style, or leave blank for defaults.
             </p>
 
             <textarea
@@ -3970,27 +4663,79 @@ export default function ProductEditor() {
                 color: "var(--color-text)",
                 resize: "vertical",
                 fontFamily: "inherit",
-                marginBottom: "20px",
+                marginBottom: "16px",
               }}
             />
 
+            {/* Generate Alt Text Checkbox */}
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                cursor: "pointer",
+                padding: "12px",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--color-surface-strong)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={imagePromptModal.generateAlt}
+                onChange={(e) =>
+                  setImagePromptModal((prev) => ({
+                    ...prev,
+                    generateAlt: e.target.checked,
+                  }))
+                }
+                style={{
+                  width: "18px",
+                  height: "18px",
+                  accentColor: "var(--color-primary)",
+                  cursor: "pointer",
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 500,
+                  color: "var(--color-text)",
+                  marginBottom: "2px",
+                }}>
+                  Generate alt text with image
+                </div>
+                <div style={{
+                  fontSize: "var(--text-xs)",
+                  color: "var(--color-muted)",
+                }}>
+                  Improves SEO and accessibility
+                </div>
+              </div>
+            </label>
+            </div>
+
+            {/* Footer */}
             <div
               style={{
+                padding: "16px 24px",
+                borderTop: "1px solid var(--color-border)",
                 display: "flex",
                 gap: "12px",
                 justifyContent: "space-between",
+                background: "var(--color-surface-strong)",
               }}
             >
               <button
                 type="button"
                 onClick={closeImagePromptModal}
                 style={{
-                  padding: "8px 16px",
+                  padding: "10px 20px",
                   fontSize: "var(--text-sm)",
                   fontWeight: 500,
                   border: "1px solid var(--color-border)",
                   borderRadius: "var(--radius-md)",
-                  backgroundColor: "transparent",
+                  backgroundColor: "var(--color-surface)",
                   color: "var(--color-text)",
                   cursor: "pointer",
                   transition: "all var(--transition-fast)",
@@ -4008,12 +4753,12 @@ export default function ProductEditor() {
                   }}
                   disabled={generatingImage}
                   style={{
-                    padding: "8px 16px",
+                    padding: "10px 20px",
                     fontSize: "var(--text-sm)",
                     fontWeight: 500,
                     border: "1px solid var(--color-border)",
                     borderRadius: "var(--radius-md)",
-                    backgroundColor: "transparent",
+                    backgroundColor: "var(--color-surface)",
                     color: "var(--color-text)",
                     cursor: generatingImage ? "not-allowed" : "pointer",
                     transition: "all var(--transition-fast)",
@@ -4029,10 +4774,10 @@ export default function ProductEditor() {
                   }}
                   disabled={generatingImage}
                   style={{
-                    padding: "8px 16px",
+                    padding: "10px 20px",
                     fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    border: generatingImage ? "1px solid var(--color-border)" : "none",
+                    fontWeight: 600,
+                    border: "none",
                     borderRadius: "var(--radius-md)",
                     background: generatingImage ? "var(--color-surface-strong)" : "var(--gradient-primary)",
                     color: generatingImage ? "var(--color-subtle)" : "#fff",
@@ -4041,7 +4786,7 @@ export default function ProductEditor() {
                     boxShadow: generatingImage ? "none" : "var(--shadow-primary-glow)",
                   }}
                 >
-                  {generatingImage ? "Generating..." : "Generate with Custom"}
+                  {generatingImage ? "Generating..." : "Generate"}
                 </button>
               </div>
             </div>
@@ -4052,8 +4797,14 @@ export default function ProductEditor() {
       {/* Generate All Modal */}
       <GenerateAllModal
         isOpen={generateAllModal.isOpen}
-        onClose={() => setGenerateAllModal(prev => ({ ...prev, isOpen: false }))}
-        selectedFields={generateAllModal.selectedFields}
+        onClose={() => {
+          setGenerateAllModal({ isOpen: false, selectedFields: [] });
+          setFieldOptions({});
+        }}
+        selectedFields={[
+          ...generateAllModal.selectedFields,
+          ...Object.keys(fieldOptions).filter(key => (fieldOptions[key]?.length || 0) > 0)
+        ]}
         onFieldToggle={(field) => {
           setGenerateAllModal(prev => ({
             ...prev,
@@ -4064,6 +4815,169 @@ export default function ProductEditor() {
         }}
         onGenerate={handleGenerateSelected}
         isGenerating={generatingAll}
+        fieldOptions={fieldOptions}
+        setFieldOptions={setFieldOptions}
+      />
+
+      {/* Collection Picker Modal */}
+      {collectionPickerOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(45, 42, 38, 0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => setCollectionPickerOpen(false)}
+        >
+          <div
+            className="animate-scale-in"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              borderRadius: "var(--radius-xl)",
+              width: "100%",
+              maxWidth: "500px",
+              maxHeight: "70vh",
+              boxShadow: "var(--shadow-elevated)",
+              border: "1px solid var(--color-border)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "20px 24px",
+                borderBottom: "1px solid var(--color-border)",
+                background: "var(--color-surface-strong)",
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "var(--text-xl)",
+                  fontWeight: 500,
+                  color: "var(--color-text)",
+                }}
+              >
+                Choose Default Collection
+              </h2>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-muted)",
+                }}
+              >
+                Select a collection for auto-fix. You can change this in Settings.
+              </p>
+            </div>
+
+            {/* Collection List */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+              {collections.length === 0 ? (
+                <div style={{ padding: "24px", textAlign: "center", color: "var(--color-muted)" }}>
+                  No collections found. Create a collection in Shopify first.
+                </div>
+              ) : (
+                collections.map((collection: { id: string; title: string; productsCount: number }) => (
+                  <button
+                    key={collection.id}
+                    type="button"
+                    onClick={() => {
+                      setCurrentDefaultCollectionId(collection.id);
+                      fetcher.submit(
+                        { intent: "set_default_collection", collectionId: collection.id },
+                        { method: "POST" }
+                      );
+                      setCollectionPickerOpen(false);
+                      shopify.toast.show(`Default collection set to "${collection.title}"`);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "14px 24px",
+                      border: "none",
+                      background: currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      transition: "background var(--transition-fast)",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (currentDefaultCollectionId !== collection.id) {
+                        e.currentTarget.style.background = "var(--color-surface-strong)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent";
+                    }}
+                  >
+                    <span style={{
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
+                      color: "var(--color-text)",
+                    }}>
+                      {collection.title}
+                    </span>
+                    <span style={{
+                      fontSize: "var(--text-xs)",
+                      color: "var(--color-muted)",
+                    }}>
+                      {collection.productsCount} products
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: "16px 24px",
+                borderTop: "1px solid var(--color-border)",
+                display: "flex",
+                justifyContent: "flex-end",
+                background: "var(--color-surface-strong)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setCollectionPickerOpen(false)}
+                style={{
+                  padding: "10px 20px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 500,
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  transition: "all var(--transition-fast)",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        isOpen={onboardingOpen}
+        onClose={completeOnboarding}
       />
 
     </div>
