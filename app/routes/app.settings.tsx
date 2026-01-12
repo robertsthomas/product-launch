@@ -300,6 +300,7 @@ export default function Settings() {
   const versionFetcher = useFetcher();
   const navigate = useNavigate();
   const shopify = useAppBridge();
+  const [showBrandVoiceGuide, setShowBrandVoiceGuide] = useState(true);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("automation");
 
@@ -431,10 +432,15 @@ export default function Settings() {
       gap: "0", 
       minHeight: "100%", 
       width: "100%",
-      maxWidth: "800px", 
-      margin: "0 auto",
-      scrollbarGutter: "stable"
+      background: "var(--color-surface-secondary)", // Optional: add subtle background
     }}>
+      <div style={{
+        maxWidth: "1000px",
+        margin: "0 auto",
+        padding: "32px",
+        width: "100%",
+        scrollbarGutter: "stable"
+      }}>
       {/* Page Header */}
       <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
         <button
@@ -1053,6 +1059,105 @@ export default function Settings() {
             <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
               Customize how AI generates content to match your brand's personality and tone.
             </p>
+
+            {/* How to Use Brand Voice Guide */}
+            <div style={{
+              marginBottom: "24px",
+              background: "linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(248, 250, 252, 0.4) 100%)",
+              border: "1px solid rgba(148, 163, 184, 0.2)",
+              borderRadius: "var(--radius-lg)",
+              backdropFilter: "blur(8px)",
+              overflow: "hidden",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              width: "100%",
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowBrandVoiceGuide(!showBrandVoiceGuide)}
+                style={{
+                  width: "100%",
+                  padding: "16px 20px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  color: "var(--color-text)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}>
+                    <span style={{ fontSize: "14px", color: "#d97706" }}>✨</span>
+                  </div>
+                  <span style={{ fontSize: "15px", fontWeight: 600 }}>
+                    How to use Brand Voice
+                  </span>
+                </div>
+                <div style={{
+                  color: "var(--color-muted)",
+                  transform: showBrandVoiceGuide ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.3s ease",
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </div>
+              </button>
+
+              {showBrandVoiceGuide && (
+                <div style={{ padding: "0 20px 20px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+                    <div style={{
+                      padding: "16px",
+                      background: "rgba(255, 255, 255, 0.8)",
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid rgba(148, 163, 184, 0.1)",
+                    }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", marginBottom: "12px" }}>
+                        1. Define Your Identity
+                      </div>
+                      <p style={{ fontSize: "12px", color: "var(--color-muted)", lineHeight: 1.6, marginBottom: "12px" }}>
+                        Choose a voice preset that matches your brand personality to ensure consistent AI-generated content.
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "12px", color: "var(--color-text)", lineHeight: 1.6 }}>
+                        <li style={{ marginBottom: "6px" }}>Select from <strong>5 preset styles</strong> (Minimal, Friendly, Technical, etc.)</li>
+                        <li style={{ marginBottom: "6px" }}>Add <strong>Custom Notes</strong> for specific instructions (e.g., "Always mention free shipping")</li>
+                        <li>Changes apply immediately to all future AI generations</li>
+                      </ul>
+                    </div>
+
+                    <div style={{
+                      padding: "16px",
+                      background: "rgba(255, 255, 255, 0.8)",
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid rgba(148, 163, 184, 0.1)",
+                    }}>
+                      <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", marginBottom: "12px" }}>
+                        2. Generate Content
+                      </div>
+                      <p style={{ fontSize: "12px", color: "var(--color-muted)", lineHeight: 1.6, marginBottom: "12px" }}>
+                        Use your brand voice when generating product descriptions, titles, SEO metadata, and tags.
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "12px", color: "var(--color-text)", lineHeight: 1.6 }}>
+                        <li style={{ marginBottom: "6px" }}><strong>Bulk Fix</strong>: Apply brand voice to many products at once</li>
+                        <li style={{ marginBottom: "6px" }}><strong>Product Editor</strong>: Generate individual fields with the "Generate" button</li>
+                        <li><strong>Consistency</strong>: Ensure every product sounds like your brand</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
             
             {shop.plan !== "pro" ? (
               <div className="card" style={{ padding: "32px", textAlign: "center" }}>
@@ -1493,6 +1598,7 @@ export default function Settings() {
         formatTimeAgo={formatTimeAgo}
       />
     </div>
+    </div>
   );
 }
 
@@ -1560,9 +1666,9 @@ function ProductHistoryModal({
         {/* Header */}
         <div
           style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid var(--color-border)",
-            background: "var(--color-surface-strong)",
+            padding: "24px",
+            borderBottom: "1px solid var(--color-border-subtle)",
+            background: "transparent",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1574,8 +1680,9 @@ function ProductHistoryModal({
                 margin: 0,
                 fontFamily: "var(--font-heading)",
                 fontSize: "var(--text-xl)",
-                fontWeight: 500,
+                fontWeight: 600,
                 color: "var(--color-text)",
+                letterSpacing: "-0.01em",
               }}
             >
               {productTitle}
@@ -1653,9 +1760,9 @@ function ProductHistoryModal({
                       {formatTimeAgo(version.createdAt)}
                     </span>
                   </div>
-                  <div style={{ 
-                    fontSize: "var(--text-sm)", 
-                    color: "var(--color-text)", 
+                  <div style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-text)",
                     lineHeight: 1.5,
                     background: "var(--color-surface-strong)",
                     padding: "10px 12px",
@@ -1690,7 +1797,7 @@ function ProductHistoryModal({
                     flexShrink: 0,
                     whiteSpace: "nowrap",
                   }}
-                  onMouseEnter={(e) => { 
+                  onMouseEnter={(e) => {
                     if (revertingId !== version.id) {
                       e.currentTarget.style.backgroundColor = "var(--color-surface-strong)";
                       e.currentTarget.style.borderColor = "var(--color-primary)";
@@ -1712,11 +1819,11 @@ function ProductHistoryModal({
         {/* Footer */}
         <div
           style={{
-            padding: "16px 24px",
-            borderTop: "1px solid var(--color-border)",
+            padding: "20px 24px",
+            borderTop: "1px solid var(--color-border-subtle)",
             display: "flex",
             justifyContent: "flex-end",
-            background: "var(--color-surface-strong)",
+            background: "transparent",
           }}
         >
           <button

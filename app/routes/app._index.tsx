@@ -133,7 +133,7 @@ function CircularProgress({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--color-surface-strong)"
+          stroke="var(--color-primary-soft)"
           strokeWidth={strokeWidth}
         />
         {/* Fill */}
@@ -142,7 +142,7 @@ function CircularProgress({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="url(#progressGradient)"
+          stroke="var(--color-primary)"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -151,12 +151,6 @@ function CircularProgress({
             transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         />
-        <defs>
-          <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#1F4FD8" />
-            <stop offset="100%" stopColor="#3BC9DB" />
-          </linearGradient>
-        </defs>
       </svg>
       <div
         style={{
@@ -172,7 +166,7 @@ function CircularProgress({
             fontFamily: "var(--font-heading)",
             fontSize: "var(--text-3xl)",
             fontWeight: 600,
-            color: "var(--color-text)",
+            color: "var(--color-primary)",
             lineHeight: 1,
           }}
         >
@@ -181,10 +175,11 @@ function CircularProgress({
         <div
           style={{
             fontSize: "var(--text-xs)",
-            color: "var(--color-muted)",
+            color: "var(--color-primary)",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             marginTop: "4px",
+            opacity: 0.8,
           }}
         >
           Ready
@@ -817,6 +812,9 @@ export default function Dashboard() {
         overflow: "hidden",
         padding: "0 24px",
         paddingTop: "24px",
+        maxWidth: "1600px",
+        margin: "0 auto",
+        width: "100%",
       }}
     >
       {/* Two Column Layout */}
@@ -1262,7 +1260,7 @@ export default function Dashboard() {
               <div style={{ 
                 fontSize: "var(--text-sm)", 
                 fontWeight: 600, 
-                color: completionPercent === 100 ? "var(--color-success)" : "var(--color-text)",
+                color: completionPercent === 100 ? "var(--color-success)" : "var(--color-primary)",
                 marginBottom: "4px",
               }}>
                 {completionPercent === 100 ? "All Ready!" : "Launch Progress"}
@@ -1480,7 +1478,7 @@ export default function Dashboard() {
             {/* Action buttons */}
             <button
               type="button"
-              onClick={() => executeBulkAction("apply_tags")}
+              onClick={() => executeBulkAction("generate_tags")}
               disabled={bulkFetcher.state !== "idle"}
               style={{
                 padding: "8px 14px",
@@ -1709,7 +1707,7 @@ export default function Dashboard() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => { executeBulkAction("apply_tags"); setShowBulkDropdown(false); }}
+                    onClick={() => { executeBulkAction("generate_tags"); setShowBulkDropdown(false); }}
                     disabled={bulkFetcher.state !== "idle"}
                     style={{
                       width: "100%",
@@ -1822,17 +1820,18 @@ export default function Dashboard() {
           >
             {/* Header */}
             <div style={{
-              padding: "20px 24px",
-              borderBottom: "1px solid var(--color-border)",
+              padding: "24px",
+              borderBottom: "1px solid var(--color-border-subtle)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              background: "transparent",
             }}>
               <div>
-                <h2 style={{ fontSize: "18px", fontWeight: 600, margin: 0 }}>
+                <h2 style={{ fontSize: "var(--text-xl)", fontWeight: 600, margin: 0, color: "var(--color-text)", letterSpacing: "-0.01em" }}>
                   Catalog Monitor
                 </h2>
-                <p style={{ fontSize: "13px", color: "var(--color-muted)", margin: "4px 0 0" }}>
+                <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", margin: "4px 0 0" }}>
                   Last 7 days compliance overview
                 </p>
               </div>
@@ -2025,11 +2024,12 @@ export default function Dashboard() {
 
             {/* Footer */}
             <div style={{
-              padding: "16px 24px",
-              borderTop: "1px solid var(--color-border)",
+              padding: "20px 24px",
+              borderTop: "1px solid var(--color-border-subtle)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              background: "transparent",
             }}>
               <button
                 onClick={() => navigate("/app/standards")}

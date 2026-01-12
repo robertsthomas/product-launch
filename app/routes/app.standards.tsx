@@ -117,43 +117,29 @@ export default function CatalogStandardsPage() {
     config: { min: 6 },
     severity: "medium" as "low" | "medium" | "high",
   });
+  const [showGuide, setShowGuide] = useState(true);
 
   // Show upgrade prompt for Free users
   if (!isPro) {
     return (
-      <div style={{ maxWidth: "600px", margin: "60px auto", padding: "32px", textAlign: "center" }}>
-        <div style={{
-          width: "80px",
-          height: "80px",
-          borderRadius: "50%",
-          background: "var(--color-primary-soft)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: "0 auto 24px",
-        }}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+      <div className="max-w-[600px] mx-auto my-15 p-8 text-center">
+        <div className="w-20 h-20 rounded-full bg-primary-soft flex items-center justify-center mx-auto mb-6">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
         </div>
-        <h1 style={{ fontSize: "24px", fontWeight: 600, marginBottom: "12px" }}>
+        <h1 className="text-xl font-semibold mb-3">
           Catalog Standards
         </h1>
-        <p style={{ color: "var(--color-muted)", fontSize: "15px", marginBottom: "24px", lineHeight: 1.6 }}>
+        <p className="text-muted text-sm mb-6 leading-relaxed">
           Define store-wide rules to ensure your products stay compliant. Set requirements for images, SEO, tags, and more — then let LaunchReady automatically monitor your catalog.
         </p>
-        
-        <div style={{
-          background: "var(--color-surface-secondary)",
-          borderRadius: "var(--radius-lg)",
-          padding: "24px",
-          marginBottom: "24px",
-          textAlign: "left",
-        }}>
-          <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px" }}>
+
+        <div className="bg-surface-secondary rounded-lg p-6 mb-6 text-left">
+          <h3 className="text-sm font-semibold mb-4">
             With Pro you can:
           </h3>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "10px" }}>
+          <ul className="list-none p-0 m-0 flex flex-col gap-2.5">
             {[
               "Set minimum image requirements per product",
               "Enforce SEO title and description length limits",
@@ -162,8 +148,8 @@ export default function CatalogStandardsPage() {
               "Get automatic compliance monitoring",
               "Receive alerts when products drift out of compliance",
             ].map((feature, i) => (
-              <li key={i} style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", color: "var(--color-text)" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2.5">
+              <li key={i} className="flex items-center gap-2.5 text-xs text-text">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-success">
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
                 {feature}
@@ -174,21 +160,11 @@ export default function CatalogStandardsPage() {
 
         <button
           onClick={() => navigate("/app/plans")}
-          style={{
-            padding: "14px 32px",
-            borderRadius: "var(--radius-full)",
-            border: "none",
-            background: "var(--gradient-primary)",
-            color: "#fff",
-            fontSize: "15px",
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "var(--shadow-primary-glow)",
-          }}
+          className="px-8 py-3.5 rounded-full border-none bg-gradient-primary text-white text-sm font-semibold cursor-pointer shadow-primary-glow"
         >
           Upgrade to Pro — $19/mo
         </button>
-        <p style={{ fontSize: "12px", color: "var(--color-muted)", marginTop: "12px" }}>
+        <p className="text-xs text-muted mt-3">
           7-day free trial • Cancel anytime
         </p>
       </div>
@@ -250,88 +226,125 @@ export default function CatalogStandardsPage() {
   const definition = RULE_DEFINITIONS[formData.ruleType as keyof typeof RULE_DEFINITIONS];
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px" }}>
-      <div style={{ marginBottom: "32px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: 600, marginBottom: "8px" }}>
-          Catalog Standards
-        </h1>
-        <p style={{ color: "var(--color-muted)", fontSize: "14px" }}>
-          Define store-wide rules to ensure product compliance. Your catalog is automatically audited nightly.
-        </p>
+    <div className="flex flex-col gap-0 min-h-full w-full bg-bg">
+      <div className="max-w-[1000px] mx-auto py-8 px-8 w-full scrollbar-gutter-stable">
+        {/* Page Header */}
+        <div className="animate-fade-in-up flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-primary">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-text m-0 font-heading tracking-tight">
+              Catalog Standards
+            </h1>
+            <p className="text-sm text-muted m-0">
+              Define store-wide rules to ensure product compliance
+            </p>
+          </div>
+        </div>
+
+      {/* How to Use Guide */}
+      <div className="mb-8 bg-gradient-to-br from-white/60 to-slate-50/40 border border-slate-200/20 rounded-xl backdrop-blur-sm overflow-hidden transition-all duration-300 w-full shadow-sm">
+        <button
+          type="button"
+          onClick={() => setShowGuide(!showGuide)}
+          className="w-full p-5 bg-transparent border-none cursor-pointer flex items-center justify-between text-text hover:bg-white/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200/40 flex items-center justify-center shadow-sm">
+              <span className="text-base">💡</span>
+            </div>
+            <span className="text-base font-semibold">
+              How to use Catalog Standards
+            </span>
+          </div>
+          <div className={`text-muted transition-transform duration-300 ${showGuide ? 'rotate-180' : 'rotate-0'}`}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        </button>
+
+        {showGuide && (
+          <div className="px-5 pb-5 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-5 bg-white/90 rounded-lg border border-slate-200/30 shadow-sm">
+                <div className="text-sm font-semibold text-text mb-2 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">1</span>
+                  Set Your Rules
+                </div>
+                <p className="text-xs text-muted leading-relaxed mb-3">
+                  Define what a "complete" product looks like for your store. You can start quickly with templates or build custom rules.
+                </p>
+                <ul className="m-0 pl-4 text-xs text-text leading-relaxed space-y-1">
+                  <li>Use <strong>Templates</strong> for one-click industry standard setups</li>
+                  <li>Create <strong>Custom Rules</strong> to enforce specific requirements</li>
+                  <li>Set <strong>Severity</strong> to prioritize which issues need attention</li>
+                </ul>
+              </div>
+
+              <div className="p-5 bg-white/90 rounded-lg border border-slate-200/30 shadow-sm">
+                <div className="text-sm font-semibold text-text mb-2 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">2</span>
+                  Automated Monitoring
+                </div>
+                <p className="text-xs text-muted leading-relaxed mb-3">
+                  Once your rules are active, LaunchReady automatically audits your entire catalog in the background.
+                </p>
+                <ul className="m-0 pl-4 text-xs text-text leading-relaxed space-y-1">
+                  <li>Products are scored (0-100) based on your active rules</li>
+                  <li>View compliance status on the product detail page</li>
+                  <li>Use <strong>Bulk Fix</strong> to resolve common issues</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Template presets */}
-      <div style={{ 
-        marginBottom: "32px", 
-        padding: "24px", 
-        background: "var(--color-surface)", 
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-sm)",
-      }}>
-        <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Quick Start Templates</h3>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+      <div className="mb-8">
+        <h2 className="text-base font-semibold text-text mb-2 font-heading">Quick Start Templates</h2>
+        <p className="text-sm text-muted mb-5">Apply pre-configured rule sets for common use cases</p>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {Object.entries(templates).map(([key, template]) => (
             <button
               key={key}
+              type="button"
               onClick={() => handleApplyTemplate(key as keyof typeof RULE_TEMPLATES)}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-surface)",
-                cursor: "pointer",
-                fontSize: "12px",
-                fontWeight: 500,
-              }}
+              className="p-4 rounded-lg border border-border bg-surface cursor-pointer text-left hover:border-primary hover:shadow-sm transition-all"
             >
-              {template.name}
+              <div className="text-sm font-medium text-text mb-1">{template.name}</div>
+              <div className="text-xs text-muted">{template.rules.length} rules</div>
             </button>
           ))}
         </div>
       </div>
 
       {/* Current rules */}
-      <div style={{ 
-        marginBottom: "32px",
-        padding: "24px",
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-sm)",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 600 }}>Your Rules ({rules.length})</h2>
-          <div style={{ display: "flex", gap: "8px" }}>
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-5">
+          <div>
+            <h2 className="text-base font-semibold text-text font-heading">Your Rules</h2>
+            <p className="text-sm text-muted">{rules.length} active {rules.length === 1 ? 'rule' : 'rules'}</p>
+          </div>
+          <div className="flex gap-2">
             {rules.length > 0 && (
               <button
+                type="button"
                 onClick={handleClearAllRules}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "var(--radius-full)",
-                  border: "1px solid var(--color-border)",
-                  background: "transparent",
-                  color: "var(--color-muted)",
-                  cursor: "pointer",
-                  fontWeight: 500,
-                  fontSize: "12px",
-                }}
+                className="px-4 py-2 rounded-lg border border-border bg-surface text-muted cursor-pointer font-medium text-sm hover:bg-surface-strong transition-colors"
               >
                 Clear All
               </button>
             )}
             <button
+              type="button"
               onClick={() => setShowCreateForm(!showCreateForm)}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "var(--radius-full)",
-                border: "none",
-                background: "var(--color-text)",
-                color: "var(--color-surface)",
-                cursor: "pointer",
-                fontWeight: 500,
-                fontSize: "12px",
-              }}
+              className="px-4 py-2 rounded-lg border-none bg-primary text-white cursor-pointer font-medium text-sm hover:bg-primary-strong transition-colors shadow-sm"
             >
               + Add Rule
             </button>
@@ -340,17 +353,11 @@ export default function CatalogStandardsPage() {
 
         {/* Create form */}
         {showCreateForm && (
-          <div style={{
-            marginBottom: "24px",
-            padding: "20px",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-lg)",
-            background: "var(--color-surface-secondary)",
-          }}>
-            <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Create New Rule</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+          <div className="mb-6 p-6 border border-border rounded-xl bg-surface shadow-sm animate-fade-in">
+            <h3 className="text-base font-semibold mb-4 text-text">Create New Rule</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label style={{ fontSize: "12px", fontWeight: 500, display: "block", marginBottom: "4px" }}>
+                <label className="text-sm font-medium block mb-2 text-text">
                   Rule Name
                 </label>
                 <input
@@ -358,30 +365,18 @@ export default function CatalogStandardsPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Minimum Images"
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "12px",
-                  }}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: "12px", fontWeight: 500, display: "block", marginBottom: "4px" }}>
+                <label className="text-sm font-medium block mb-2 text-text">
                   Rule Type
                 </label>
                 <select
                   value={formData.ruleType}
                   onChange={(e) => setFormData({ ...formData, ruleType: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "8px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "12px",
-                  }}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                 >
                   {Object.entries(RULE_DEFINITIONS).map(([key, def]) => (
                     <option key={key} value={key}>{def.label}</option>
@@ -391,14 +386,14 @@ export default function CatalogStandardsPage() {
             </div>
 
             {definition?.configSchema?.fields.length > 0 && (
-              <div style={{ marginBottom: "12px" }}>
-                <label style={{ fontSize: "12px", fontWeight: 500, display: "block", marginBottom: "8px" }}>
+              <div className="mb-4">
+                <label className="text-sm font-medium block mb-3 text-text">
                   Configuration
                 </label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "8px" }}>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {definition.configSchema.fields.map((field) => (
                     <div key={field.key}>
-                      <label style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                      <label className="text-xs text-muted block mb-1">
                         {field.label}
                       </label>
                       <input
@@ -408,13 +403,7 @@ export default function CatalogStandardsPage() {
                           ...formData,
                           config: { ...formData.config, [field.key]: e.target.value }
                         })}
-                        style={{
-                          width: "100%",
-                          padding: "6px",
-                          border: "1px solid var(--color-border)",
-                          borderRadius: "var(--radius-sm)",
-                          fontSize: "11px",
-                        }}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                       />
                     </div>
                   ))}
@@ -422,33 +411,23 @@ export default function CatalogStandardsPage() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div className="flex gap-2 pt-2">
               <button
+                type="button"
                 onClick={handleCreateRule}
                 disabled={!formData.name}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "none",
-                  background: formData.name ? "var(--color-text)" : "var(--color-surface-strong)",
-                  color: "var(--color-surface)",
-                  cursor: formData.name ? "pointer" : "not-allowed",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                }}
+                className={`px-5 py-2 rounded-lg border-none text-sm font-medium transition-colors ${
+                  formData.name 
+                    ? 'bg-primary text-white cursor-pointer hover:bg-primary-strong shadow-sm' 
+                    : 'bg-surface-strong text-muted cursor-not-allowed'
+                }`}
               >
-                Create
+                Create Rule
               </button>
               <button
+                type="button"
                 onClick={() => setShowCreateForm(false)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--color-border)",
-                  background: "transparent",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                }}
+                className="px-5 py-2 rounded-lg border border-border bg-surface cursor-pointer text-sm hover:bg-surface-strong transition-colors"
               >
                 Cancel
               </button>
@@ -457,80 +436,79 @@ export default function CatalogStandardsPage() {
         )}
 
         {/* Rules list */}
-        <div style={{ display: "grid", gap: "12px" }}>
+        <div className="grid gap-3">
           {rules.map((rule) => (
             <div
               key={rule.id}
-              style={{
-                padding: "16px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                background: "var(--color-surface-secondary)",
-                opacity: rule.isEnabled ? 1 : 0.6,
-              }}
+              className={`p-5 border border-border rounded-xl bg-surface transition-all hover:shadow-sm ${
+                rule.isEnabled ? 'opacity-100' : 'opacity-50'
+              }`}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "8px" }}>
-                <div>
-                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="text-base font-semibold mb-1 text-text">
                     {rule.name}
                   </h3>
                   {rule.description && (
-                    <p style={{ fontSize: "12px", color: "var(--color-muted)" }}>
+                    <p className="text-sm text-muted">
                       {rule.description}
                     </p>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => handleToggleRule(rule.id, rule.isEnabled)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--color-border)",
-                      background: rule.isEnabled ? "var(--color-success-faint)" : "var(--color-surface)",
-                      color: rule.isEnabled ? "var(--color-success)" : "var(--color-muted)",
-                      cursor: "pointer",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
+                    className={`px-3 py-2 rounded-lg border cursor-pointer text-xs font-medium transition-colors ${
+                      rule.isEnabled
+                        ? 'bg-success/10 text-success border-success/20 hover:bg-success/20'
+                        : 'bg-surface text-muted border-border hover:bg-surface-strong'
+                    }`}
                   >
                     {rule.isEnabled ? "✓ Enabled" : "Disabled"}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDeleteRule(rule.id)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--color-border)",
-                      background: "transparent",
-                      color: "var(--color-danger)",
-                      cursor: "pointer",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                    }}
+                    className="px-3 py-2 rounded-lg border border-border bg-surface text-error cursor-pointer text-xs font-medium hover:bg-error/10 hover:border-error/20 transition-colors"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--color-muted)" }}>
-                <span>Type: {RULE_DEFINITIONS[rule.ruleType as keyof typeof RULE_DEFINITIONS]?.label}</span>
-                <span>Severity: <strong>{rule.severity}</strong></span>
+              <div className="flex gap-4 text-xs text-muted">
+                <span className="flex items-center gap-1">
+                  <span className="font-medium">Type:</span> 
+                  {RULE_DEFINITIONS[rule.ruleType as keyof typeof RULE_DEFINITIONS]?.label}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="font-medium">Severity:</span>
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
+                    rule.severity === 'high' ? 'bg-error/10 text-error' :
+                    rule.severity === 'medium' ? 'bg-warning/10 text-warning' :
+                    'bg-muted/10 text-muted'
+                  }`}>
+                    {rule.severity}
+                  </span>
+                </span>
               </div>
             </div>
           ))}
         </div>
 
         {rules.length === 0 && !showCreateForm && (
-          <div style={{
-            padding: "40px",
-            textAlign: "center",
-            color: "var(--color-muted)",
-          }}>
-            <p style={{ fontSize: "14px" }}>No rules yet. Start with a template or create a custom rule.</p>
+          <div className="p-12 text-center border-2 border-dashed border-border rounded-xl bg-surface">
+            <div className="w-12 h-12 rounded-full bg-muted/10 flex items-center justify-center mx-auto mb-4">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <p className="text-base font-medium text-text mb-1">No rules yet</p>
+            <p className="text-sm text-muted">Start with a template or create a custom rule to get started</p>
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

@@ -71,6 +71,8 @@ export const shops = sqliteTable("shops", {
   auditsResetAt: integer("audits_reset_at", { mode: "timestamp" }),
   // Version history settings
   versionHistoryEnabled: integer("version_history_enabled", { mode: "boolean" }).default(true).notNull(),
+  // Tour completion tracking
+  tourCompletedAt: integer("tour_completed_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });

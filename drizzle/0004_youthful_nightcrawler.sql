@@ -1,0 +1,1 @@
+ALTER TABLE `shops` ADD `tour_completed_at` integer;

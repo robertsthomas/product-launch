@@ -154,26 +154,45 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     };
 
     let suggestion: string | string[];
+    let model: string;
 
     switch (type) {
-      case "title":
-        suggestion = await generateTitle(context, genOptions);
+      case "title": {
+        const result = await generateTitle(context, genOptions);
+        suggestion = result.title;
+        model = result.model;
         break;
-      case "seo_title":
-        suggestion = await generateSeoTitle(context, genOptions);
+      }
+      case "seo_title": {
+        const result = await generateSeoTitle(context, genOptions);
+        suggestion = result.seoTitle;
+        model = result.model;
         break;
-      case "seo_description":
-        suggestion = await generateSeoDescription(context, genOptions);
+      }
+      case "seo_description": {
+        const result = await generateSeoDescription(context, genOptions);
+        suggestion = result.seoDescription;
+        model = result.model;
         break;
-      case "description":
-        suggestion = await generateProductDescription(context, genOptions);
+      }
+      case "description": {
+        const result = await generateProductDescription(context, genOptions);
+        suggestion = result.description;
+        model = result.model;
         break;
-      case "tags":
-        suggestion = await generateTags(context, genOptions);
+      }
+      case "tags": {
+        const result = await generateTags(context, genOptions);
+        suggestion = result.tags;
+        model = result.model;
         break;
-      case "image_alt_text":
-        suggestion = await generateImageAltText(context, imageIndex, genOptions);
+      }
+      case "image_alt_text": {
+        const result = await generateImageAltText(context, imageIndex, undefined, genOptions);
+        suggestion = result.altText;
+        model = result.model;
         break;
+      }
       default:
         return Response.json({ error: "Invalid suggestion type" }, { status: 400 });
     }
@@ -184,6 +203,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     return Response.json({ 
       suggestion, 
       type,
+      model,
       creditsRemaining: creditResult.creditsRemaining,
       creditsLimit: creditResult.creditsLimit,
     });

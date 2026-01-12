@@ -17,14 +17,14 @@ import {
 } from "../lib/billing/guards.server";
 import { consumeAICredit } from "../lib/billing/ai-gating.server";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
-import { generateSeoDescription, generateImageAltText } from "../lib/ai";
+import { generateSeoDescription, generateImageAltText, generateTags } from "../lib/ai";
 import { recordBulkFixHistory } from "../lib/services/history.server";
 import { getShopSettings, getShopOpenAIConfig } from "../lib/services/shop.server";
 import { auditProduct } from "../lib/services/audit.server";
 
 // Types
 interface BulkFixRequest {
-  intent: "apply_tags" | "apply_collection" | "generate_alt_text" | "generate_seo_desc";
+  intent: "apply_tags" | "apply_collection" | "generate_alt_text" | "generate_seo_desc" | "generate_tags";
   productIds: string[];
 }
 
@@ -173,7 +173,10 @@ async function processSingleProduct(
       
       case "generate_seo_desc":
         return await generateBulkSeoDesc(product, admin, shopDomain, openaiConfig);
-      
+
+      case "generate_tags":
+        return await generateBulkTags(product, admin, shopDomain, openaiConfig);
+
       default:
         return { productId, success: false, message: "Unknown intent" };
     }
@@ -373,7 +376,7 @@ async function generateBulkAltText(
     
     try {
       // Generate alt text using AI
-      const altText = await generateImageAltText(
+      const result = await generateImageAltText(
         {
           title: product.title,
           productType: product.productType,
@@ -400,7 +403,7 @@ async function generateBulkAltText(
           variables: {
             productId: product.id,
             mediaId: image.id,
-            alt: altText,
+            alt: result.altText,
           },
         }
       );
@@ -453,7 +456,7 @@ async function generateBulkSeoDesc(
 
   try {
     // Generate SEO description using AI
-    const seoDescription = await generateSeoDescription(
+    const result = await generateSeoDescription(
       {
         title: product.title,
         productType: product.productType,
@@ -482,7 +485,7 @@ async function generateBulkSeoDesc(
           input: {
             id: product.id,
             seo: {
-              description: seoDescription,
+              description: result.seoDescription,
             },
           },
         },
@@ -520,10 +523,103 @@ async function generateBulkSeoDesc(
     };
   } catch (error) {
     console.error(`Error generating SEO description for ${product.id}:`, error);
-    return { 
-      productId: product.id, 
-      success: false, 
-      message: error instanceof Error ? error.message : "Generation failed" 
+    return {
+      productId: product.id,
+      success: false,
+      message: error instanceof Error ? error.message : "Generation failed"
+    };
+  }
+}
+
+async function generateBulkTags(
+  product: Product,
+  admin: { graphql: (query: string, options?: Record<string, unknown>) => Promise<Response> },
+  shopDomain: string,
+  openaiConfig: Awaited<ReturnType<typeof getShopOpenAIConfig>>
+): Promise<BulkFixResult> {
+  try {
+    // Generate tags using AI
+    const result = await generateTags(
+      {
+        title: product.title,
+        productType: product.productType,
+        vendor: product.vendor,
+        tags: product.tags,
+        descriptionHtml: product.descriptionHtml,
+      },
+      {
+        apiKey: openaiConfig.apiKey || undefined,
+        textModel: openaiConfig.textModel || undefined,
+        imageModel: openaiConfig.imageModel || undefined,
+      }
+    );
+
+    // Merge with existing tags (avoid duplicates)
+    const existingTags = product.tags || [];
+    const newTags = [...new Set([...existingTags, ...result.tags])];
+
+    if (newTags.length === existingTags.length) {
+      return {
+        productId: product.id,
+        success: true,
+        message: "Tags already include generated tags"
+      };
+    }
+
+    // Update product tags
+    const updateResponse = await admin.graphql(
+      `#graphql
+      mutation UpdateProductTags($input: ProductInput!) {
+        productUpdate(input: $input) {
+          product { id tags }
+          userErrors { field message }
+        }
+      }`,
+      {
+        variables: {
+          input: {
+            id: product.id,
+            tags: newTags,
+          },
+        },
+      }
+    );
+
+    const updateJson = await updateResponse.json();
+    const errors = updateJson.data?.productUpdate?.userErrors;
+
+    if (errors?.length > 0) {
+      return {
+        productId: product.id,
+        success: false,
+        message: errors[0].message
+      };
+    }
+
+    // Record history
+    await recordBulkFixHistory(
+      shopDomain,
+      product.id,
+      product.title,
+      "tags",
+      existingTags,
+      newTags
+    );
+
+    // Re-run audit
+    await auditProduct(shopDomain, product.id, admin as any, true);
+
+    return {
+      productId: product.id,
+      success: true,
+      message: `Generated and added ${result.tags.length} tags`
+    };
+  } catch (error) {
+    console.error(`Error generating tags for ${product.id}:`, error);
+    return {
+      productId: product.id,
+      success: false,
+      message: error instanceof Error ? error.message : "Tag generation failed"
     };
   }
 }

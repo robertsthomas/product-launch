@@ -127,7 +127,7 @@ export default function App() {
             <AppNavigation />
           </div>
         </header>
-        <main className="page-shell animate-fade-in-up">
+        <main className="animate-fade-in-up" style={{ flex: 1, minHeight: 0 }}>
           <Outlet />
         </main>
       </div>

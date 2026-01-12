@@ -4,7 +4,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useLoaderData, useFetcher, useNavigate, useBlocker } from "react-router";
+import { useLoaderData, useFetcher, useNavigate, useBlocker, useRevalidator } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -167,6 +167,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
         altText: node.alt || null,
       })) || [],
     },
+    tourCompleted: !!shopSettings?.tourCompletedAt,
     audit: audit ? {
       status: audit.status,
       passedCount: audit.passedCount,
@@ -421,6 +422,7 @@ function ImageActionsDropdown({
   isFeatured,
   aiAvailable,
   isGeneratingAlt,
+  isGeneratingBulkAlt,
   isDeleting,
   onSetFeatured,
   onEdit,
@@ -431,6 +433,7 @@ function ImageActionsDropdown({
   isFeatured: boolean;
   aiAvailable: boolean;
   isGeneratingAlt: boolean;
+  isGeneratingBulkAlt?: boolean;
   isDeleting: boolean;
   onSetFeatured: () => void;
   onEdit: () => void;
@@ -557,7 +560,7 @@ function ImageActionsDropdown({
             <button
               type="button"
               onClick={() => handleSelect("ai")}
-              disabled={isGeneratingAlt}
+              disabled={isGeneratingAlt || isGeneratingBulkAlt}
               style={{
                 width: "100%",
                 padding: "10px 14px",
@@ -566,15 +569,15 @@ function ImageActionsDropdown({
                 border: "none",
                 borderTop: "1px solid var(--color-border-subtle)",
                 background: "transparent",
-                color: isGeneratingAlt ? "var(--color-subtle)" : "var(--color-primary)",
-                cursor: isGeneratingAlt ? "not-allowed" : "pointer",
+                color: (isGeneratingAlt || isGeneratingBulkAlt) ? "var(--color-subtle)" : "var(--color-primary)",
+                cursor: (isGeneratingAlt || isGeneratingBulkAlt) ? "not-allowed" : "pointer",
                 textAlign: "left",
                 transition: "background var(--transition-fast)",
               }}
-              onMouseEnter={(e) => { if (!isGeneratingAlt) e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+              onMouseEnter={(e) => { if (!isGeneratingAlt && !isGeneratingBulkAlt) e.currentTarget.style.background = "var(--color-surface-strong)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
             >
-              {isGeneratingAlt ? "Generating..." : "Generate alt text"}
+              {isGeneratingAlt ? "Generating..." : isGeneratingBulkAlt ? "Bulk generating..." : "Generate alt text"}
             </button>
           )}
           <button
@@ -862,14 +865,14 @@ function OnboardingModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Progress Bar */}
-        <div style={{ display: "flex", height: "4px", background: "var(--color-surface-strong)" }}>
+        <div style={{ display: "flex", height: "4px", background: "transparent" }}>
           {slides.map((_, i) => (
             <div
               key={`dot-${i}`}
               style={{
                 flex: 1,
                 height: "100%",
-                background: i <= step ? "var(--color-primary)" : "transparent",
+                background: i <= step ? "var(--color-primary)" : "var(--color-border-subtle)",
                 transition: "all var(--transition-slow)",
               }}
             />
@@ -931,11 +934,11 @@ function OnboardingModal({
         <div
           style={{
             padding: "24px 32px",
-            borderTop: "1px solid var(--color-border)",
+            borderTop: "1px solid var(--color-border-subtle)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "var(--color-surface-strong)",
+            background: "transparent",
           }}
         >
           <button
@@ -1064,9 +1067,9 @@ function AIUpsellModal({
         {/* Header */}
         <div
           style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid var(--color-border)",
-            background: "var(--color-primary-soft)",
+            padding: "24px",
+            borderBottom: "1px solid var(--color-border-subtle)",
+            background: "transparent",
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
@@ -1079,15 +1082,16 @@ function AIUpsellModal({
                 margin: 0,
                 fontFamily: "var(--font-heading)",
                 fontSize: "var(--text-xl)",
-                fontWeight: 500,
+                fontWeight: 600,
                 color: "var(--color-text)",
+                letterSpacing: "-0.01em",
               }}
             >
               {isPlanLimit ? "Upgrade to Pro" : "AI Credits Used"}
             </h2>
             <p
               style={{
-                margin: "8px 0 0",
+                margin: "4px 0 0",
                 fontSize: "var(--text-sm)",
                 color: "var(--color-muted)",
               }}
@@ -1368,12 +1372,12 @@ function GenerateAllModal({
         {/* Header */}
         <div
           style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid var(--color-border)",
+            padding: "24px",
+            borderBottom: "1px solid var(--color-border-subtle)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "var(--color-surface-strong)",
+            background: "transparent",
           }}
         >
           <h2
@@ -1381,8 +1385,9 @@ function GenerateAllModal({
               margin: 0,
               fontFamily: "var(--font-heading)",
               fontSize: "var(--text-xl)",
-              fontWeight: 500,
+              fontWeight: 600,
               color: "var(--color-text)",
+              letterSpacing: "-0.01em",
             }}
           >
             Generate All Fields
@@ -1571,13 +1576,13 @@ function GenerateAllModal({
         {/* Footer */}
         <div
           style={{
-            padding: "16px 24px",
-            borderTop: "1px solid var(--color-border)",
+            padding: "20px 24px",
+            borderTop: "1px solid var(--color-border-subtle)",
             display: "flex",
             gap: "12px",
             justifyContent: "space-between",
             alignItems: "center",
-            background: "var(--color-surface-strong)",
+            background: "transparent",
           }}
         >
           {/* Select All / Deselect All */}
@@ -2634,6 +2639,8 @@ function ImageManager({
   aiAvailable,
   onRefresh,
   generatingImage,
+  generatingBulkAlt,
+  setGeneratingBulkAlt,
   onOpenImagePromptModal,
   onAltTextChange,
 }: {
@@ -2644,6 +2651,8 @@ function ImageManager({
   aiAvailable: boolean;
   onRefresh: () => void;
   generatingImage?: boolean;
+  generatingBulkAlt?: boolean;
+  setGeneratingBulkAlt?: (val: boolean) => void;
   onOpenImagePromptModal: () => void;
   onAltTextChange?: (imageId: string, altText: string) => void;
 }) {
@@ -2873,8 +2882,7 @@ function ImageManager({
                 position: "relative",
                 borderRadius: "var(--radius-lg)",
                 overflow: "hidden",
-                border: "2px solid var(--color-primary)",
-                backgroundColor: "var(--color-surface)",
+                backgroundColor: "var(--color-primary-soft)",
                 transition: "all var(--transition-fast)",
               }}
             >
@@ -2883,12 +2891,9 @@ function ImageManager({
                 width: "100%",
                 paddingTop: "100%",
                 position: "relative",
-                backgroundColor: "var(--color-surface)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                border: "2px dashed var(--color-border)",
-                borderRadius: "var(--radius-md)",
               }}>
                 <div style={{
                   position: "absolute",
@@ -2914,7 +2919,7 @@ function ImageManager({
                       cx="12" 
                       cy="12" 
                       r="10" 
-                      stroke="var(--color-border)" 
+                      stroke="rgba(31, 79, 216, 0.15)" 
                       strokeWidth="3"
                     />
                     <path 
@@ -2925,8 +2930,8 @@ function ImageManager({
                     />
                   </svg>
                   <div style={{
-                    fontSize: "var(--text-base)",
-                    color: "var(--color-text)",
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-primary)",
                     fontWeight: 500,
                     textAlign: "center",
                   }}>
@@ -2998,6 +3003,7 @@ function ImageManager({
                   isFeatured={featuredImageId === image.id}
                   aiAvailable={aiAvailable}
                   isGeneratingAlt={generatingAlt === image.id}
+                  isGeneratingBulkAlt={generatingBulkAlt}
                   isDeleting={deleting === image.id}
                   onSetFeatured={() => handleSetFeatured(image.id)}
                   onEdit={() => setEditingAlt(image.id)}
@@ -3072,7 +3078,7 @@ function ImageManager({
                       </button>
                     </div>
                   </div>
-                ) : generatingAlt === image.id ? (
+                ) : (generatingAlt === image.id || generatingBulkAlt) ? (
                   <div
                     style={{
                       fontSize: "11px",
@@ -3107,7 +3113,7 @@ function ImageManager({
                         strokeLinecap="round"
                       />
                     </svg>
-                    Generating...
+                    {generatingBulkAlt ? "Generating alt text..." : "Generating..."}
                   </div>
                 ) : (
                   <div
@@ -3402,11 +3408,12 @@ function ChecklistSidebar({
 // ============================================
 
 export default function ProductEditor() {
-  const { product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete } = useLoaderData<typeof loader>();
+  const { product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete, tourCompleted } = useLoaderData<typeof loader>();
   const [currentDefaultCollectionId, setCurrentDefaultCollectionId] = useState(defaultCollectionId);
   const fetcher = useFetcher<typeof action>();
   const navigate = useNavigate();
   const shopify = useAppBridge();
+  const revalidator = useRevalidator();
 
   const [form, setForm] = useState({
     title: product.title,
@@ -3427,17 +3434,28 @@ export default function ProductEditor() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
 
-  // Check if onboarding has been seen
+  // Check if tour has been completed
   useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem("launch_ready_onboarding_seen");
-    if (!hasSeenOnboarding) {
+    if (!tourCompleted) {
       setOnboardingOpen(true);
     }
-  }, []);
+  }, [tourCompleted]);
 
-  const completeOnboarding = () => {
-    localStorage.setItem("launch_ready_onboarding_seen", "true");
-    setOnboardingOpen(false);
+  const completeOnboarding = async () => {
+    try {
+      // Save tour completion to database
+      await fetch(`/api/tour/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      setOnboardingOpen(false);
+    } catch (error) {
+      console.error('Failed to save tour completion:', error);
+      // Still close the modal even if saving fails
+      setOnboardingOpen(false);
+    }
   };
 
   // Track pre-generation values for inline revert (before save)
@@ -3480,6 +3498,7 @@ export default function ProductEditor() {
   const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({});
 
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatingBulkAlt, setGeneratingBulkAlt] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
 
   // Detect changes
@@ -3518,6 +3537,7 @@ export default function ProductEditor() {
   // Block in-app navigation when there are unsaved changes
   const blocker = useBlocker(hasChanges);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [showRescanConfirmDialog, setShowRescanConfirmDialog] = useState(false);
 
   useEffect(() => {
     if (blocker.state === "blocked") {
@@ -3682,6 +3702,8 @@ export default function ProductEditor() {
 
   const handleGenerateImages = useCallback(async () => {
     setGeneratingImage(true);
+    // Clear any unsaved changes flag temporarily to prevent blocking
+    setHasChanges(false);
     try {
       const formData = new FormData();
       formData.append("intent", "generate_image");
@@ -3706,8 +3728,8 @@ export default function ProductEditor() {
         closeImagePromptModal();
         // Reset the custom prompt for next time
         setImagePromptModal(prev => ({ ...prev, customPrompt: "" }));
-        // Refresh the page to show the new image
-        window.location.reload();
+        // Revalidate to refresh product data
+        revalidator.revalidate();
       }
     } catch (error) {
       console.error("Image generation failed:", error);
@@ -3715,7 +3737,7 @@ export default function ProductEditor() {
     } finally {
       setGeneratingImage(false);
     }
-  }, [imagePromptModal.customPrompt, imagePromptModal.generateAlt, shopify, closeImagePromptModal, product.id]);
+  }, [imagePromptModal.customPrompt, imagePromptModal.generateAlt, shopify, closeImagePromptModal, product.id, revalidator]);
 
   // Load field versions
   const loadFieldVersions = useCallback(async () => {
@@ -3771,6 +3793,8 @@ export default function ProductEditor() {
     if (selectedFieldKeys.length === 0 && regularFields.length === 0) return;
 
     setGeneratingAll(true);
+    // Clear any unsaved changes flag temporarily to prevent blocking
+    setHasChanges(false);
     setGenerateAllModal(prev => ({ ...prev, isOpen: false }));
 
     const fieldMappings = {
@@ -3849,6 +3873,7 @@ export default function ProductEditor() {
         } else if (shouldGenerateAlt) {
           // Only generate alt text for existing images
           try {
+            setGeneratingBulkAlt(true);
             const formData = new FormData();
             formData.append("intent", "generate_alt_batch");
 
@@ -3864,6 +3889,8 @@ export default function ProductEditor() {
             }
           } catch (error) {
             console.error("Alt text generation failed:", error);
+          } finally {
+            setGeneratingBulkAlt(false);
           }
         }
       }
@@ -3875,9 +3902,9 @@ export default function ProductEditor() {
       const totalGenerated = regularFields.length + selectedFieldKeys.length;
       shopify.toast.show(`${totalGenerated} item${totalGenerated !== 1 ? 's' : ''} generated!`);
 
-      // Refresh if images were generated
-      if (selectedFieldKeys.includes("images") && fieldOptions.images?.includes("image")) {
-        window.location.reload();
+      // Revalidate if images were generated
+      if (selectedFieldKeys.includes("images")) {
+        revalidator.revalidate();
       }
     } catch {
       shopify.toast.show("Some items failed to generate");
@@ -3886,7 +3913,7 @@ export default function ProductEditor() {
       setGenerateAllModal(prev => ({ ...prev, selectedFields: [] }));
       setFieldOptions({});
     }
-  }, [product.id, shopify, updateField, generateAllModal.selectedFields, fieldOptions]);
+  }, [product.id, shopify, updateField, generateAllModal.selectedFields, fieldOptions, revalidator]);
 
   const handleSave = () => {
     const formData = new FormData();
@@ -3909,6 +3936,14 @@ export default function ProductEditor() {
 
   const handleAltTextChange = (imageId: string, altText: string) => {
     setAltTextChanges(prev => ({ ...prev, [imageId]: altText }));
+  };
+
+  const handleRescan = () => {
+    if (hasChanges) {
+      setShowRescanConfirmDialog(true);
+    } else {
+      fetcher.submit({ intent: "rescan" }, { method: "POST" });
+    }
   };
 
   const isSaving = fetcher.state !== "idle";
@@ -3965,8 +4000,29 @@ export default function ProductEditor() {
               color: "var(--color-text)",
               margin: 0,
               letterSpacing: "-0.02em",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
             }}>
               {product.title}
+              {audit?.status === "ready" && (
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  style={{ flexShrink: 0 }}
+                >
+                  <circle cx="12" cy="12" r="12" fill="#10B981" />
+                  <path
+                    d="M8.5 12.5L11 15L15.5 9.5"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </h1>
             <p style={{
               margin: "4px 0 0",
@@ -4138,6 +4194,8 @@ export default function ProductEditor() {
                 aiAvailable={aiAvailable}
                 onRefresh={() => window.location.reload()}
                 generatingImage={generatingImage}
+                generatingBulkAlt={generatingBulkAlt}
+                setGeneratingBulkAlt={setGeneratingBulkAlt}
                 onOpenImagePromptModal={openImagePromptModal}
                 onAltTextChange={handleAltTextChange}
               />
@@ -4319,10 +4377,10 @@ export default function ProductEditor() {
                       padding: "10px 16px",
                       fontSize: "var(--text-sm)",
                       fontWeight: 500,
-                      border: "1px solid var(--color-primary)",
+                      border: "none",
                       borderRadius: "var(--radius-md)",
-                      background: "transparent",
-                      color: "var(--color-primary)",
+                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      color: "white",
                       cursor: generatingAll ? "not-allowed" : "pointer",
                       display: "flex",
                       alignItems: "center",
@@ -4332,33 +4390,97 @@ export default function ProductEditor() {
                       opacity: generatingAll ? 0.6 : 1,
                       width: "100%",
                       whiteSpace: "nowrap",
+                      boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+                      transform: "translateY(0)",
+                      position: "relative",
+                      overflow: "hidden",
                     }}
-                    onMouseEnter={(e) => { 
+                    onMouseEnter={(e) => {
                       if (!generatingAll) {
-                        e.currentTarget.style.background = "var(--color-primary-soft)";
+                        e.currentTarget.style.boxShadow = "0 8px 25px rgba(102, 126, 234, 0.6)";
+                        e.currentTarget.style.transform = "translateY(-1px)";
+                        const star = e.currentTarget.querySelector('.star-animation') as HTMLElement;
+                        if (star) {
+                          star.style.opacity = '1';
+                          star.style.display = 'block';
+                          star.style.animation = 'starFly 1.5s ease-in-out forwards';
+
+                          // Remove star after animation completes
+                          const handleAnimationEnd = () => {
+                            star.style.display = 'none';
+                            star.style.animation = 'none';
+                            star.removeEventListener('animationend', handleAnimationEnd);
+                          };
+                          star.addEventListener('animationend', handleAnimationEnd);
+                        }
                       }
                     }}
-                    onMouseLeave={(e) => { 
-                      e.currentTarget.style.background = "transparent";
+                    onMouseLeave={(e) => {
+                      if (!generatingAll) {
+                        e.currentTarget.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.4)";
+                        e.currentTarget.style.transform = "translateY(0)";
+                        const star = e.currentTarget.querySelector('.star-animation') as HTMLElement;
+                        if (star) {
+                          // Remove any pending animation end listeners
+                          star.style.display = 'none';
+                          star.style.animation = 'none';
+                        }
+                      }
                     }}
                   >
-                    {generatingAll ? (
-                      <>
-                        <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                          <span/>
-                          <span/>
-                          <span/>
-                        </span>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-                        </svg>
-                        Generate All
-                      </>
-                    )}
+                    {/* Star animation element */}
+                    <style>{`
+                      @keyframes starFly {
+                        0% {
+                          transform: translateX(-100%) translateY(10px) rotate(0deg);
+                          opacity: 0;
+                        }
+                        10% {
+                          opacity: 1;
+                        }
+                        90% {
+                          opacity: 1;
+                        }
+                        100% {
+                          transform: translateX(100%) translateY(-10px) rotate(360deg);
+                          opacity: 0;
+                        }
+                      }
+                    `}</style>
+                    <div
+                      className="star-animation"
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "0",
+                        width: "12px",
+                        height: "12px",
+                        display: "none",
+                        pointerEvents: "none",
+                        zIndex: 1,
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#ffffff" style={{ filter: "drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))" }}>
+                        <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
+                      </svg>
+                    </div>
+                    <div style={{ position: "relative", zIndex: 2 }}>
+                      {generatingAll ? (
+                        <>
+                          <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                            <span/>
+                            <span/>
+                            <span/>
+                          </span>
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                         
+                          Generate All
+                        </>
+                      )}
+                    </div>
                   </button>
                 )}
                 <button
@@ -4401,7 +4523,7 @@ export default function ProductEditor() {
               <div style={{ padding: "24px" }}>
                 <ChecklistSidebar 
                   audit={audit}
-                  onRescan={() => fetcher.submit({ intent: "rescan" }, { method: "POST" })}
+                  onRescan={handleRescan}
                   isRescanning={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"}
                   onItemClick={handleChecklistItemClick}
                   canAutoFixCollection={!!currentDefaultCollectionId}
@@ -4430,125 +4552,224 @@ export default function ProductEditor() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(45, 42, 38, 0.4)",
+            backgroundColor: "rgba(255, 255, 255, 0.6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1100,
             padding: "20px",
-            backdropFilter: "blur(4px)",
+            backdropFilter: "blur(8px)",
           }}
         >
           <div
             className="animate-scale-in"
             style={{
-              backgroundColor: "var(--color-surface)",
+              background: "linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)",
               borderRadius: "var(--radius-xl)",
-              maxWidth: "420px",
+              maxWidth: "400px",
               width: "100%",
-              boxShadow: "var(--shadow-elevated)",
-              border: "1px solid var(--color-border)",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.06)",
+              border: "1px solid rgba(148, 163, 184, 0.2)",
               overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div style={{
-              padding: "20px 24px",
-              borderBottom: "1px solid var(--color-border)",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              background: "var(--color-warning-soft)",
-            }}>
-              <div style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "var(--radius-full)",
-                backgroundColor: "var(--color-surface)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" strokeWidth="2">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-              </div>
-              <h3 style={{
-                margin: 0,
-                fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)",
-                fontWeight: 500,
-                color: "var(--color-text)",
-              }}>
-                Unsaved changes
-              </h3>
-            </div>
-
-            {/* Content */}
             <div style={{ padding: "24px" }}>
-              <p style={{
-                margin: 0,
-                fontSize: "var(--text-sm)",
-                color: "var(--color-muted)",
-                lineHeight: 1.6,
-              }}>
-                You have unsaved changes that will be lost if you leave this page. Are you sure you want to continue?
-              </p>
-            </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                <div style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
+                  <span style={{ fontSize: "14px", color: "#d97706" }}>⚠️</span>
+                </div>
+                <div>
+                  <h3 style={{
+                    fontSize: "var(--text-lg)",
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                    margin: "0 0 4px",
+                  }}>
+                    Unsaved changes
+                  </h3>
+                  <p style={{
+                    margin: 0,
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-muted)",
+                    lineHeight: 1.5,
+                  }}>
+                    You have unsaved changes that will be lost if you leave this page.
+                  </p>
+                </div>
+              </div>
 
-            {/* Footer */}
-            <div style={{
-              padding: "16px 24px",
-              borderTop: "1px solid var(--color-border)",
-              display: "flex",
-              gap: "12px",
-              justifyContent: "flex-end",
-              background: "var(--color-surface-strong)",
-            }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowUnsavedDialog(false);
-                  blocker.reset?.();
-                }}
-                style={{
-                  padding: "10px 20px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  cursor: "pointer",
-                  transition: "all var(--transition-fast)",
-                }}
-              >
-                Stay on page
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowUnsavedDialog(false);
-                  blocker.proceed?.();
-                }}
-                style={{
-                  padding: "10px 20px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  borderRadius: "var(--radius-md)",
-                  border: "none",
-                  background: "var(--color-error)",
-                  color: "#fff",
-                  cursor: "pointer",
-                  transition: "all var(--transition-fast)",
-                }}
-              >
-                Leave without saving
-              </button>
+              <div style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "flex-end",
+                marginTop: "20px",
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUnsavedDialog(false);
+                    blocker.reset?.();
+                  }}
+                  style={{
+                    padding: "8px 18px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid rgba(148, 163, 184, 0.3)",
+                    background: "rgba(255, 255, 255, 0.8)",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                  }}
+                >
+                  Stay on page
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUnsavedDialog(false);
+                    blocker.proceed?.();
+                  }}
+                  style={{
+                    padding: "8px 18px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    borderRadius: "var(--radius-md)",
+                    border: "none",
+                    background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                    boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+                  }}
+                >
+                  Leave without saving
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rescan Confirmation Dialog */}
+      {showRescanConfirmDialog && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(255, 255, 255, 0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1100,
+            padding: "20px",
+            backdropFilter: "blur(8px)",
+          }}
+        >
+          <div
+            className="animate-scale-in"
+            style={{
+              background: "linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)",
+              borderRadius: "var(--radius-xl)",
+              maxWidth: "400px",
+              width: "100%",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.06)",
+              border: "1px solid rgba(148, 163, 184, 0.2)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ padding: "24px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                <div style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}>
+                  <span style={{ fontSize: "14px", color: "#d97706" }}>⚠️</span>
+                </div>
+                <div>
+                  <h3 style={{
+                    fontSize: "var(--text-lg)",
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                    margin: "0 0 4px",
+                  }}>
+                    Unsaved changes
+                  </h3>
+                  <p style={{
+                    margin: 0,
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-muted)",
+                    lineHeight: 1.5,
+                  }}>
+                    You have unsaved changes that will be lost when rescanning.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "flex-end",
+                marginTop: "20px",
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowRescanConfirmDialog(false)}
+                  style={{
+                    padding: "8px 18px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid rgba(148, 163, 184, 0.3)",
+                    background: "rgba(255, 255, 255, 0.8)",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRescanConfirmDialog(false);
+                    fetcher.submit({ intent: "rescan" }, { method: "POST" });
+                  }}
+                  style={{
+                    padding: "8px 18px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    borderRadius: "var(--radius-md)",
+                    border: "none",
+                    background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                    boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+                  }}
+                >
+                  Rescan without saving
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -4857,9 +5078,9 @@ Describe your desired style, or leave blank for defaults.
             {/* Header */}
             <div
               style={{
-                padding: "20px 24px",
-                borderBottom: "1px solid var(--color-border)",
-                background: "var(--color-surface-strong)",
+                padding: "24px",
+                borderBottom: "1px solid var(--color-border-subtle)",
+                background: "transparent",
               }}
             >
               <h2
@@ -4867,15 +5088,16 @@ Describe your desired style, or leave blank for defaults.
                   margin: 0,
                   fontFamily: "var(--font-heading)",
                   fontSize: "var(--text-xl)",
-                  fontWeight: 500,
+                  fontWeight: 600,
                   color: "var(--color-text)",
+                  letterSpacing: "-0.01em",
                 }}
               >
                 Choose Default Collection
               </h2>
               <p
                 style={{
-                  margin: "8px 0 0",
+                  margin: "6px 0 0",
                   fontSize: "var(--text-sm)",
                   color: "var(--color-muted)",
                 }}
@@ -4945,11 +5167,11 @@ Describe your desired style, or leave blank for defaults.
             {/* Footer */}
             <div
               style={{
-                padding: "16px 24px",
-                borderTop: "1px solid var(--color-border)",
+                padding: "20px 24px",
+                borderTop: "1px solid var(--color-border-subtle)",
                 display: "flex",
                 justifyContent: "flex-end",
-                background: "var(--color-surface-strong)",
+                background: "transparent",
               }}
             >
               <button

@@ -1,3 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1F4FD8;
+  --color-primary-strong: #1a43b8;
+  --color-primary-light: #4169e1;
+  --color-primary-soft: rgba(31, 79, 216, 0.08);
+  
+  --color-success: #22C55E;
+  --color-success-strong: #16a34a;
+  --color-success-soft: #f0fdf4;
+  
+  --color-warning: #FBBF24;
+  --color-warning-strong: #f59e0b;
+  
+  --color-error: #F87171;
+  --color-error-strong: #ef4444;
+  
+  --color-muted: #6b7280;
+  --color-text: #111827;
+  --color-border: #E5E7EB;
+  --color-surface: #FFFFFF;
+  --color-surface-strong: #f1f5f9;
+  --color-surface-secondary: #f8fafc;
+  --color-bg: #f8fafc;
+}
+
 /* ============================================
    Launch Ready Theme
    Official brand colors and styling
@@ -717,7 +744,7 @@ a:focus-visible {
 
 .circular-progress .fill {
   fill: none;
-  stroke: url(#progressGradient);
+  stroke: var(--color-primary);
   stroke-width: 8;
   stroke-linecap: round;
   transition: stroke-dashoffset var(--transition-slow);

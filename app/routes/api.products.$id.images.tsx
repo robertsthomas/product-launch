@@ -209,7 +209,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       imageModel: openaiConfig.imageModel || undefined,
     };
 
-    const altText = await generateImageAltText(
+    const result = await generateImageAltText(
       {
         title: product.title,
         productType: product.productType,
@@ -223,7 +223,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     // Consume AI credit after successful generation
     await consumeAICredit(shop);
 
-    return Response.json({ altText });
+    return Response.json({ altText: result.altText, model: result.model });
   }
 
   // Generate alt text for all images with AI
@@ -259,9 +259,11 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     };
 
     // Generate alt text for all images
+    const results: Array<{ id: string; altText: string; success: boolean }> = [];
+
     const altTextPromises = product.images?.nodes?.map(async (image: { id: string; altText: string | null; url: string }, index: number) => {
       try {
-        const altText = await generateImageAltText(
+        const result = await generateImageAltText(
           {
             title: product.title,
             productType: product.productType,
@@ -294,13 +296,14 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
               productId,
               media: [{
                 id: image.id,
-                alt: altText,
+                alt: result.altText,
               }],
             },
           }
         );
 
-        return { id: image.id, altText };
+        results.push({ id: image.id, altText: result.altText, success: true });
+        return { id: image.id, altText: result.altText };
       } catch (error) {
         console.error(`Failed to generate alt text for image ${image.id}:`, error);
         return { id: image.id, error: true };
@@ -312,7 +315,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     // Consume AI credit after successful generation (consume once for batch)
     await consumeAICredit(shop);
 
-    return Response.json({ success: true });
+    return Response.json({ success: true, results });
   }
 
   // Generate image with AI
@@ -477,7 +480,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       const shouldGenerateAlt = formData.get("generateAlt") === "true";
       if (shouldGenerateAlt) {
         try {
-          const altText = await generateImageAltText(
+          const result = await generateImageAltText(
             {
               title: product.title,
               productType: product.productType,
@@ -489,8 +492,8 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
           );
 
           // Update the image with the generated alt text
-          if (altText && newImage?.id) {
-            console.log("[Alt Text] Generated alt text:", altText);
+          if (result.altText && newImage?.id) {
+            console.log("[Alt Text] Generated alt text:", result.altText);
             console.log("[Alt Text] Updating image:", newImage.id);
             
             const updateResponse = await admin.graphql(
@@ -514,7 +517,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
                   productId,
                   media: [{
                     id: newImage.id,
-                    alt: altText,
+                    alt: result.altText,
                   }],
                 },
               }
@@ -529,7 +532,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
               console.log("[Alt Text] Successfully updated alt text on image");
             }
           } else {
-            console.warn("[Alt Text] Skipping alt text update - altText:", !!altText, "newImage.id:", newImage?.id);
+            console.warn("[Alt Text] Skipping alt text update - altText:", !!result.altText, "newImage.id:", newImage?.id);
           }
         } catch (altTextError) {
           // Don't fail the whole request if alt text generation fails
