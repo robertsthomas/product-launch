@@ -150,6 +150,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   }));
 
   return {
+    shop,
     product: {
       id: shopifyProduct.id,
       title: shopifyProduct.title,
@@ -2887,58 +2888,49 @@ function ImageManager({
               }}
             >
               {/* Generating Placeholder */}
-              <div style={{
-                width: "100%",
-                paddingTop: "100%",
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}>
-                <div style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "16px",
-                }}>
-                  {/* Spinner */}
-                  <svg 
-                    width="48" 
-                    height="48" 
-                    viewBox="0 0 24 24" 
-                    fill="none"
-                    style={{
-                      animation: "spin 1s linear infinite",
-                    }}
-                  >
-                    <circle 
-                      cx="12" 
-                      cy="12" 
-                      r="10" 
-                      stroke="rgba(31, 79, 216, 0.15)" 
-                      strokeWidth="3"
-                    />
-                    <path 
-                      d="M12 2a10 10 0 0 1 10 10" 
-                      stroke="var(--color-primary)" 
-                      strokeWidth="3" 
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div style={{
-                    fontSize: "var(--text-sm)",
-                    color: "var(--color-primary)",
-                    fontWeight: 500,
-                    textAlign: "center",
-                  }}>
-                    Generating...
+              <div className="w-full pt-[100%] relative overflow-hidden bg-gray-100">
+                <div className="absolute inset-0 p-6 flex flex-col">
+                  {/* Image placeholder with shimmer */}
+                  <div className="relative w-full aspect-square bg-gray-200 rounded-lg mb-4 overflow-hidden">
+                    <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent animate-shimmer" 
+                         style={{
+                           backgroundSize: '200% 100%',
+                           animation: 'shimmer 2s infinite',
+                         }} />
+                  </div>
+                  {/* Text lines placeholder */}
+                  <div className="space-y-3 flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
+                           style={{
+                             backgroundSize: '200% 100%',
+                             animation: 'shimmer 2s infinite',
+                           }} />
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
+                           style={{
+                             backgroundSize: '200% 100%',
+                             animation: 'shimmer 2s infinite 0.2s',
+                           }} />
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded w-2/3 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
+                           style={{
+                             backgroundSize: '200% 100%',
+                             animation: 'shimmer 2s infinite 0.4s',
+                           }} />
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <style>{`
+                @keyframes shimmer {
+                  0% { transform: translateX(-100%); }
+                  100% { transform: translateX(100%); }
+                }
+              `}</style>
             </div>
           )}
           {images.map((image, index) => (
@@ -3408,7 +3400,7 @@ function ChecklistSidebar({
 // ============================================
 
 export default function ProductEditor() {
-  const { product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete, tourCompleted } = useLoaderData<typeof loader>();
+  const { shop, product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete, tourCompleted } = useLoaderData<typeof loader>();
   const [currentDefaultCollectionId, setCurrentDefaultCollectionId] = useState(defaultCollectionId);
   const fetcher = useFetcher<typeof action>();
   const navigate = useNavigate();
@@ -4028,8 +4020,30 @@ export default function ProductEditor() {
               margin: "4px 0 0",
               fontSize: "var(--text-sm)",
               color: "var(--color-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
             }}>
-              Edit product details
+              <span>Edit product details</span>
+              <span style={{ opacity: 0.5 }}>·</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const numericId = product.id.split('/').pop();
+                  window.top.location.href = `https://${shop}/admin/products/${numericId}`;
+                }}
+                style={{
+                  color: "var(--color-primary)",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  font: "inherit",
+                }}
+              >
+                See product
+              </button>
             </p>
           </div>
         </div>

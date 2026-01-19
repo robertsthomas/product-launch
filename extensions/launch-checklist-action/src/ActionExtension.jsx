@@ -246,13 +246,9 @@ function Extension() {
   };
 
   const handleOpenInApp = () => {
-    if (productId) {
-      // Don't encode - the browser/React Router will handle encoding
-      window.open(`/apps/product-launch/app/products/${productId}`, "_top");
-    } else {
-      window.open("/apps/product-launch", "_top");
-    }
+    // Navigate to app dashboard using Shopify's navigation
     close();
+    shopify.navigate("/apps/product-launch");
   };
 
   // Loading state

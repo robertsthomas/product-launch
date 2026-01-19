@@ -4,9 +4,19 @@
   "loading": "Chargement",
   "loadingScore": "Chargement du score...",
   "productScore": "Score de lancement",
+  "launchReadiness": "Préparation au lancement",
+  "scoreDescription": "Basé sur le référencement, les images et la qualité du contenu",
   "excellent": "Excellent",
   "good": "Bon",
   "needsWork": "À améliorer",
   "noScore": "Pas encore analysé",
-  "openInApp": "Ouvrir dans l'app"
+  "notScored": "Pas encore noté",
+  "noScoreTitle": "Aucun audit trouvé",
+  "noScoreDescription": "Effectuez un audit pour vérifier la préparation au lancement de ce produit",
+  "openInApp": "Ouvrir dans l'app",
+  "viewDetails": "Voir les détails",
+  "runAudit": "Effectuer un audit",
+  "passed": "Réussis",
+  "issues": "Problèmes",
+  "total": "Vérifications"
 }

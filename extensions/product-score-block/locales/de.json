@@ -4,9 +4,19 @@
   "loading": "Wird geladen",
   "loadingScore": "Score wird geladen...",
   "productScore": "Startbereitschaft",
+  "launchReadiness": "Startbereitschaft",
+  "scoreDescription": "Basierend auf SEO, Bildern und Inhaltsqualität",
   "excellent": "Ausgezeichnet",
   "good": "Gut",
   "needsWork": "Verbesserungsbedarf",
   "noScore": "Noch nicht geprüft",
-  "openInApp": "In App öffnen"
+  "notScored": "Noch nicht bewertet",
+  "noScoreTitle": "Kein Audit gefunden",
+  "noScoreDescription": "Führen Sie ein Audit durch, um die Startbereitschaft dieses Produkts zu überprüfen",
+  "openInApp": "In App öffnen",
+  "viewDetails": "Details anzeigen",
+  "runAudit": "Audit starten",
+  "passed": "Bestanden",
+  "issues": "Probleme",
+  "total": "Prüfungen"
 }

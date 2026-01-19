@@ -623,4 +623,3 @@ async function generateBulkTags(
     };
   }
 }
-

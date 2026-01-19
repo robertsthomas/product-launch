@@ -114,7 +114,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 function CircularProgress({ 
   percent, 
   size = 140,
-  strokeWidth = 10,
+  strokeWidth = 8,
 }: { 
   percent: number;
   size?: number;
@@ -123,68 +123,102 @@ function CircularProgress({
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percent / 100) * circumference;
+  const isComplete = percent === 100;
 
   return (
-    <div style={{ position: "relative", width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }} aria-hidden="true">
-        {/* Track */}
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      {/* Main progress ring */}
+      <svg width={size} height={size} className="-rotate-90 transform-gpu" aria-hidden="true">
+        {/* Track - subtle gray */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--color-primary-soft)"
+          stroke="#e5e7eb"
           strokeWidth={strokeWidth}
         />
-        {/* Fill */}
+        {/* Progress fill */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--color-primary)"
+          stroke={isComplete ? "#10b981" : "#3b82f6"}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{
-            transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
+          className="transition-all duration-1000 ease-out"
         />
       </svg>
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: "var(--text-3xl)",
-            fontWeight: 600,
-            color: "var(--color-primary)",
-            lineHeight: 1,
+      
+      {/* Center content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
+        <span 
+          className="font-bold tabular-nums"
+          style={{ 
+            fontSize: size * 0.22,
+            color: isComplete ? "#10b981" : "#1f2937",
+            letterSpacing: "-0.03em",
+            lineHeight: 1
           }}
         >
           {percent}%
-        </div>
-        <div
-          style={{
-            fontSize: "var(--text-xs)",
-            color: "var(--color-primary)",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            marginTop: "4px",
-            opacity: 0.8,
-          }}
-        >
-          Ready
-        </div>
+        </span>
       </div>
+      
+      {/* Elegant completion celebration */}
+      {isComplete && (
+        <>
+          {/* Subtle pulsing ring */}
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              border: "2px solid #10b981",
+              animation: "pulse-ring 2s ease-out infinite",
+              opacity: 0.5
+            }}
+          />
+          
+          {/* Soft glow effect */}
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              boxShadow: "0 0 0 2px rgba(16, 185, 129, 0.15)",
+              animation: "pulse-glow 2s ease-in-out infinite",
+            }}
+          />
+        </>
+      )}
+
+      <style>{`
+        @keyframes pulse-ring {
+          0% {
+            transform: scale(1);
+            opacity: 0.5;
+          }
+          50% {
+            transform: scale(1.08);
+            opacity: 0.2;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 0.5;
+          }
+        }
+
+        @keyframes pulse-glow {
+          0%, 100% {
+            opacity: 0.15;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.25;
+            transform: scale(1.05);
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -582,7 +616,7 @@ function ProductRow({
                 <button
                   type="button"
                   onClick={() => {
-                    // Quick autofix action
+                    // Navigate to dashboard
                     setShowDropdown(false);
                   }}
                   style={{
@@ -812,7 +846,7 @@ export default function Dashboard() {
         overflow: "hidden",
         padding: "0 24px",
         paddingTop: "24px",
-        maxWidth: "1600px",
+        maxWidth: "1280px",
         margin: "0 auto",
         width: "100%",
       }}
@@ -1179,7 +1213,10 @@ export default function Dashboard() {
                 <ProductRow
                   key={audit.id}
                   audit={audit}
-                  onClick={() => navigate(`/app/products/${encodeURIComponent(audit.productId)}`)}
+                  onClick={() => {
+                    const numericId = audit.productId.split('/').pop();
+                    navigate(`/app/products/${numericId}`);
+                  }}
                   delay={Math.min(index * 20, 200)}
                   isSelected={selectedProducts.has(audit.productId)}
                   onToggleSelect={() => toggleProductSelection(audit.productId)}
@@ -1246,27 +1283,23 @@ export default function Dashboard() {
 
           {/* Progress Card */}
           <div 
-            className="card"
+            className="card transition-all duration-300 hover:shadow-md"
             style={{ 
-              padding: "24px",
+              padding: "28px 24px",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: "16px",
             }}
           >
-            <CircularProgress percent={completionPercent} size={120} strokeWidth={10} />
-            <div style={{ textAlign: "center" }}>
-              <div style={{ 
-                fontSize: "var(--text-sm)", 
-                fontWeight: 600, 
-                color: completionPercent === 100 ? "var(--color-success)" : "var(--color-primary)",
-                marginBottom: "4px",
-              }}>
-                {completionPercent === 100 ? "All Ready!" : "Launch Progress"}
+            <CircularProgress percent={completionPercent} size={120} strokeWidth={14} />
+
+            <div className="text-center">
+              <div className="text-sm font-semibold text-gray-700 mb-0.5">
+                {completionPercent === 100 ? "All Products Ready!" : "Launch Progress"}
               </div>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                {stats.readyCount} of {stats.totalAudited} products ready
+              <div className="text-xs text-gray-500">
+                {stats.readyCount} of {stats.totalAudited} products
               </div>
             </div>
           </div>
@@ -1948,7 +1981,8 @@ export default function Dashboard() {
                         type="button"
                         onClick={() => {
                           setShowMonitoringModal(false);
-                          navigate(`/app/products/${encodeURIComponent(drift.productId)}`);
+                          const numericId = drift.productId.split('/').pop();
+                          navigate(`/app/products/${numericId}`);
                         }}
                         style={{
                           display: "flex",
