@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from "react";
-import { createPortal } from "react-dom";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -713,7 +712,7 @@ function EmptyState({
 // ============================================
 
 // ============================================
-// Dashboard Tour Component
+// Dashboard Tour Component (Modal-based for Shopify compatibility)
 // ============================================
 
 function DashboardTour({
@@ -727,33 +726,28 @@ function DashboardTour({
 
   const steps = [
     {
-      target: "data-tour-products-table",
-      title: "Your Product Catalog",
-      description: "See all your products at a glance with their launch readiness status and scores. Each row shows you how complete and optimized each product is.",
+      title: "Welcome to Your Dashboard",
+      description: "Your product catalog at a glance. See all your products with their launch readiness status and scores. Each row shows you how complete and optimized each product is.",
       icon: "📦",
     },
     {
-      target: "data-tour-expand-row",
       title: "Expand for Details",
-      description: "Click the arrow to expand any product and see a detailed breakdown by category. View completion metrics, priority items, and quick actions.",
+      description: "Click the arrow on any product row to expand and see a detailed breakdown by category. View completion metrics, priority items, and quick actions all in one place.",
       icon: "📂",
     },
     {
-      target: "data-tour-status-score",
       title: "Understand Your Scores",
-      description: "Green = Launch Ready. Yellow/Red = Needs work. The percentage shows completion. Higher scores mean better optimization.",
+      description: "Green badges mean Launch Ready. Yellow/Red means needs work. The percentage shows completion. Higher scores mean better optimization and readiness for launch.",
       icon: "📊",
     },
     {
-      target: "data-tour-bulk-actions",
       title: "Bulk Actions",
-      description: "Select multiple products to fix tags, improve SEO, or optimize images in bulk. Save time managing many products at once.",
+      description: "Select multiple products using checkboxes to fix tags, improve SEO, or optimize images in bulk. Save time managing many products at once with powerful batch operations.",
       icon: "⚡",
     },
     {
-      target: "data-tour-sync-button",
       title: "Keep Scores Fresh",
-      description: "Click Sync to scan all your products and update their scores. Your readiness data stays current with your latest changes.",
+      description: "Click the Sync button in the header to scan all your products and update their scores. Your readiness data stays current with your latest changes in Shopify.",
       icon: "🔄",
     },
   ];
@@ -762,150 +756,122 @@ function DashboardTour({
 
   const currentStep = steps[step];
   const isLastStep = step === steps.length - 1;
-  const targetElement = document.querySelector(`[${currentStep.target}]`);
 
-  // Auto-skip to next step if element not found (after 2 seconds to allow loading)
-  useEffect(() => {
-    if (!targetElement && step < steps.length - 1) {
-      const timer = setTimeout(() => {
-        setStep(s => s + 1);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [targetElement, step]);
-
-  // If no target element found on last step, close tour
-  if (!targetElement) {
-    if (isLastStep) {
-      onClose();
-      return null;
-    }
-    // Return null while waiting for next element to load
-    return null;
-  }
-
-  // Get element position for tooltip
-  let tooltipStyle: React.CSSProperties = {
-    position: "fixed",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-  };
-
-  const rect = targetElement.getBoundingClientRect();
-  const tooltipWidth = 360;
-  const tooltipHeight = 280;
-
-  let top = rect.top + rect.height / 2 - tooltipHeight / 2;
-  let left = rect.right + 24;
-
-  if (left + tooltipWidth > window.innerWidth) {
-    left = rect.left - tooltipWidth - 24;
-  }
-  if (top < 20) {
-    top = 20;
-  }
-  if (top + tooltipHeight > window.innerHeight) {
-    top = window.innerHeight - tooltipHeight - 20;
-  }
-
-  tooltipStyle = {
-    position: "fixed",
-    top,
-    left,
-  };
-
-  return createPortal(
-    <>
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: "20px",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       {/* Backdrop */}
       <div
         style={{
-          position: "fixed",
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: "rgba(0, 0, 0, 0.5)",
-          zIndex: 99998,
+          background: "rgba(0, 0, 0, 0.4)",
           backdropFilter: "blur(4px)",
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget && isLastStep) {
-            onClose();
-          }
         }}
       />
 
-      {/* Spotlight on target element */}
-      {targetElement && (
-        <div
-          style={{
-            position: "fixed",
-            top: targetElement.getBoundingClientRect().top - 8,
-            left: targetElement.getBoundingClientRect().left - 8,
-            width: targetElement.getBoundingClientRect().width + 16,
-            height: targetElement.getBoundingClientRect().height + 16,
-            border: "2px solid #465A54",
-            borderRadius: "12px",
-            boxShadow: "0 0 0 4px rgba(70, 90, 84, 0.2), 0 0 24px rgba(70, 90, 84, 0.4)",
-            zIndex: 99999,
-            pointerEvents: "none",
-          }}
-        />
-      )}
-
-      {/* Tooltip */}
+      {/* Modal */}
       <div
         style={{
-          ...tooltipStyle,
-          zIndex: 100000,
+          position: "relative",
           background: "#fff",
-          borderRadius: "10px",
+          borderRadius: "12px",
           border: "1px solid #e4e4e7",
-          boxShadow: "0 20px 48px rgba(0, 0, 0, 0.16)",
-          width: "360px",
+          boxShadow: "0 20px 48px rgba(0, 0, 0, 0.2)",
+          width: "100%",
+          maxWidth: "520px",
           overflow: "hidden",
-          animation: "slideIn 0.3s ease",
+          animation: "modalSlideIn 0.3s ease",
         }}
       >
         {/* Header with progress */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 20px", borderBottom: "1px solid #f4f4f5", background: "#fafbfc" }}>
-          <span style={{ fontSize: "24px" }}>{currentStep.icon}</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "#252F2C" }}>
-              {currentStep.title}
+        <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #f4f4f5" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "16px" }}>
+            <div style={{ 
+              width: "48px", 
+              height: "48px", 
+              borderRadius: "10px", 
+              background: "#f4f4f5", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              fontSize: "24px",
+              flexShrink: 0,
+            }}>
+              {currentStep.icon}
             </div>
-            <div style={{ fontSize: "11px", color: "#8B8B8B" }}>
-              Step {step + 1} of {steps.length}
+            <div style={{ flex: 1 }}>
+              <h2 style={{ 
+                margin: "0 0 4px", 
+                fontSize: "18px", 
+                fontWeight: 600, 
+                color: "#252F2C",
+                lineHeight: 1.3,
+              }}>
+                {currentStep.title}
+              </h2>
+              <div style={{ fontSize: "12px", color: "#8B8B8B" }}>
+                Step {step + 1} of {steps.length}
+              </div>
             </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ display: "flex", gap: "4px" }}>
+            {steps.map((_, i) => (
+              <div
+                key={`progress-${i}`}
+                style={{
+                  flex: 1,
+                  height: "3px",
+                  borderRadius: "2px",
+                  background: i <= step ? "#465A54" : "#e4e4e7",
+                  transition: "all 0.3s",
+                }}
+              />
+            ))}
           </div>
         </div>
 
         {/* Content */}
-        <div style={{ padding: "20px" }}>
-          <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: "#52525b" }}>
+        <div style={{ padding: "24px" }}>
+          <p style={{ 
+            margin: 0, 
+            fontSize: "14px", 
+            lineHeight: 1.6, 
+            color: "#52525b",
+          }}>
             {currentStep.description}
           </p>
         </div>
 
-        {/* Progress dots */}
-        <div style={{ display: "flex", gap: "4px", padding: "12px 20px", background: "#fafbfc" }}>
-          {steps.map((_, i) => (
-            <div
-              key={`dot-${i}`}
-              style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "3px",
-                background: i <= step ? "#465A54" : "#e4e4e7",
-                transition: "all 0.3s",
-              }}
-            />
-          ))}
-        </div>
-
         {/* Footer with controls */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: "1px solid #f4f4f5", background: "#fff" }}>
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "space-between", 
+          padding: "20px 24px", 
+          borderTop: "1px solid #f4f4f5",
+          background: "#fafbfc",
+        }}>
           <button
             type="button"
             onClick={onClose}
@@ -921,7 +887,7 @@ function DashboardTour({
             onMouseEnter={(e) => { e.currentTarget.style.color = "#252F2C"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "#8B8B8B"; }}
           >
-            Skip
+            Skip Tour
           </button>
 
           <div style={{ display: "flex", gap: "8px" }}>
@@ -930,7 +896,7 @@ function DashboardTour({
                 type="button"
                 onClick={() => setStep(s => s - 1)}
                 style={{
-                  padding: "8px 14px",
+                  padding: "10px 16px",
                   fontSize: "13px",
                   fontWeight: 500,
                   border: "1px solid #e4e4e7",
@@ -941,7 +907,7 @@ function DashboardTour({
                   transition: "all 0.15s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#fafbfc";
+                  e.currentTarget.style.background = "#f4f4f5";
                   e.currentTarget.style.borderColor = "#d4d4d8";
                 }}
                 onMouseLeave={(e) => {
@@ -962,7 +928,7 @@ function DashboardTour({
                 }
               }}
               style={{
-                padding: "8px 14px",
+                padding: "10px 20px",
                 fontSize: "13px",
                 fontWeight: 500,
                 border: "none",
@@ -975,26 +941,25 @@ function DashboardTour({
               onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
             >
-              {isLastStep ? "Done" : "Next"}
+              {isLastStep ? "Get Started" : "Next"}
             </button>
           </div>
         </div>
       </div>
 
       <style>{`
-        @keyframes slideIn {
+        @keyframes modalSlideIn {
           from {
             opacity: 0;
-            transform: translate(calc(-50% - 10px), calc(-50% - 10px));
+            transform: translateY(-20px) scale(0.95);
           }
           to {
             opacity: 1;
-            transform: translate(-50%, -50%);
+            transform: translateY(0) scale(1);
           }
         }
       `}</style>
-    </>,
-    document.body
+    </div>
   );
 }
 
