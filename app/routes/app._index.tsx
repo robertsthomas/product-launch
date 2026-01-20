@@ -1596,10 +1596,10 @@ export default function Dashboard() {
                           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                             {/* Simulated categories based on typical checks */}
                             {[
-                              { name: "Content Quality", icon: "📝", passed: Math.floor(audit.passedCount * 0.4), total: Math.floor(audit.totalCount * 0.4), priority: "high" },
-                              { name: "Images & Media", icon: "🖼️", passed: Math.floor(audit.passedCount * 0.3), total: Math.floor(audit.totalCount * 0.3), priority: "high" },
-                              { name: "SEO Optimization", icon: "🔍", passed: Math.floor(audit.passedCount * 0.2), total: Math.floor(audit.totalCount * 0.2), priority: "medium" },
-                              { name: "Organization", icon: "📁", passed: Math.ceil(audit.passedCount * 0.1), total: Math.ceil(audit.totalCount * 0.1), priority: "low" },
+                              { name: "Content Quality", passed: Math.floor(audit.passedCount * 0.4), total: Math.floor(audit.totalCount * 0.4), priority: "high" },
+                              { name: "Images & Media", passed: Math.floor(audit.passedCount * 0.3), total: Math.floor(audit.totalCount * 0.3), priority: "high" },
+                              { name: "SEO Optimization", passed: Math.floor(audit.passedCount * 0.2), total: Math.floor(audit.totalCount * 0.2), priority: "medium" },
+                              { name: "Organization", passed: Math.ceil(audit.passedCount * 0.1), total: Math.ceil(audit.totalCount * 0.1), priority: "low" },
                             ].map((category, idx) => {
                               const categoryPercent = category.total > 0 ? Math.round((category.passed / category.total) * 100) : 100;
                               const isComplete = category.passed === category.total;
@@ -1611,16 +1611,15 @@ export default function Dashboard() {
                                     display: "flex", 
                                     alignItems: "center", 
                                     gap: "12px",
-                                    padding: "10px 12px",
+                                    padding: "12px",
                                     background: "#fafafa",
                                     borderRadius: "6px",
                                     border: "1px solid #f4f4f5"
                                   }}
                                 >
-                                  <span style={{ fontSize: "16px" }}>{category.icon}</span>
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                                      <span style={{ fontSize: "12px", fontWeight: 500, color: "#252F2C" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                                      <span style={{ fontSize: "13px", fontWeight: 500, color: "#252F2C" }}>
                                         {category.name}
                                       </span>
                                       {category.priority === "high" && !isComplete && (
@@ -1679,18 +1678,10 @@ export default function Dashboard() {
                                 fontWeight: 500, 
                                 cursor: "pointer",
                                 transition: "all 0.15s",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: "6px"
                               }}
                               onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
                               onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
                             >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
                               Edit Product
                             </button>
 
@@ -1707,10 +1698,6 @@ export default function Dashboard() {
                                   fontWeight: 500, 
                                   cursor: "pointer",
                                   transition: "all 0.15s",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: "6px"
                                 }}
                                 onMouseEnter={(e) => { 
                                   e.currentTarget.style.background = "#fafafa"; 
@@ -1721,9 +1708,6 @@ export default function Dashboard() {
                                   e.currentTarget.style.borderColor = "#e4e4e7"; 
                                 }}
                               >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-                                </svg>
                                 Auto-Fix Issues
                               </button>
                             )}
@@ -1740,10 +1724,6 @@ export default function Dashboard() {
                                 fontWeight: 500, 
                                 cursor: "pointer",
                                 transition: "all 0.15s",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: "6px"
                               }}
                               onMouseEnter={(e) => { 
                                 e.currentTarget.style.background = "#fafafa"; 
@@ -1754,10 +1734,6 @@ export default function Dashboard() {
                                 e.currentTarget.style.borderColor = "#e4e4e7"; 
                               }}
                             >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="23 4 23 10 17 10"/>
-                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                              </svg>
                               Re-scan
                             </button>
                           </div>
@@ -1772,7 +1748,7 @@ export default function Dashboard() {
                               marginTop: "12px"
                             }}>
                               <div style={{ fontSize: "10px", fontWeight: 600, color: "#8B7500", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                                💡 Tip
+                                Tip
                               </div>
                               <div style={{ fontSize: "11px", color: "#713f12", lineHeight: "1.4" }}>
                                 Fix {audit.failedCount} issue{audit.failedCount !== 1 ? 's' : ''} to reach {Math.min(100, progressPercent + Math.ceil((audit.failedCount / audit.totalCount) * 100))}% completion
