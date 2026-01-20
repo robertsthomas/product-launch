@@ -712,7 +712,7 @@ function EmptyState({
 // ============================================
 
 // ============================================
-// Dashboard Tour Component (Modal-based for Shopify compatibility)
+// Dashboard Tour Component (Interactive inline tooltips)
 // ============================================
 
 function DashboardTour({
@@ -724,125 +724,274 @@ function DashboardTour({
 }) {
   const [step, setStep] = useState(0);
 
-  const steps = [
+  const steps: Array<{
+    target: string;
+    title: string;
+    description: string;
+    icon: string;
+    position: "top" | "bottom" | "left" | "right";
+  }> = [
     {
-      title: "Welcome to Your Dashboard",
-      description: "Your product catalog at a glance. See all your products with their launch readiness status and scores. Each row shows you how complete and optimized each product is.",
+      target: "data-tour-products-table",
+      title: "Your Product Catalog",
+      description: "This is your product dashboard. Each row shows a product's launch readiness with status badges and completion scores.",
       icon: "📦",
+      position: "bottom",
     },
     {
+      target: "data-tour-expand-row",
       title: "Expand for Details",
-      description: "Click the arrow on any product row to expand and see a detailed breakdown by category. View completion metrics, priority items, and quick actions all in one place.",
+      description: "Click the arrow to see detailed analytics, category breakdowns, and quick actions for any product.",
       icon: "📂",
+      position: "right",
     },
     {
-      title: "Understand Your Scores",
-      description: "Green badges mean Launch Ready. Yellow/Red means needs work. The percentage shows completion. Higher scores mean better optimization and readiness for launch.",
+      target: "data-tour-status-score",
+      title: "Status & Scores",
+      description: "Green = Launch Ready. The percentage shows completion. Higher scores mean better optimization.",
       icon: "📊",
+      position: "bottom",
     },
     {
-      title: "Bulk Actions",
-      description: "Select multiple products using checkboxes to fix tags, improve SEO, or optimize images in bulk. Save time managing many products at once with powerful batch operations.",
-      icon: "⚡",
-    },
-    {
-      title: "Keep Scores Fresh",
-      description: "Click the Sync button in the header to scan all your products and update their scores. Your readiness data stays current with your latest changes in Shopify.",
+      target: "data-tour-sync-button",
+      title: "Keep Data Fresh",
+      description: "Click Sync to scan all products and update scores. Stays current with your Shopify changes.",
       icon: "🔄",
+      position: "bottom",
     },
   ];
 
   const currentStep = steps[step];
   const isLastStep = step === steps.length - 1;
 
-  if (!isOpen) return null;
+  // Get target element position
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0, show: false });
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = () => {
+      const element = document.querySelector(`[${currentStep.target}]`);
+      if (element) {
+        const rect = element.getBoundingClientRect();
+        const tooltipWidth = 360;
+        const tooltipHeight = 200;
+        const spacing = 16;
+
+        let top = 0;
+        let left = 0;
+
+        switch (currentStep.position) {
+          case "bottom":
+            top = rect.bottom + spacing;
+            left = rect.left + rect.width / 2 - tooltipWidth / 2;
+            break;
+          case "right":
+            top = rect.top + rect.height / 2 - tooltipHeight / 2;
+            left = rect.right + spacing;
+            break;
+          case "top":
+            top = rect.top - tooltipHeight - spacing;
+            left = rect.left + rect.width / 2 - tooltipWidth / 2;
+            break;
+          case "left":
+            top = rect.top + rect.height / 2 - tooltipHeight / 2;
+            left = rect.left - tooltipWidth - spacing;
+            break;
+        }
+
+        // Keep within viewport
+        if (left < 10) left = 10;
+        if (left + tooltipWidth > window.innerWidth - 10) {
+          left = window.innerWidth - tooltipWidth - 10;
+        }
+        if (top < 10) top = 10;
+
+        setTooltipPosition({ top, left, show: true });
+
+        // Highlight element
+        element.setAttribute('data-tour-active', 'true');
+      } else {
+        setTooltipPosition({ top: 0, left: 0, show: false });
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition);
+      // Remove highlight
+      const elements = document.querySelectorAll('[data-tour-active]');
+      for (let i = 0; i < elements.length; i++) {
+        elements[i].removeAttribute('data-tour-active');
+      }
+    };
+  }, [isOpen, currentStep.target, currentStep.position]);
+
+  if (!isOpen || !tooltipPosition.show) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: "20px",
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      {/* Backdrop */}
+    <>
+      {/* Tooltip */}
       <div
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0, 0, 0, 0.4)",
-          backdropFilter: "blur(4px)",
-        }}
-      />
-
-      {/* Modal */}
-      <div
-        style={{
-          position: "relative",
-          background: "#fff",
-          borderRadius: "12px",
-          border: "1px solid #e4e4e7",
-          boxShadow: "0 20px 48px rgba(0, 0, 0, 0.2)",
-          width: "100%",
-          maxWidth: "520px",
-          overflow: "hidden",
-          animation: "modalSlideIn 0.3s ease",
+          position: "fixed",
+          top: tooltipPosition.top,
+          left: tooltipPosition.left,
+          width: "360px",
+          zIndex: 1000,
+          animation: "tooltipFadeIn 0.3s ease",
         }}
       >
-        {/* Header with progress */}
-        <div style={{ padding: "24px 24px 20px", borderBottom: "1px solid #f4f4f5" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "16px" }}>
-            <div style={{ 
-              width: "48px", 
-              height: "48px", 
-              borderRadius: "10px", 
-              background: "#f4f4f5", 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center",
-              fontSize: "24px",
-              flexShrink: 0,
-            }}>
-              {currentStep.icon}
-            </div>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ 
-                margin: "0 0 4px", 
-                fontSize: "18px", 
-                fontWeight: 600, 
-                color: "#252F2C",
-                lineHeight: 1.3,
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "10px",
+            border: "2px solid #465A54",
+            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.15)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Header */}
+          <div style={{ padding: "16px 16px 12px", background: "#fafbfc", borderBottom: "1px solid #e4e4e7" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+              <div style={{ 
+                width: "36px", 
+                height: "36px", 
+                borderRadius: "8px", 
+                background: "#fff", 
+                border: "1px solid #e4e4e7",
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                fontSize: "20px",
+                flexShrink: 0,
               }}>
-                {currentStep.title}
-              </h2>
-              <div style={{ fontSize: "12px", color: "#8B8B8B" }}>
-                Step {step + 1} of {steps.length}
+                {currentStep.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: "15px", 
+                  fontWeight: 600, 
+                  color: "#252F2C",
+                }}>
+                  {currentStep.title}
+                </h3>
+                <div style={{ fontSize: "11px", color: "#8B8B8B", marginTop: "2px" }}>
+                  Step {step + 1} of {steps.length}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div style={{ display: "flex", gap: "4px" }}>
+          {/* Content */}
+          <div style={{ padding: "16px" }}>
+            <p style={{ 
+              margin: 0, 
+              fontSize: "13px", 
+              lineHeight: 1.5, 
+              color: "#52525b",
+            }}>
+              {currentStep.description}
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between", 
+            padding: "12px 16px", 
+            borderTop: "1px solid #f4f4f5",
+            background: "#fafbfc",
+          }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "#8B8B8B",
+                cursor: "pointer",
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#252F2C"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#8B8B8B"; }}
+            >
+              Skip
+            </button>
+
+            <div style={{ display: "flex", gap: "6px" }}>
+              {step > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStep(s => s - 1)}
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    border: "1px solid #e4e4e7",
+                    borderRadius: "5px",
+                    background: "#fff",
+                    color: "#252F2C",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#f4f4f5";
+                    e.currentTarget.style.borderColor = "#d4d4d8";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#fff";
+                    e.currentTarget.style.borderColor = "#e4e4e7";
+                  }}
+                >
+                  Back
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isLastStep) {
+                    onClose();
+                  } else {
+                    setStep(s => s + 1);
+                  }
+                }}
+                style={{
+                  padding: "6px 16px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  border: "none",
+                  borderRadius: "5px",
+                  background: "#465A54",
+                  color: "#fff",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
+              >
+                {isLastStep ? "Done" : "Next"}
+              </button>
+            </div>
+          </div>
+
+          {/* Progress dots */}
+          <div style={{ display: "flex", gap: "4px", padding: "8px 16px", justifyContent: "center", background: "#fafbfc" }}>
             {steps.map((_, i) => (
               <div
-                key={`progress-${i}`}
+                key={`dot-${i}`}
                 style={{
-                  flex: 1,
-                  height: "3px",
-                  borderRadius: "2px",
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "3px",
                   background: i <= step ? "#465A54" : "#e4e4e7",
                   transition: "all 0.3s",
                 }}
@@ -851,115 +1000,55 @@ function DashboardTour({
           </div>
         </div>
 
-        {/* Content */}
-        <div style={{ padding: "24px" }}>
-          <p style={{ 
-            margin: 0, 
-            fontSize: "14px", 
-            lineHeight: 1.6, 
-            color: "#52525b",
-          }}>
-            {currentStep.description}
-          </p>
-        </div>
-
-        {/* Footer with controls */}
-        <div style={{ 
-          display: "flex", 
-          alignItems: "center", 
-          justifyContent: "space-between", 
-          padding: "20px 24px", 
-          borderTop: "1px solid #f4f4f5",
-          background: "#fafbfc",
-        }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "13px",
-              fontWeight: 500,
-              color: "#8B8B8B",
-              cursor: "pointer",
-              transition: "color 0.15s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#252F2C"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "#8B8B8B"; }}
-          >
-            Skip Tour
-          </button>
-
-          <div style={{ display: "flex", gap: "8px" }}>
-            {step > 0 && (
-              <button
-                type="button"
-                onClick={() => setStep(s => s - 1)}
-                style={{
-                  padding: "10px 16px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  border: "1px solid #e4e4e7",
-                  borderRadius: "6px",
-                  background: "#fff",
-                  color: "#252F2C",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#f4f4f5";
-                  e.currentTarget.style.borderColor = "#d4d4d8";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "#fff";
-                  e.currentTarget.style.borderColor = "#e4e4e7";
-                }}
-              >
-                Back
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                if (isLastStep) {
-                  onClose();
-                } else {
-                  setStep(s => s + 1);
-                }
-              }}
-              style={{
-                padding: "10px 20px",
-                fontSize: "13px",
-                fontWeight: 500,
-                border: "none",
-                borderRadius: "6px",
-                background: "#465A54",
-                color: "#fff",
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
-            >
-              {isLastStep ? "Get Started" : "Next"}
-            </button>
-          </div>
-        </div>
+        {/* Arrow pointer */}
+        {currentStep.position === "bottom" && (
+          <div style={{
+            position: "absolute",
+            top: "-8px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 0,
+            height: 0,
+            borderLeft: "8px solid transparent",
+            borderRight: "8px solid transparent",
+            borderBottom: "8px solid #465A54",
+          }} />
+        )}
+        {currentStep.position === "right" && (
+          <div style={{
+            position: "absolute",
+            left: "-8px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 0,
+            height: 0,
+            borderTop: "8px solid transparent",
+            borderBottom: "8px solid transparent",
+            borderRight: "8px solid #465A54",
+          }} />
+        )}
       </div>
 
       <style>{`
-        @keyframes modalSlideIn {
+        @keyframes tooltipFadeIn {
           from {
             opacity: 0;
-            transform: translateY(-20px) scale(0.95);
+            transform: translateY(-10px);
           }
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
           }
         }
+        
+        [data-tour-active] {
+          position: relative;
+          z-index: 999;
+          box-shadow: 0 0 0 4px rgba(70, 90, 84, 0.2) !important;
+          border-radius: 8px !important;
+        }
       `}</style>
-    </div>
+    </>
   );
 }
 
