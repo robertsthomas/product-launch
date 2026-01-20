@@ -752,10 +752,10 @@ function DashboardTour({
     },
   ];
 
-  if (!isOpen) return null;
-
   const currentStep = steps[step];
   const isLastStep = step === steps.length - 1;
+
+  if (!isOpen) return null;
 
   return (
     <div
