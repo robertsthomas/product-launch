@@ -13,6 +13,14 @@ import { getShopSettings } from "../lib/services/shop.server";
 import { saveFieldVersion, getShopId } from "../lib/services/version.server";
 import { isAIAvailable } from "../lib/ai";
 import { PRODUCT_QUERY, type Product } from "../lib/checklist";
+import {
+  ProductHeader,
+  ProductInfoCard,
+  ProductMediaCard,
+  ProductSeoCard,
+  ProductChecklistCard,
+  CompactActionCard,
+} from "../components/product";
 
 // Helper to strip HTML tags
 function stripHtml(html: string): string {
@@ -3400,7 +3408,7 @@ function ChecklistSidebar({
 // ============================================
 
 export default function ProductEditor() {
-  const { shop, product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete, tourCompleted } = useLoaderData<typeof loader>();
+  const { product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete, tourCompleted } = useLoaderData<typeof loader>();
   const [currentDefaultCollectionId, setCurrentDefaultCollectionId] = useState(defaultCollectionId);
   const fetcher = useFetcher<typeof action>();
   const navigate = useNavigate();
@@ -3670,7 +3678,10 @@ export default function ProductEditor() {
     // Handle items that aren't editable on this page - open in Shopify admin
     if (sectionId === null) {
       if (key === "has_collections") {
-        fetcher.submit({ intent: "open_product" }, { method: "POST" });
+        // Use Intents API to open the product in Shopify admin
+        shopify.intents.invoke?.("edit:shopify/Product", {
+          value: product.id,
+        });
       }
       return;
     }
@@ -3682,7 +3693,7 @@ export default function ProductEditor() {
       // Scroll to element with offset for header
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }, [fetcher]);
+  }, [shopify, product.id]);
 
   const closeImagePromptModal = useCallback(() => {
     setImagePromptModal({
@@ -3947,570 +3958,113 @@ export default function ProductEditor() {
       background: "#fafbfc",
     }}>
       {/* Page Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "24px 40px",
-          borderBottom: "1px solid #e4e4e7",
-          background: "#fff",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <button
-            type="button"
-            onClick={() => navigate("/app")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "36px",
-              height: "36px",
-              borderRadius: "6px",
-              border: "1px solid #e4e4e7",
-              background: "#fff",
-              cursor: "pointer",
-              color: "#8B8B8B",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#f4f4f5"; e.currentTarget.style.borderColor = "#d4d4d8"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e4e4e7"; }}
-            aria-label="Back to dashboard"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-          </button>
-          <div>
-            <h1 style={{
-              fontSize: "22px",
-              fontWeight: 600,
-              color: "#252F2C",
-              margin: "0 0 4px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-            }}>
-              {product.title}
-              {audit?.status === "ready" && (
-                <span style={{
-                  padding: "3px 8px",
-                  borderRadius: "4px",
-                  background: "#ecfdf5",
-                  color: "#059669",
-                  fontSize: "11px",
-                  fontWeight: 500,
-                  border: "1px solid #a7f3d0",
-                }}>
-                  Ready
-                </span>
-              )}
-              {audit?.status !== "ready" && (
-                <span style={{
-                  padding: "3px 8px",
-                  borderRadius: "4px",
-                  background: "#fef9e7",
-                  color: "#8B7500",
-                  fontSize: "11px",
-                  fontWeight: 500,
-                  border: "1px solid #fde68a",
-                }}>
-                  Pending
-                </span>
-              )}
-            </h1>
-            <p style={{
-              margin: 0,
-              fontSize: "13px",
-              color: "#8B8B8B",
-            }}>
-              Product details and optimization
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            const numericId = product.id.split('/').pop();
-            window.open(`https://${shop}/admin/products/${numericId}`, "_blank");
-          }}
-          style={{
-            padding: "8px 16px",
-            fontSize: "13px",
-            fontWeight: 500,
-            border: "1px solid #e4e4e7",
-            borderRadius: "6px",
-            background: "#fff",
-            color: "#252F2C",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#f4f4f5"; e.currentTarget.style.borderColor = "#d4d4d8"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e4e4e7"; }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-            <polyline points="15 3 21 3 21 9"/>
-            <line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          Open in Shopify
-        </button>
-      </div>
+      <ProductHeader
+        title={product.title}
+        audit={audit as { status: string } | null}
+        productId={product.id}
+      />
 
-      {/* Main Content */}
-      <div style={{ padding: "32px 40px" }}>
-      {/* Main Content Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "32px", alignItems: "flex-start" }}>
-          {/* Main Editor */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            
-            {/* Product Hero - Featured Image & Title */}
-            <div
-              id="section-info"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "24px",
-                padding: "24px",
-                border: "1px solid #e4e4e7",
-                borderRadius: "10px",
-                backgroundColor: "#fff",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
-                {/* Product Image */}
-                <div style={{
-                  width: "100px",
-                  height: "100px",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  backgroundColor: "#f4f4f5",
-                  flexShrink: 0,
-                  border: "1px solid #e4e4e7",
-                }}>
-                  {product.featuredImage ? (
-                    <img
-                      src={product.featuredImage}
-                      alt={product.title}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#d4d4d8",
-                    }}>
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <path d="M21 15l-5-5L5 21"/>
-                      </svg>
-                    </div>
-                  )}
-                </div>
+      {/* Bento Grid Dashboard */}
+      <div style={{ padding: "20px 40px", maxWidth: "1400px", margin: "0 auto" }}>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "1fr 320px", 
+          gap: "20px",
+          alignItems: "start"
+        }}>
+          {/* Left Column: Content Cards */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Product Info Card */}
+            <ProductInfoCard
+              product={product}
+              form={form}
+              updateField={updateField}
+              generating={generating}
+              generatingModes={generatingModes}
+              aiAvailable={aiAvailable}
+              autocomplete={autocomplete}
+              fieldVersions={fieldVersions}
+              aiGeneratedFields={aiGeneratedFields}
+              preGenerationValues={preGenerationValues}
+              onGenerateAI={generateAIContent}
+              onRevert={handleRevert}
+              onInlineRevert={revertToPreGeneration}
+              EditableField={EditableField}
+              AutocompleteField={AutocompleteField}
+              TagsInput={TagsInput}
+            />
 
-                {/* Title & Basic Info */}
-                <div style={{ flex: 1 }}>
-                  <div id="field-title">
-                    <EditableField
-                      label="Title"
-                      value={form.title}
-                      onChange={(v) => updateField("title", v)}
-                      onGenerateAI={(mode) => generateAIContent("title", "title", mode)}
-                      isGenerating={generating.has("title")}
-                      generatingMode={generatingModes.title}
-                      showAI={aiAvailable}
-                      placeholder="Product title"
-                      fieldVersions={fieldVersions.title}
-                      onRevert={(field, version) => handleRevert(field, version)}
-                      field="title"
-                      productId={product.id}
-                      canInlineRevert={aiGeneratedFields.has("title") && !!preGenerationValues.title}
-                      onInlineRevert={() => revertToPreGeneration("title")}
-                    />
-                  </div>
-                  <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
-                    <div id="field-vendor" style={{ flex: 1 }}>
-                      <AutocompleteField
-                        label="Vendor"
-                        value={form.vendor}
-                        onChange={(v) => updateField("vendor", v)}
-                        options={autocomplete.vendors}
-                        placeholder="Brand or vendor"
-                      />
-                    </div>
-                    <div id="field-product-type" style={{ flex: 1 }}>
-                      <AutocompleteField
-                        label="Product Type"
-                        value={form.productType}
-                        onChange={(v) => updateField("productType", v)}
-                        options={autocomplete.productTypes}
-                        placeholder="e.g., Snowboard"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Media Card */}
+            <ProductMediaCard
+              images={product.images}
+              featuredImageId={product.featuredImageId}
+              productId={product.id}
+              productTitle={product.title}
+              aiAvailable={aiAvailable}
+              generatingImage={generatingImage}
+              generatingBulkAlt={generatingBulkAlt}
+              setGeneratingBulkAlt={setGeneratingBulkAlt}
+              onRefresh={() => window.location.reload()}
+              onOpenImagePromptModal={openImagePromptModal}
+              onAltTextChange={handleAltTextChange}
+              ImageManager={ImageManager}
+            />
 
-              {/* Description - Full width */}
-              <div id="field-description">
-                <EditableField
-                  label="Description"
-                  value={form.description}
-                  onChange={(v) => updateField("description", v)}
-                  onGenerateAI={(mode) => generateAIContent("description", "description", mode)}
-                  isGenerating={generating.has("description")}
-                  generatingMode={generatingModes.description}
-                  showAI={aiAvailable}
-                  multiline
-                  placeholder="Describe your product..."
-                  fieldVersions={fieldVersions.description}
-                  onRevert={(field, version) => handleRevert(field, version)}
-                  field="description"
-                  productId={product.id}
-                  canInlineRevert={aiGeneratedFields.has("description") && !!preGenerationValues.description}
-                  onInlineRevert={() => revertToPreGeneration("description")}
-                />
-              </div>
-
-              {/* Tags */}
-              <div style={{ 
-                borderTop: "1px solid #e5e7eb", 
-                marginTop: "20px", 
-                paddingTop: "20px" 
-              }}>
-                <div id="field-tags">
-                  <TagsInput
-                    tags={form.tags}
-                    onChange={(v) => updateField("tags", v)}
-                    onGenerateAI={(mode) => generateAIContent("tags", "tags", mode)}
-                    isGenerating={generating.has("tags")}
-                    generatingMode={generatingModes.tags}
-                    showAI={aiAvailable}
-                    fieldVersions={fieldVersions.tags}
-                    onRevert={(field, version) => handleRevert(field, version)}
-                    field="tags"
-                    productId={product.id}
-                    canInlineRevert={aiGeneratedFields.has("tags") && !!preGenerationValues.tags}
-                    onInlineRevert={() => revertToPreGeneration("tags")}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Images Section */}
-            <div
-              id="section-images"
-              style={{
-                padding: "24px",
-                border: "1px solid #e4e4e7",
-                borderRadius: "10px",
-                backgroundColor: "#fff",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-              }}
-            >
-              <ImageManager
-                images={product.images}
-                featuredImageId={product.featuredImageId}
-                productId={product.id}
-                productTitle={product.title}
-                aiAvailable={aiAvailable}
-                onRefresh={() => window.location.reload()}
-                generatingImage={generatingImage}
-                generatingBulkAlt={generatingBulkAlt}
-                setGeneratingBulkAlt={setGeneratingBulkAlt}
-                onOpenImagePromptModal={openImagePromptModal}
-                onAltTextChange={handleAltTextChange}
-              />
-            </div>
-
-            {/* SEO Section */}
-            <div
-              id="section-seo"
-              style={{
-                padding: "24px",
-                border: "1px solid #e4e4e7",
-                borderRadius: "10px",
-                backgroundColor: "#fff",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div style={{ marginBottom: "20px" }}>
-                <h3 style={{
-                  margin: "0 0 4px 0",
-                  fontSize: "16px",
-                  fontWeight: 600,
-                  color: "#252F2C",
-                }}>
-                  Search Engine Listing
-                </h3>
-                <p style={{
-                  margin: 0,
-                  fontSize: "13px",
-                  color: "#8B8B8B",
-                }}>
-                  Optimize how this product appears in search results
-                </p>
-              </div>
-              
-              {/* Preview - Google style */}
-              <div style={{
-                padding: "16px 20px",
-                backgroundColor: "#f4f4f5",
-                borderRadius: "8px",
-                marginBottom: "24px",
-                border: "1px solid #e4e4e7",
-              }}>
-                <div style={{ 
-                  color: "#1a0dab", 
-                  fontSize: "16px", 
-                  marginBottom: "4px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}>
-                  {form.seoTitle || form.title || "Page title"}
-                </div>
-                <div style={{ 
-                  color: "#006621", 
-                  fontSize: "13px", 
-                  marginBottom: "6px",
-                }}>
-                  yourstore.com › products › {product.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}
-                </div>
-                <div style={{ 
-                  color: "#545454", 
-                  fontSize: "13px",
-                  lineHeight: "1.5",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}>
-                  {form.seoDescription || form.description.slice(0, 160) || "Add a meta description to see how it might appear on search engines."}
-                </div>
-              </div>
-
-              <div id="field-seo-title">
-                <EditableField
-                  label="SEO Title"
-                  value={form.seoTitle}
-                  onChange={(v) => updateField("seoTitle", v)}
-                  onGenerateAI={(mode) => generateAIContent("seo_title", "seoTitle", mode)}
-                  isGenerating={generating.has("seoTitle")}
-                  generatingMode={generatingModes.seoTitle}
-                  showAI={aiAvailable}
-                  placeholder={form.title}
-                  maxLength={60}
-                  helpText="50-60 characters recommended"
-                  fieldVersions={fieldVersions.seoTitle}
-                  onRevert={(field, version) => handleRevert(field, version)}
-                  field="seoTitle"
-                  productId={product.id}
-                  canInlineRevert={aiGeneratedFields.has("seoTitle") && !!preGenerationValues.seoTitle}
-                  onInlineRevert={() => revertToPreGeneration("seoTitle")}
-                />
-              </div>
-
-              <div id="field-seo-description">
-                <EditableField
-                  label="Meta Description"
-                  value={form.seoDescription}
-                  onChange={(v) => updateField("seoDescription", v)}
-                  onGenerateAI={(mode) => generateAIContent("seo_description", "seoDescription", mode)}
-                  isGenerating={generating.has("seoDescription")}
-                  generatingMode={generatingModes.seoDescription}
-                  showAI={aiAvailable}
-                  multiline
-                  placeholder="Describe this product for search engines..."
-                  maxLength={160}
-                  helpText="120-155 characters recommended"
-                  fieldVersions={fieldVersions.seoDescription}
-                  onRevert={(field, version) => handleRevert(field, version)}
-                  field="seoDescription"
-                  productId={product.id}
-                  canInlineRevert={aiGeneratedFields.has("seoDescription") && !!preGenerationValues.seoDescription}
-                  onInlineRevert={() => revertToPreGeneration("seoDescription")}
-                />
-              </div>
-            </div>
+            {/* SEO Card */}
+            <ProductSeoCard
+              form={form}
+              productId={product.id}
+              productTitle={product.title}
+              updateField={updateField}
+              generating={generating}
+              generatingModes={generatingModes}
+              aiAvailable={aiAvailable}
+              fieldVersions={fieldVersions}
+              aiGeneratedFields={aiGeneratedFields}
+              preGenerationValues={preGenerationValues}
+              onGenerateAI={generateAIContent}
+              onRevert={handleRevert}
+              onInlineRevert={revertToPreGeneration}
+              EditableField={EditableField}
+            />
           </div>
 
-          {/* Sidebar */}
-          <div
-            style={{
-              position: "sticky",
-              top: "24px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "16px",
-            }}
-          >
-            {/* Checklist with integrated actions */}
-            <div
-              style={{
-                border: "1px solid #e4e4e7",
-                borderRadius: "10px",
-                backgroundColor: "#fff",
-                overflow: "hidden",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+          {/* Right Column: Sticky Sidebar */}
+          <div style={{ position: "sticky", top: "90px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Save Button */}
+            <CompactActionCard
+              hasChanges={hasChanges}
+              isSaving={isSaving}
+              onSave={handleSave}
+            />
+
+            {/* Checklist */}
+            <ProductChecklistCard
+              audit={audit as any}
+              hasChanges={hasChanges}
+              isSaving={isSaving}
+              aiAvailable={aiAvailable}
+              generatingAll={generatingAll}
+              isRescanning={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"}
+              canAutoFixCollection={!!currentDefaultCollectionId}
+              onSave={handleSave}
+              onGenerateAll={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
+              onRescan={handleRescan}
+              onItemClick={handleChecklistItemClick}
+              onAutoFixCollection={() => {
+                if (currentDefaultCollectionId) {
+                  fetcher.submit(
+                    { intent: "add_to_collection", collectionId: currentDefaultCollectionId },
+                    { method: "POST" }
+                  );
+                }
               }}
-            >
-              {/* Action Buttons */}
-              <div style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "8px",
-                padding: "16px",
-                borderBottom: "1px solid #e4e4e7",
-              }}>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={!hasChanges || isSaving}
-                  style={{
-                    padding: "10px 16px",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    border: hasChanges ? "1px solid #465A54" : "1px solid #e4e4e7",
-                    borderRadius: "6px",
-                    background: hasChanges ? "#465A54" : "#fff",
-                    color: hasChanges ? "#fff" : "#8B8B8B",
-                    cursor: (!hasChanges || isSaving) ? "default" : "pointer",
-                    opacity: isSaving ? 0.7 : 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    transition: "all 0.15s ease",
-                    width: "100%",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (hasChanges && !isSaving) {
-                      e.currentTarget.style.background = "#3d4e49";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (hasChanges && !isSaving) {
-                      e.currentTarget.style.background = "#465A54";
-                    }
-                  }}
-                >
-                  {isSaving ? (
-                    <>
-                      <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                        <span style={{ background: hasChanges ? "#fff" : "var(--color-subtle)" }}/>
-                        <span style={{ background: hasChanges ? "#fff" : "var(--color-subtle)" }}/>
-                        <span style={{ background: hasChanges ? "#fff" : "var(--color-subtle)" }}/>
-                      </span>
-                      Saving
-                    </>
-                  ) : hasChanges ? (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17 21 17 13 7 13 7 21"/>
-                        <polyline points="7 3 7 8 15 8"/>
-                      </svg>
-                      Save Changes
-                    </>
-                  ) : (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                      Saved
-                    </>
-                  )}
-                </button>
-                {aiAvailable && (
-                  <button
-                    type="button"
-                    onClick={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
-                    disabled={generatingAll}
-                    style={{
-                      padding: "10px 16px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      border: generatingAll ? "1px solid #e4e4e7" : "1px solid #465A54",
-                      borderRadius: "6px",
-                      background: generatingAll ? "#fff" : "#465A54",
-                      color: generatingAll ? "#8B8B8B" : "#fff",
-                      cursor: generatingAll ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      transition: "all 0.15s ease",
-                      width: "100%",
-                      whiteSpace: "nowrap",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!generatingAll) {
-                        e.currentTarget.style.background = "#3d4e49";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!generatingAll) {
-                        e.currentTarget.style.background = "#465A54";
-                      }
-                    }}
-                  >
-                    {generatingAll ? (
-                      <>
-                        <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                          <span style={{ background: "#9ca3af" }}/>
-                          <span style={{ background: "#9ca3af" }}/>
-                          <span style={{ background: "#9ca3af" }}/>
-                        </span>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-                        </svg>
-                        Generate All
-                      </>
-                    )}
-                  </button>
-                )}
-
-              </div>
-
-                {/* Checklist content */}
-              <div style={{ padding: "16px" }}>
-                <ChecklistSidebar 
-                  audit={audit}
-                  onRescan={handleRescan}
-                  isRescanning={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"}
-                  onItemClick={handleChecklistItemClick}
-                  canAutoFixCollection={!!currentDefaultCollectionId}
-                  onAutoFixCollection={() => {
-                    if (currentDefaultCollectionId) {
-                      fetcher.submit(
-                        { intent: "add_to_collection", collectionId: currentDefaultCollectionId },
-                        { method: "POST" }
-                      );
-                    }
-                  }}
-                  onChooseCollection={() => setCollectionPickerOpen(true)}
-                />
-              </div>
-            </div>
+              onChooseCollection={() => setCollectionPickerOpen(true)}
+            />
           </div>
         </div>
       </div>
-      {/* End Main Content */}
+      {/* End Dashboard */}
 
       {/* Unsaved Changes Dialog */}
       {showUnsavedDialog && blocker.state === "blocked" && (
@@ -5077,9 +4631,56 @@ Describe your desired style, or leave blank for defaults.
 
             {/* Collection List */}
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+              {/* Create New Collection Button */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const activity = await shopify.intents?.invoke?.("create:shopify/Collection");
+                    const response = await activity?.complete;
+                    if (response?.code === "ok") {
+                      shopify.toast.show("Collection created! Refresh to see it.");
+                      revalidator.revalidate();
+                    }
+                  } catch (error) {
+                    console.error("Failed to create collection:", error);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  padding: "14px 24px",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  transition: "background var(--transition-fast)",
+                  borderBottom: "1px solid var(--color-border-subtle)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span style={{
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 500,
+                  color: "var(--color-primary)",
+                }}>
+                  Create New Collection
+                </span>
+              </button>
+
               {collections.length === 0 ? (
                 <div style={{ padding: "24px", textAlign: "center", color: "var(--color-muted)" }}>
-                  No collections found. Create a collection in Shopify first.
+                  No collections found.
                 </div>
               ) : (
                 collections.map((collection: { id: string; title: string; productsCount: number }) => (

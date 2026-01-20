@@ -1122,8 +1122,6 @@ function DashboardTour({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
         [data-tour-active] {
           position: relative;
           z-index: 999;
-          box-shadow: 0 0 0 4px rgba(70, 90, 84, 0.2) !important;
-          border-radius: 8px !important;
         }
       `}</style>
     </>
