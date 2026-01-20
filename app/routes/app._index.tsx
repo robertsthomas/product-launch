@@ -728,35 +728,30 @@ function DashboardTour({
     target: string;
     title: string;
     description: string;
-    icon: string;
     position: "top" | "bottom" | "left" | "right";
   }> = [
     {
       target: "data-tour-products-table",
       title: "Your Product Catalog",
       description: "This is your product dashboard. Each row shows a product's launch readiness with status badges and completion scores.",
-      icon: "📦",
       position: "bottom",
     },
     {
       target: "data-tour-expand-row",
       title: "Expand for Details",
       description: "Click the arrow to see detailed analytics, category breakdowns, and quick actions for any product.",
-      icon: "📂",
       position: "right",
     },
     {
       target: "data-tour-status-score",
       title: "Status & Scores",
       description: "Green = Launch Ready. The percentage shows completion. Higher scores mean better optimization.",
-      icon: "📊",
       position: "bottom",
     },
     {
       target: "data-tour-sync-button",
       title: "Keep Data Fresh",
       description: "Click Sync to scan all products and update scores. Stays current with your Shopify changes.",
-      icon: "🔄",
       position: "bottom",
     },
   ];
@@ -856,35 +851,17 @@ function DashboardTour({
           }}
         >
           {/* Header */}
-          <div style={{ padding: "16px 16px 12px", background: "#fafbfc", borderBottom: "1px solid #e4e4e7" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-              <div style={{ 
-                width: "36px", 
-                height: "36px", 
-                borderRadius: "8px", 
-                background: "#fff", 
-                border: "1px solid #e4e4e7",
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                fontSize: "20px",
-                flexShrink: 0,
-              }}>
-                {currentStep.icon}
-              </div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ 
-                  margin: 0, 
-                  fontSize: "15px", 
-                  fontWeight: 600, 
-                  color: "#252F2C",
-                }}>
-                  {currentStep.title}
-                </h3>
-                <div style={{ fontSize: "11px", color: "#8B8B8B", marginTop: "2px" }}>
-                  Step {step + 1} of {steps.length}
-                </div>
-              </div>
+          <div style={{ padding: "16px", background: "#fafbfc", borderBottom: "1px solid #e4e4e7" }}>
+            <h3 style={{ 
+              margin: "0 0 4px", 
+              fontSize: "15px", 
+              fontWeight: 600, 
+              color: "#252F2C",
+            }}>
+              {currentStep.title}
+            </h3>
+            <div style={{ fontSize: "11px", color: "#8B8B8B" }}>
+              Step {step + 1} of {steps.length}
             </div>
           </div>
 
