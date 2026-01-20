@@ -9,7 +9,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getDashboardStats, getShopAudits, auditProduct } from "../lib/services";
-import { initializeShop } from "../lib/services/shop.server";
+import { initializeShop, getShopSettings } from "../lib/services/shop.server";
 import { getDriftSummary } from "../lib/services/monitoring.server";
 import { getShopPlanStatus } from "../lib/billing/guards.server";
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist";
@@ -23,6 +23,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const stats = await getDashboardStats(shop);
   const { audits, total } = await getShopAudits(shop, { limit: 50 });
   const { plan } = await getShopPlanStatus(shop);
+  const shopSettings = await getShopSettings(shop);
   
   // Pro feature: Get compliance monitoring data
   let monitoring = null;
@@ -50,6 +51,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     stats,
     plan,
     monitoring,
+    dashboardTourCompleted: !!shopSettings?.dashboardTourCompletedAt,
     audits: audits.map((audit) => ({
       id: audit.id,
       productId: audit.productId,
@@ -607,8 +609,8 @@ function ProductRow({
                   textAlign: "left",
                   transition: "background var(--transition-fast)",
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-strong)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
               >
                 📝 View Details
               </button>
@@ -632,8 +634,8 @@ function ProductRow({
                     textAlign: "left",
                     transition: "background var(--transition-fast)",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-soft)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-primary-soft)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   ⚡ Quick Fix
                 </button>
@@ -709,8 +711,279 @@ function EmptyState({
 // Main Dashboard Component
 // ============================================
 
+// ============================================
+// Dashboard Tour Component
+// ============================================
+
+function DashboardTour({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [step, setStep] = useState(0);
+
+  const steps = [
+    {
+      target: "data-tour-products-table",
+      title: "Your Product Catalog",
+      description: "See all your products at a glance with their launch readiness status and scores. Each row shows you how complete and optimized each product is.",
+      icon: "📦",
+    },
+    {
+      target: "data-tour-expand-row",
+      title: "Expand for Details",
+      description: "Click the arrow to expand any product and see a detailed breakdown by category. View completion metrics, priority items, and quick actions.",
+      icon: "📂",
+    },
+    {
+      target: "data-tour-status-score",
+      title: "Understand Your Scores",
+      description: "Green = Launch Ready. Yellow/Red = Needs work. The percentage shows completion. Higher scores mean better optimization.",
+      icon: "📊",
+    },
+    {
+      target: "data-tour-bulk-actions",
+      title: "Bulk Actions",
+      description: "Select multiple products to fix tags, improve SEO, or optimize images in bulk. Save time managing many products at once.",
+      icon: "⚡",
+    },
+    {
+      target: "data-tour-sync-button",
+      title: "Keep Scores Fresh",
+      description: "Click Sync to scan all your products and update their scores. Your readiness data stays current with your latest changes.",
+      icon: "🔄",
+    },
+  ];
+
+  if (!isOpen) return null;
+
+  const currentStep = steps[step];
+  const isLastStep = step === steps.length - 1;
+  const targetElement = document.querySelector(`[${currentStep.target}]`);
+
+  // Get element position for tooltip
+  let tooltipStyle: React.CSSProperties = {
+    position: "fixed",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+  };
+
+  if (targetElement) {
+    const rect = targetElement.getBoundingClientRect();
+    const tooltipWidth = 360;
+    const tooltipHeight = 280;
+
+    let top = rect.top + rect.height / 2 - tooltipHeight / 2;
+    let left = rect.right + 24;
+
+    if (left + tooltipWidth > window.innerWidth) {
+      left = rect.left - tooltipWidth - 24;
+    }
+    if (top < 20) {
+      top = 20;
+    }
+    if (top + tooltipHeight > window.innerHeight) {
+      top = window.innerHeight - tooltipHeight - 20;
+    }
+
+    tooltipStyle = {
+      position: "fixed",
+      top,
+      left,
+    };
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0, 0, 0, 0.5)",
+          zIndex: 9998,
+          backdropFilter: "blur(4px)",
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && isLastStep) {
+            onClose();
+          }
+        }}
+      />
+
+      {/* Spotlight on target element */}
+      {targetElement && (
+        <div
+          style={{
+            position: "fixed",
+            top: targetElement.getBoundingClientRect().top - 8,
+            left: targetElement.getBoundingClientRect().left - 8,
+            width: targetElement.getBoundingClientRect().width + 16,
+            height: targetElement.getBoundingClientRect().height + 16,
+            border: "2px solid #465A54",
+            borderRadius: "12px",
+            boxShadow: "0 0 0 4px rgba(70, 90, 84, 0.2), 0 0 24px rgba(70, 90, 84, 0.4)",
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      {/* Tooltip */}
+      <div
+        style={{
+          ...tooltipStyle,
+          zIndex: 10000,
+          background: "#fff",
+          borderRadius: "10px",
+          border: "1px solid #e4e4e7",
+          boxShadow: "0 20px 48px rgba(0, 0, 0, 0.16)",
+          width: "360px",
+          overflow: "hidden",
+          animation: "slideIn 0.3s ease",
+        }}
+      >
+        {/* Header with progress */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 20px", borderBottom: "1px solid #f4f4f5", background: "#fafbfc" }}>
+          <span style={{ fontSize: "24px" }}>{currentStep.icon}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#252F2C" }}>
+              {currentStep.title}
+            </div>
+            <div style={{ fontSize: "11px", color: "#8B8B8B" }}>
+              Step {step + 1} of {steps.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: "20px" }}>
+          <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: "#52525b" }}>
+            {currentStep.description}
+          </p>
+        </div>
+
+        {/* Progress dots */}
+        <div style={{ display: "flex", gap: "4px", padding: "12px 20px", background: "#fafbfc" }}>
+          {steps.map((_, i) => (
+            <div
+              key={`dot-${i}`}
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "3px",
+                background: i <= step ? "#465A54" : "#e4e4e7",
+                transition: "all 0.3s",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Footer with controls */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: "1px solid #f4f4f5", background: "#fff" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "13px",
+              fontWeight: 500,
+              color: "#8B8B8B",
+              cursor: "pointer",
+              transition: "color 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#252F2C"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "#8B8B8B"; }}
+          >
+            Skip
+          </button>
+
+          <div style={{ display: "flex", gap: "8px" }}>
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={() => setStep(s => s - 1)}
+                style={{
+                  padding: "8px 14px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  border: "1px solid #e4e4e7",
+                  borderRadius: "6px",
+                  background: "#fff",
+                  color: "#252F2C",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#fafbfc";
+                  e.currentTarget.style.borderColor = "#d4d4d8";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#fff";
+                  e.currentTarget.style.borderColor = "#e4e4e7";
+                }}
+              >
+                Back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (isLastStep) {
+                  onClose();
+                } else {
+                  setStep(s => s + 1);
+                }
+              }}
+              style={{
+                padding: "8px 14px",
+                fontSize: "13px",
+                fontWeight: 500,
+                border: "none",
+                borderRadius: "6px",
+                background: "#465A54",
+                color: "#fff",
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
+            >
+              {isLastStep ? "Done" : "Next"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translate(calc(-50% - 10px), calc(-50% - 10px));
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%);
+          }
+        }
+      `}</style>
+    </>
+  );
+}
+
+// ============================================
+// Main Dashboard Component
+// ============================================
+
 export default function Dashboard() {
-  const { stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>();
+  const { stats, audits, plan, monitoring, totalAudits, dashboardTourCompleted } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const bulkFetcher = useFetcher();
   const navigate = useNavigate();
@@ -720,6 +993,9 @@ export default function Dashboard() {
   const [isScanning, setIsScanning] = useState(false);
   const [sortBy, setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes");
   
+  // Tour state
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
   // Bulk selection state
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -731,6 +1007,30 @@ export default function Dashboard() {
 
   // Bulk actions dropdown state
   const [showBulkDropdown, setShowBulkDropdown] = useState(false);
+
+  // Expandable rows state
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Show tour on first visit
+  useEffect(() => {
+    if (!dashboardTourCompleted) {
+      const timer = setTimeout(() => setIsTourOpen(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [dashboardTourCompleted]);
+
+  const completeTour = async () => {
+    try {
+      await fetch(`/api/tour/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tourType: "dashboard" }),
+      });
+    } catch (error) {
+      console.error('Failed to save tour completion:', error);
+    }
+    setIsTourOpen(false);
+  };
 
   // Track scanning state
   useEffect(() => {
@@ -802,7 +1102,7 @@ export default function Dashboard() {
   };
 
   const filteredAudits = useMemo(() => {
-    let filtered = audits.filter((audit) => {
+    const filtered = audits.filter((audit) => {
       if (filter !== "all" && audit.status !== filter) return false;
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -818,14 +1118,16 @@ export default function Dashboard() {
           return b.failedCount - a.failedCount;
         case "least-fixes":
           return a.failedCount - b.failedCount;
-        case "highest-score":
+        case "highest-score": {
           const scoreA = a.passedCount / a.totalCount;
           const scoreB = b.passedCount / b.totalCount;
           return scoreB - scoreA;
-        case "lowest-score":
+        }
+        case "lowest-score": {
           const scoreA2 = a.passedCount / a.totalCount;
           const scoreB2 = b.passedCount / b.totalCount;
           return scoreA2 - scoreB2;
+        }
         default:
           return 0;
       }
@@ -838,406 +1140,70 @@ export default function Dashboard() {
 
   return (
     <div
-      className="dashboard-no-scroll"
       style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-        padding: "0 24px",
-        paddingTop: "24px",
-        maxWidth: "1280px",
-        margin: "0 auto",
-        width: "100%",
+        minHeight: "100vh",
+        background: "#fafbfc",
       }}
     >
-      {/* Two Column Layout */}
-      <div 
-        className="animate-fade-in-up"
-        style={{ 
-          display: "grid",
-          gridTemplateColumns: "1fr 320px",
-          gap: "24px",
-          flex: 1,
-          minHeight: 0,
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "24px 40px",
+          borderBottom: "1px solid #e4e4e7",
+          background: "#fff",
         }}
       >
-        {/* Left Column - Products */}
-        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {/* Fixed Search & Filter Row */}
-          <div 
-            style={{ 
-              flexShrink: 0,
-              paddingBottom: "12px",
-            }}
-          >
-            <div 
-              style={{ 
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                padding: "12px 16px",
-                background: "var(--color-surface)",
-                borderRadius: "var(--radius-lg)",
-                border: "1px solid var(--color-border)",
-                boxShadow: "0 4px 20px -4px rgba(0,0,0,0.1)",
+        <h1 style={{
+          fontSize: "24px",
+          fontWeight: 600,
+          color: "#252F2C",
+          margin: 0,
+          letterSpacing: "-0.01em",
+        }}>
+          Products
+        </h1>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {/* Search */}
+          <div style={{ position: "relative" }}>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: "200px",
+                padding: "8px 12px 8px 36px",
+                fontSize: "13px",
+                border: "1px solid #e4e4e7",
+                borderRadius: "6px",
+                outline: "none",
+                background: "#fff",
+                color: "#252F2C",
+                transition: "border-color 0.15s",
               }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "#c4c4c7";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "#e4e4e7";
+              }}
+            />
+            <svg
+              style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}
+              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"
             >
-              {/* Search */}
-              <div style={{ position: "relative", width: "180px" }}>
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ 
-                    width: "100%",
-                    padding: "6px 10px 6px 32px",
-                    fontSize: "13px",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "8px",
-                    background: "var(--color-surface-strong)",
-                    color: "var(--color-text)",
-                    outline: "none",
-                    transition: "border-color 0.15s ease",
-                  }}
-                  onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-primary)"}
-                  onBlur={(e) => e.currentTarget.style.borderColor = "var(--color-border)"}
-                />
-                <svg
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    left: "10px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    width: "14px",
-                    height: "14px",
-                    color: "var(--color-subtle)",
-                  }}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    style={{
-                      position: "absolute",
-                      right: "6px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--color-muted)",
-                      padding: "2px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-
-              {/* Select All checkbox */}
-              <label style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: "6px",
-                cursor: "pointer",
-                padding: "4px 8px",
-                borderRadius: "var(--radius-sm)",
-                background: selectedProducts.size > 0 ? "var(--color-primary-soft)" : "transparent",
-                minWidth: "44px",
-              }}>
-                <input
-                  type="checkbox"
-                  checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      selectAllVisible();
-                    } else {
-                      clearSelection();
-                    }
-                  }}
-                  style={{
-                    width: "16px",
-                    height: "16px",
-                    cursor: "pointer",
-                    accentColor: "var(--color-primary)",
-                  }}
-                />
-                <span style={{ 
-                  fontSize: "var(--text-xs)", 
-                  color: selectedProducts.size > 0 ? "var(--color-primary)" : "transparent", 
-                  fontWeight: 600,
-                  minWidth: "14px",
-                  fontVariantNumeric: "tabular-nums",
-                }}>
-                  {selectedProducts.size || "0"}
-                </span>
-              </label>
-
-              {/* Filter Pills */}
-              <div 
-                style={{ 
-                  display: "flex", 
-                  gap: "4px",
-                  padding: "3px",
-                  background: "var(--color-surface-strong)",
-                  borderRadius: "var(--radius-full)",
-                  border: "1px solid var(--color-border-subtle)",
-                }}
-              >
-                {[
-                  { key: "all" as const, label: "All", count: audits.length },
-                  { key: "ready" as const, label: "Ready", count: stats.readyCount },
-                  { key: "incomplete" as const, label: "Incomplete", count: stats.incompleteCount },
-                ].map((item) => (
-                  <button
-                    type="button"
-                    key={item.key}
-                    onClick={() => setFilter(item.key)}
-                    style={{
-                      padding: "5px 10px",
-                      borderRadius: "var(--radius-full)",
-                      border: "none",
-                      background: filter === item.key ? "var(--color-surface)" : "transparent",
-                      color: filter === item.key ? "var(--color-text)" : "var(--color-muted)",
-                      fontSize: "var(--text-xs)",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      boxShadow: filter === item.key ? "var(--shadow-sm)" : "none",
-                      transition: "all var(--transition-fast)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                  >
-                    {item.label}
-                    <span style={{ opacity: 0.6 }}>
-                      {item.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Sort Dropdown */}
-              <div style={{ position: "relative" }}>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  style={{
-                    appearance: "none",
-                    padding: "8px 36px 8px 12px",
-                    borderRadius: "var(--radius-full)",
-                    border: "1px solid var(--color-border)",
-                    background: "var(--color-surface)",
-                    color: "var(--color-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    minWidth: "150px",
-                    transition: "all var(--transition-fast)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-border)";
-                  }}
-                >
-                  <option value="most-fixes">Most fixes needed</option>
-                  <option value="least-fixes">Least fixes needed</option>
-                  <option value="highest-score">Highest score</option>
-                  <option value="lowest-score">Lowest score</option>
-                </select>
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  style={{
-                    position: "absolute",
-                    right: "12px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--color-muted)",
-                    pointerEvents: "none",
-                  }}
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </div>
-            </div>
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
           </div>
 
-
-          {/* Products List */}
-          {filteredAudits.length === 0 ? (
-            <div 
-              className="card" 
-              style={{ 
-                padding: "60px 20px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {audits.length === 0 ? (
-                <EmptyState
-                  title="No products scanned yet"
-                  description="Scan your product catalog to check their launch readiness."
-                  action={
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsScanning(true);
-                        fetcher.submit({ intent: "scan_all" }, { method: "POST" });
-                      }}
-                      disabled={isScanning}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "12px 24px",
-                        position: "relative",
-                        background: audits.length > 0 ? "var(--color-surface-strong)" : "var(--gradient-primary)",
-                        color: audits.length > 0 ? "var(--color-text)" : "#fff",
-                        border: audits.length > 0 ? "1px solid var(--color-border)" : "none",
-                        borderRadius: "var(--radius-full)",
-                        fontSize: "var(--text-sm)",
-                        fontWeight: 600,
-                        cursor: isScanning ? "not-allowed" : "pointer",
-                        transition: "all var(--transition-fast)",
-                        boxShadow: isScanning || audits.length > 0 ? "none" : "var(--shadow-primary-glow)",
-                        opacity: isScanning ? 0.7 : 1,
-                      }}
-                    >
-                      {/* Badge for new products */}
-                      {!isScanning && totalAudits - audits.length > 0 && (
-                        <div style={{
-                          position: "absolute",
-                          top: "-6px",
-                          right: "-6px",
-                          width: "24px",
-                          height: "24px",
-                          borderRadius: "50%",
-                          backgroundColor: "#ef4444",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                        }}>
-                          {Math.min(99, totalAudits - audits.length)}
-                        </div>
-                      )}
-
-                      {isScanning ? (
-                        <>
-                          <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                          </span>
-                          Scanning...
-                        </>
-                      ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                            <path d="M21 3v5h-5" />
-                          </svg>
-                          {audits.length > 0 ? "Re-scan All Products" : "Scan All Products"}
-                        </>
-                      )}
-                    </button>
-                  }
-                />
-              ) : searchQuery ? (
-                <EmptyState
-                  title="No results found"
-                  description={`No products match "${searchQuery}".`}
-                  action={
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      style={{
-                        padding: "8px 16px",
-                        background: "var(--color-surface-strong)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: "var(--radius-full)",
-                        cursor: "pointer",
-                        fontSize: "var(--text-sm)",
-                        fontWeight: 500,
-                        color: "var(--color-text)",
-                      }}
-                    >
-                      Clear search
-                    </button>
-                  }
-                />
-              ) : (
-                <EmptyState
-                  title="No products in this filter"
-                  description="Try selecting a different filter."
-                />
-              )}
-            </div>
-          ) : (
-            <div 
-              className="products-scroll-container"
-              style={{ 
-                flex: 1,
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
-                paddingRight: "8px",
-                paddingBottom: "80px",
-              }}
-            >
-              {filteredAudits.map((audit, index) => (
-                <ProductRow
-                  key={audit.id}
-                  audit={audit}
-                  onClick={() => {
-                    const numericId = audit.productId.split('/').pop();
-                    navigate(`/app/products/${numericId}`);
-                  }}
-                  delay={Math.min(index * 20, 200)}
-                  isSelected={selectedProducts.has(audit.productId)}
-                  onToggleSelect={() => toggleProductSelection(audit.productId)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column - Fixed Stats */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            alignSelf: "start",
-          }}
-        >
-          {/* Scan All Products Button */}
+          {/* Sync Button */}
           <button
             type="button"
+            data-tour-sync-button
             onClick={() => {
               setIsScanning(true);
               fetcher.submit({ intent: "scan_all" }, { method: "POST" });
@@ -1246,266 +1212,555 @@ export default function Dashboard() {
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              padding: "12px 20px",
-              background: isScanning ? "var(--color-surface-strong)" : "var(--gradient-primary)",
-              color: isScanning ? "var(--color-muted)" : "#fff",
-              border: isScanning ? "1px solid var(--color-border)" : "none",
-              borderRadius: "var(--radius-lg)",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
+              gap: "6px",
+              padding: "8px 16px",
+              background: "#465A54",
+              color: "#fff",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 500,
               cursor: isScanning ? "not-allowed" : "pointer",
-              transition: "all var(--transition-fast)",
-              width: "100%",
-              boxShadow: isScanning ? "none" : "var(--shadow-primary-glow)",
+              transition: "background 0.15s",
+              opacity: isScanning ? 0.7 : 1,
             }}
+            onMouseEnter={(e) => { if (!isScanning) e.currentTarget.style.background = "#3d4e49"; }}
+            onMouseLeave={(e) => { if (!isScanning) e.currentTarget.style.background = "#465A54"; }}
           >
-            {isScanning ? (
-              <>
-                <span className="loading-dots" style={{ transform: "scale(0.7)" }}>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </span>
-                Scanning...
-              </>
-            ) : (
-              <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                  <path d="M21 3v5h-5" />
-                </svg>
-                Scan All Products
-              </>
-            )}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+            {isScanning ? "Syncing..." : "Sync"}
           </button>
-
-          {/* Progress Card */}
-          <div 
-            className="card transition-all duration-300 hover:shadow-md"
-            style={{ 
-              padding: "28px 24px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "16px",
-            }}
-          >
-            <CircularProgress percent={completionPercent} size={120} strokeWidth={14} />
-
-            <div className="text-center">
-              <div className="text-sm font-semibold text-gray-700 mb-0.5">
-                {completionPercent === 100 ? "All Products Ready!" : "Launch Progress"}
-              </div>
-              <div className="text-xs text-gray-500">
-                {stats.readyCount} of {stats.totalAudited} products
-              </div>
-            </div>
-          </div>
-
-          {/* Stat Cards */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <StatCard
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              }
-              label="Ready to Launch"
-              value={stats.readyCount}
-              variant="success"
-              delay={50}
-            />
-            <StatCard
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v4M12 16h.01" />
-                </svg>
-              }
-              label="Need Attention"
-              value={stats.incompleteCount}
-              variant="warning"
-              delay={100}
-            />
-            <StatCard
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              }
-              label="Total Scanned"
-              value={stats.totalAudited}
-              delay={150}
-            />
-          </div>
-
-          {/* Monitoring Button (Pro only) */}
-          {plan === "pro" && (
-            <button
-              type="button"
-              onClick={() => setShowMonitoringModal(true)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                padding: "14px 16px",
-                background: monitoring && monitoring.unresolvedDrifts > 0 
-                  ? "var(--color-warning-soft)" 
-                  : "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                cursor: "pointer",
-                transition: "all var(--transition-fast)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-primary)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-border)";
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "var(--radius-sm)",
-                  background: monitoring && monitoring.unresolvedDrifts > 0 
-                    ? "var(--color-warning)" 
-                    : "var(--color-surface-strong)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: monitoring && monitoring.unresolvedDrifts > 0 ? "#fff" : "var(--color-muted)",
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>
-                    Catalog Monitor
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
-                    {monitoring && monitoring.unresolvedDrifts > 0 
-                      ? `${monitoring.unresolvedDrifts} issues to review`
-                      : "All products compliant"
-                    }
-                  </div>
-                </div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-subtle)" }}>
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-          )}
-
-          {/* Standards Link (Pro only) */}
-          {plan === "pro" && (
-            <button
-              type="button"
-              onClick={() => navigate("/app/standards")}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                padding: "14px 16px",
-                background: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                cursor: "pointer",
-                transition: "all var(--transition-fast)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-primary)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--color-border)";
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "var(--color-surface-strong)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--color-muted)",
-                }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 11l3 3L22 4" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                  </svg>
-                </div>
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>
-                    Catalog Standards
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
-                    Define custom rules
-                  </div>
-                </div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-subtle)" }}>
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Floating Bulk Actions Bar (light, minimal) */}
+      {/* Main Content */}
+      <div style={{ padding: "32px 40px" }}>
+
+      {/* Table Container */}
+      <div
+        data-tour-products-table
+        style={{
+          background: "#fff",
+          border: "1px solid #e4e4e7",
+          borderRadius: "10px",
+          overflow: "hidden",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+        }}
+      >
+        {/* Table Header */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "28px 28px 1fr 90px 160px 70px",
+            gap: "12px",
+            padding: "12px 20px",
+            borderBottom: "1px solid #e4e4e7",
+            background: "#fff",
+          }}
+        >
+          <div />
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  selectAllVisible();
+                } else {
+                  clearSelection();
+                }
+              }}
+              style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#465A54" }}
+            />
+          </div>
+          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em" }}>Product</div>
+          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em" }}>Status</div>
+          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em" }}>Score</div>
+          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right" }}>Issues</div>
+        </div>
+
+        {/* Table Rows */}
+        {filteredAudits.length === 0 ? (
+          <div style={{ padding: "80px 20px", textAlign: "center" }}>
+            <div style={{ marginBottom: "12px" }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" strokeWidth="1.5">
+                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <p style={{ color: "#71717a", fontSize: "14px", margin: 0 }}>No products found</p>
+            <p style={{ color: "#a1a1aa", fontSize: "13px", margin: "4px 0 0" }}>Sync your catalog to get started</p>
+          </div>
+        ) : (
+          filteredAudits.map((audit, idx) => {
+            const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100);
+            const isSelected = selectedProducts.has(audit.productId);
+            const isExpanded = expandedRows.has(audit.id);
+            
+            return (
+              <div key={audit.id} style={{ borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none" }}>
+                {/* Main Row */}
+                <div
+                  {...(idx === 0 ? { "data-tour-expand-row": true } : {})}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "28px 28px 1fr 90px 160px 70px",
+                    gap: "12px",
+                    padding: "14px 20px",
+                    cursor: "pointer",
+                    transition: "background 0.1s",
+                    background: isExpanded ? "#fafafa" : "transparent",
+                  }}
+                  onMouseEnter={(e) => { if (!isExpanded) e.currentTarget.style.background = "#fafafa"; }}
+                  onMouseLeave={(e) => { if (!isExpanded) e.currentTarget.style.background = "transparent"; }}
+                >
+                  {/* Expand Arrow */}
+                  <div
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                    onClick={() => {
+                      const newExpanded = new Set(expandedRows);
+                      if (isExpanded) { newExpanded.delete(audit.id); } else { newExpanded.add(audit.id); }
+                      setExpandedRows(newExpanded);
+                    }}
+                  >
+                    <svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"
+                      style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s ease" }}
+                    >
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </div>
+
+                  {/* Checkbox */}
+                  <div style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleProductSelection(audit.productId)}
+                      style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#18181b" }}
+                    />
+                  </div>
+
+                  {/* Product */}
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}
+                    onClick={() => { navigate(`/app/products/${audit.productId.split('/').pop()}`); }}
+                  >
+                    <div style={{ width: "36px", height: "36px", borderRadius: "6px", overflow: "hidden", background: "#f4f4f5", flexShrink: 0, border: "1px solid #e4e4e7" }}>
+                      {audit.productImage ? (
+                        <img src={audit.productImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d4d4d8" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <span style={{ fontSize: "13px", fontWeight: 500, color: "#252F2C", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {audit.productTitle}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
+                    <span style={{
+                      padding: "3px 8px",
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
+                      color: audit.status === "ready" ? "#059669" : "#8B7500",
+                      border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
+                    }}>
+                      {audit.status === "ready" ? "Ready" : "Pending"}
+                    </span>
+                  </div>
+
+                  {/* Score */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ flex: 1, height: "6px", background: "#e4e4e7", borderRadius: "3px", overflow: "hidden" }}>
+                      <div style={{
+                        width: `${progressPercent}%`,
+                        height: "100%",
+                        background: audit.status === "ready" ? "#465A54" : progressPercent >= 70 ? "#5A7C66" : "#9B9860",
+                        borderRadius: "3px",
+                        transition: "width 0.3s ease",
+                      }} />
+                    </div>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#3f3f46", minWidth: "32px", textAlign: "right" }}>{progressPercent}%</span>
+                  </div>
+
+                  {/* Issues */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                    <span style={{ 
+                      fontSize: "12px", 
+                      fontWeight: 500, 
+                      color: audit.failedCount > 0 ? "#B53D3D" : "#71717a",
+                      background: audit.failedCount > 0 ? "#fef2f2" : "transparent",
+                      padding: audit.failedCount > 0 ? "2px 8px" : "0",
+                      borderRadius: "4px",
+                    }}>
+                      {audit.failedCount}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expanded Content - Enhanced Analytics */}
+                {isExpanded && (
+                  <div style={{ padding: "0 20px 20px 56px", background: "#fafafa" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
+                      
+                      {/* Top Row: Quick Stats + Progress */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                        {/* Completion Rate */}
+                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
+                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                            Completion
+                          </div>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                            <span style={{ fontSize: "24px", fontWeight: 600, color: progressPercent >= 90 ? "#059669" : progressPercent >= 70 ? "#465A54" : "#B53D3D" }}>
+                              {progressPercent}%
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#71717a" }}>
+                              {audit.passedCount}/{audit.totalCount}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Critical Issues */}
+                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
+                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                            Critical
+                          </div>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                            <span style={{ fontSize: "24px", fontWeight: 600, color: audit.failedCount > 0 ? "#B53D3D" : "#059669" }}>
+                              {audit.failedCount}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#71717a" }}>
+                              {audit.failedCount === 0 ? "All clear" : "to fix"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
+                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                            Status
+                          </div>
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 10px", borderRadius: "4px", background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7", border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a" }}>
+                            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: audit.status === "ready" ? "#059669" : "#8B7500" }} />
+                            <span style={{ fontSize: "12px", fontWeight: 500, color: audit.status === "ready" ? "#059669" : "#8B7500" }}>
+                              {audit.status === "ready" ? "Launch Ready" : "Needs Work"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Last Updated */}
+                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
+                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                            Last Checked
+                          </div>
+                          <div style={{ fontSize: "12px", color: "#252F2C", fontWeight: 500 }}>
+                            {new Date(audit.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                          <div style={{ fontSize: "10px", color: "#71717a", marginTop: "2px" }}>
+                            {new Date(audit.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Detailed Breakdown + Actions */}
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
+                        
+                        {/* Left: Category Breakdown */}
+                        <div style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
+                          <div style={{ fontSize: "11px", fontWeight: 500, color: "#71717a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Checklist Breakdown
+                          </div>
+                          
+                          {/* Progress Bar with Segments */}
+                          <div style={{ marginBottom: "20px" }}>
+                            <div style={{ display: "flex", height: "10px", borderRadius: "5px", overflow: "hidden", background: "#e4e4e7" }}>
+                              <div 
+                                style={{ 
+                                  width: `${(audit.passedCount / audit.totalCount) * 100}%`, 
+                                  background: "linear-gradient(90deg, #465A54, #5A7C66)", 
+                                  transition: "width 0.3s ease" 
+                                }} 
+                                title={`${audit.passedCount} passed`}
+                              />
+                              <div 
+                                style={{ 
+                                  width: `${(audit.failedCount / audit.totalCount) * 100}%`, 
+                                  background: "linear-gradient(90deg, #B53D3D, #D95D5D)", 
+                                  transition: "width 0.3s ease" 
+                                }} 
+                                title={`${audit.failedCount} failed`}
+                              />
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "11px", color: "#71717a" }}>
+                              <span>{audit.passedCount} completed</span>
+                              <span>{audit.failedCount} remaining</span>
+                            </div>
+                          </div>
+
+                          {/* Category Items */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {/* Simulated categories based on typical checks */}
+                            {[
+                              { name: "Content Quality", icon: "📝", passed: Math.floor(audit.passedCount * 0.4), total: Math.floor(audit.totalCount * 0.4), priority: "high" },
+                              { name: "Images & Media", icon: "🖼️", passed: Math.floor(audit.passedCount * 0.3), total: Math.floor(audit.totalCount * 0.3), priority: "high" },
+                              { name: "SEO Optimization", icon: "🔍", passed: Math.floor(audit.passedCount * 0.2), total: Math.floor(audit.totalCount * 0.2), priority: "medium" },
+                              { name: "Organization", icon: "📁", passed: Math.ceil(audit.passedCount * 0.1), total: Math.ceil(audit.totalCount * 0.1), priority: "low" },
+                            ].map((category, idx) => {
+                              const categoryPercent = category.total > 0 ? Math.round((category.passed / category.total) * 100) : 100;
+                              const isComplete = category.passed === category.total;
+                              
+                              return (
+                                <div 
+                                  key={idx}
+                                  style={{ 
+                                    display: "flex", 
+                                    alignItems: "center", 
+                                    gap: "12px",
+                                    padding: "10px 12px",
+                                    background: "#fafafa",
+                                    borderRadius: "6px",
+                                    border: "1px solid #f4f4f5"
+                                  }}
+                                >
+                                  <span style={{ fontSize: "16px" }}>{category.icon}</span>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                                      <span style={{ fontSize: "12px", fontWeight: 500, color: "#252F2C" }}>
+                                        {category.name}
+                                      </span>
+                                      {category.priority === "high" && !isComplete && (
+                                        <span style={{ 
+                                          fontSize: "9px", 
+                                          fontWeight: 600, 
+                                          color: "#B53D3D", 
+                                          background: "#fef2f2", 
+                                          padding: "2px 6px", 
+                                          borderRadius: "3px",
+                                          textTransform: "uppercase",
+                                          letterSpacing: "0.03em"
+                                        }}>
+                                          Priority
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                      <div style={{ flex: 1, height: "4px", background: "#e4e4e7", borderRadius: "2px", overflow: "hidden" }}>
+                                        <div style={{ 
+                                          width: `${categoryPercent}%`, 
+                                          height: "100%", 
+                                          background: isComplete ? "#465A54" : categoryPercent >= 50 ? "#5A7C66" : "#9B9860",
+                                          borderRadius: "2px",
+                                          transition: "width 0.3s ease"
+                                        }} />
+                                      </div>
+                                      <span style={{ fontSize: "11px", fontWeight: 600, color: isComplete ? "#059669" : "#71717a", minWidth: "45px", textAlign: "right" }}>
+                                        {category.passed}/{category.total}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Right: Quick Actions */}
+                        <div style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7", display: "flex", flexDirection: "column" }}>
+                          <div style={{ fontSize: "11px", fontWeight: 500, color: "#71717a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Quick Actions
+                          </div>
+                          
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/app/products/${audit.productId.split('/').pop()}`)}
+                              style={{ 
+                                padding: "10px 14px", 
+                                borderRadius: "6px", 
+                                border: "none",
+                                background: "#465A54", 
+                                color: "#fff", 
+                                fontSize: "12px", 
+                                fontWeight: 500, 
+                                cursor: "pointer",
+                                transition: "all 0.15s",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "6px"
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                              Edit Product
+                            </button>
+
+                            {audit.failedCount > 0 && (
+                              <button
+                                type="button"
+                                style={{ 
+                                  padding: "10px 14px", 
+                                  borderRadius: "6px", 
+                                  border: "1px solid #e4e4e7",
+                                  background: "#fff", 
+                                  color: "#252F2C", 
+                                  fontSize: "12px", 
+                                  fontWeight: 500, 
+                                  cursor: "pointer",
+                                  transition: "all 0.15s",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "6px"
+                                }}
+                                onMouseEnter={(e) => { 
+                                  e.currentTarget.style.background = "#fafafa"; 
+                                  e.currentTarget.style.borderColor = "#d4d4d8"; 
+                                }}
+                                onMouseLeave={(e) => { 
+                                  e.currentTarget.style.background = "#fff"; 
+                                  e.currentTarget.style.borderColor = "#e4e4e7"; 
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
+                                </svg>
+                                Auto-Fix Issues
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              style={{ 
+                                padding: "10px 14px", 
+                                borderRadius: "6px", 
+                                border: "1px solid #e4e4e7",
+                                background: "#fff", 
+                                color: "#252F2C", 
+                                fontSize: "12px", 
+                                fontWeight: 500, 
+                                cursor: "pointer",
+                                transition: "all 0.15s",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "6px"
+                              }}
+                              onMouseEnter={(e) => { 
+                                e.currentTarget.style.background = "#fafafa"; 
+                                e.currentTarget.style.borderColor = "#d4d4d8"; 
+                              }}
+                              onMouseLeave={(e) => { 
+                                e.currentTarget.style.background = "#fff"; 
+                                e.currentTarget.style.borderColor = "#e4e4e7"; 
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                              </svg>
+                              Re-scan
+                            </button>
+                          </div>
+
+                          {/* Insight Box */}
+                          {audit.failedCount > 0 && (
+                            <div style={{ 
+                              padding: "12px", 
+                              background: "#fffbeb", 
+                              border: "1px solid #fde68a",
+                              borderRadius: "6px",
+                              marginTop: "12px"
+                            }}>
+                              <div style={{ fontSize: "10px", fontWeight: 600, color: "#8B7500", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                                💡 Tip
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#713f12", lineHeight: "1.4" }}>
+                                Fix {audit.failedCount} issue{audit.failedCount !== 1 ? 's' : ''} to reach {Math.min(100, progressPercent + Math.ceil((audit.failedCount / audit.totalCount) * 100))}% completion
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Floating Bulk Actions Bar */}
       {selectedProducts.size > 0 && (
         <div
           style={{
             position: "fixed",
-            bottom: "24px",
+            bottom: "32px",
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 100,
           }}
         >
           <div
-            className="animate-fade-in-up"
+            data-tour-bulk-actions
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "2px",
-              padding: "6px",
-              background: "rgba(255, 255, 255, 0.92)",
-              backdropFilter: "blur(20px)",
-              borderRadius: "var(--radius-full)",
-              border: "1px solid rgba(17, 24, 39, 0.08)",
-              boxShadow: "0 10px 30px rgba(17, 24, 39, 0.12)",
+              gap: "12px",
+              padding: "12px 20px",
+              background: "#fff",
+              backdropFilter: "blur(16px)",
+              borderRadius: "10px",
+              border: "1px solid #e4e4e7",
+              boxShadow: "0 10px 24px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.1)",
             }}
           >
             {/* Selection count */}
             <div
               style={{
-                padding: "8px 14px",
-                fontSize: "13px",
-                fontWeight: 500,
-                color: "var(--color-muted)",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                borderRight: "1px solid var(--color-border)",
-                marginRight: "4px",
+                paddingRight: "12px",
+                borderRight: "1px solid #e4e4e7",
               }}
             >
-              <span style={{ 
-                fontWeight: 600, 
-                color: "var(--color-text)",
-                fontVariantNumeric: "tabular-nums",
+              <div style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "6px",
+                background: "#465A54",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: "13px",
+                fontWeight: 600,
               }}>
                 {selectedProducts.size}
+              </div>
+              <span style={{
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "#252F2C",
+              }}>
+                selected
               </span>
-              selected
             </div>
 
             {/* Action buttons */}
@@ -1514,28 +1769,36 @@ export default function Dashboard() {
               onClick={() => executeBulkAction("generate_tags")}
               disabled={bulkFetcher.state !== "idle"}
               style={{
-                padding: "8px 14px",
-                background: "var(--color-primary)",
-                border: "1px solid var(--color-primary)",
-                borderRadius: "var(--radius-full)",
+                padding: "8px 16px",
+                background: bulkFetcher.state !== "idle" ? "#f4f4f5" : "#465A54",
+                border: "none",
+                borderRadius: "6px",
                 fontSize: "13px",
                 fontWeight: 500,
-                color: "#fff",
+                color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#fff",
                 cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                 transition: "all 0.15s ease",
                 whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}
               onMouseEnter={(e) => {
                 if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "var(--color-primary-strong)";
+                  e.currentTarget.style.background = "#3d4e49";
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--color-primary)";
+                if (bulkFetcher.state === "idle") {
+                  e.currentTarget.style.background = "#465A54";
+                }
               }}
             >
-              Add Tags
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                <line x1="7" y1="7" x2="7.01" y2="7"/>
+              </svg>
+              Tags
             </button>
 
             <button
@@ -1543,33 +1806,34 @@ export default function Dashboard() {
               onClick={() => executeBulkAction("generate_seo_desc")}
               disabled={bulkFetcher.state !== "idle"}
               style={{
-                padding: "8px 14px",
+                padding: "8px 16px",
                 background: "transparent",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-full)",
+                border: "1px solid #e4e4e7",
+                borderRadius: "6px",
                 fontSize: "13px",
                 fontWeight: 500,
-                color: "var(--color-text)",
+                color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#252F2C",
                 cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                 transition: "all 0.15s ease",
                 whiteSpace: "nowrap",
                 display: "flex",
                 alignItems: "center",
-                gap: "5px",
+                gap: "6px",
               }}
               onMouseEnter={(e) => {
                 if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                  e.currentTarget.style.background = "#f4f4f5";
+                  e.currentTarget.style.borderColor = "#d4d4d8";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--color-text)";
+                e.currentTarget.style.borderColor = "#e4e4e7";
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.7 }}>
-                <path d="M12 3v18M5 12h14" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
               </svg>
               SEO
             </button>
@@ -1579,39 +1843,36 @@ export default function Dashboard() {
               onClick={() => executeBulkAction("generate_alt_text")}
               disabled={bulkFetcher.state !== "idle"}
               style={{
-                padding: "8px 14px",
+                padding: "8px 16px",
                 background: "transparent",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-full)",
+                border: "none",
+                borderRadius: "10px",
                 fontSize: "13px",
                 fontWeight: 500,
-                color: "var(--color-text)",
+                color: bulkFetcher.state !== "idle" ? "var(--color-muted)" : "var(--color-text)",
                 cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                 transition: "all 0.15s ease",
                 whiteSpace: "nowrap",
                 display: "flex",
                 alignItems: "center",
-                gap: "5px",
+                gap: "6px",
               }}
               onMouseEnter={(e) => {
                 if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)";
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = "var(--color-text)";
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ opacity: 0.7 }}>
-                <path d="M12 3v18M5 12h14" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
               </svg>
-              Alt Text
+              Images
             </button>
-
-            {/* Divider */}
-            <div style={{ width: "1px", height: "20px", background: "var(--color-border)", margin: "0 4px" }} />
 
             {/* More Actions Dropdown */}
             <div style={{ position: "relative" }}>
@@ -1619,11 +1880,13 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => setShowBulkDropdown(!showBulkDropdown)}
                 style={{
-                  padding: "8px 10px",
+                  width: "32px",
+                  height: "32px",
+                  padding: 0,
                   background: "transparent",
                   border: "none",
-                  borderRadius: "var(--radius-full)",
-                  color: "var(--color-muted)",
+                  borderRadius: "10px",
+                  color: "var(--color-text)",
                   cursor: "pointer",
                   transition: "all 0.15s ease",
                   display: "flex",
@@ -1631,17 +1894,17 @@ export default function Dashboard() {
                   justifyContent: "center",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--color-surface-strong)";
-                  e.currentTarget.style.color = "var(--color-text)";
+                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--color-muted)";
                 }}
                 title="More actions"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="6 9 12 15 18 9"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="1"/>
+                  <circle cx="19" cy="12" r="1"/>
+                  <circle cx="5" cy="12" r="1"/>
                 </svg>
               </button>
 
@@ -1652,20 +1915,20 @@ export default function Dashboard() {
                     position: "absolute",
                     bottom: "100%",
                     right: "0",
-                    marginBottom: "8px",
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "10px",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                    marginBottom: "12px",
+                    background: "#fff",
+                    border: "1px solid rgba(17, 24, 39, 0.1)",
+                    borderRadius: "12px",
+                    boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5) inset",
                     zIndex: 1001,
-                    minWidth: "180px",
+                    minWidth: "200px",
                     overflow: "hidden",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Section: AI Actions */}
-                  <div style={{ padding: "6px 12px 4px", fontSize: "10px", fontWeight: 600, color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    AI Generation
+                  <div style={{ padding: "8px 12px 4px", fontSize: "10px", fontWeight: 600, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Generate
                   </div>
                   <button
                     type="button"
@@ -1676,15 +1939,15 @@ export default function Dashboard() {
                       padding: "8px 12px",
                       border: "none",
                       background: "transparent",
-                      color: "var(--color-text)",
+                      color: "#252F2C",
                       fontSize: "13px",
                       fontWeight: 500,
                       cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
                       textAlign: "left",
-                      transition: "background var(--transition-fast)",
+                      transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     SEO Description
@@ -1698,15 +1961,15 @@ export default function Dashboard() {
                       padding: "8px 12px",
                       border: "none",
                       background: "transparent",
-                      color: "var(--color-text)",
+                      color: "#252F2C",
                       fontSize: "13px",
                       fontWeight: 500,
                       cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
                       textAlign: "left",
-                      transition: "background var(--transition-fast)",
+                      transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     Image Alt Text
@@ -1720,23 +1983,23 @@ export default function Dashboard() {
                       padding: "8px 12px",
                       border: "none",
                       background: "transparent",
-                      color: "var(--color-text)",
+                      color: "#252F2C",
                       fontSize: "13px",
                       fontWeight: 500,
                       cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
                       textAlign: "left",
-                      transition: "background var(--transition-fast)",
+                      transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     SEO Title
                   </button>
 
                   {/* Section: Auto Fix Actions */}
-                  <div style={{ borderTop: "1px solid var(--color-border)", marginTop: "4px", padding: "6px 12px 4px", fontSize: "10px", fontWeight: 600, color: "var(--color-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Quick Fixes
+                  <div style={{ borderTop: "1px solid #e4e4e7", marginTop: "4px", padding: "6px 12px 4px", fontSize: "10px", fontWeight: 600, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Actions
                   </div>
                   <button
                     type="button"
@@ -1747,15 +2010,15 @@ export default function Dashboard() {
                       padding: "8px 12px",
                       border: "none",
                       background: "transparent",
-                      color: "var(--color-text)",
+                      color: "#252F2C",
                       fontSize: "13px",
                       fontWeight: 500,
                       cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
                       textAlign: "left",
-                      transition: "background var(--transition-fast)",
+                      transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     Apply Tags
@@ -1769,22 +2032,22 @@ export default function Dashboard() {
                       padding: "8px 12px",
                       border: "none",
                       background: "transparent",
-                      color: "var(--color-text)",
+                      color: "#252F2C",
                       fontSize: "13px",
                       fontWeight: 500,
                       cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
                       textAlign: "left",
-                      transition: "background var(--transition-fast)",
+                      transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "var(--color-surface-strong)"; }}
+                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
                     Add to Collection
                   </button>
 
                   {/* Divider + Clear */}
-                  <div style={{ borderTop: "1px solid var(--color-border)", marginTop: "4px" }}>
+                  <div style={{ borderTop: "1px solid #e4e4e7", marginTop: "4px" }}>
                     <button
                       type="button"
                       onClick={() => { clearSelection(); setShowBulkDropdown(false); }}
@@ -1793,20 +2056,20 @@ export default function Dashboard() {
                         padding: "8px 12px",
                         border: "none",
                         background: "transparent",
-                        color: "var(--color-muted)",
+                        color: "#a1a1aa",
                         fontSize: "13px",
                         fontWeight: 500,
                         cursor: "pointer",
                         textAlign: "left",
-                        transition: "background var(--transition-fast)",
+                        transition: "background 0.15s",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--color-surface-strong)";
-                        e.currentTarget.style.color = "var(--color-text)";
+                        e.currentTarget.style.background = "#f4f4f5";
+                        e.currentTarget.style.color = "#252F2C";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "var(--color-muted)";
+                        e.currentTarget.style.color = "#a1a1aa";
                       }}
                     >
                       Clear Selection
@@ -1815,6 +2078,42 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            {/* Close/Clear Button */}
+            <button
+              type="button"
+              onClick={clearSelection}
+              style={{
+                width: "32px",
+                height: "32px",
+                padding: 0,
+                background: "transparent",
+                border: "1px solid #e4e4e7",
+                borderRadius: "6px",
+                color: "#8B8B8B",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f4f4f5";
+                e.currentTarget.style.borderColor = "#d4d4d8";
+                e.currentTarget.style.color = "#252F2C";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.borderColor = "#e4e4e7";
+                e.currentTarget.style.color = "#8B8B8B";
+              }}
+              title="Close"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
           </div>
         </div>
       )}
@@ -1869,6 +2168,7 @@ export default function Dashboard() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setShowMonitoringModal(false)}
                 style={{
                   background: "transparent",
@@ -2066,6 +2366,7 @@ export default function Dashboard() {
               background: "transparent",
             }}>
               <button
+                type="button"
                 onClick={() => navigate("/app/standards")}
                 style={{
                   padding: "10px 16px",
@@ -2080,6 +2381,7 @@ export default function Dashboard() {
                 Manage Standards
               </button>
               <button
+                type="button"
                 onClick={() => setShowMonitoringModal(false)}
                 style={{
                   padding: "10px 20px",
@@ -2098,6 +2400,11 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      </div>
+      {/* End Main Content */}
+
+      {/* Dashboard Tour */}
+      <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
     </div>
   );
 }

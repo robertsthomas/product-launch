@@ -1,0 +1,1 @@
+ALTER TABLE `shops` ADD `dashboard_tour_completed_at` integer;

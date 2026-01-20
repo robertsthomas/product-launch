@@ -12,14 +12,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { session } = await authenticate.admin(request);
     const shop = session.shop;
+    const formData = await request.formData();
+    const tourType = formData.get("tourType") as string || "product";
 
-    // Update tour completion timestamp
-    await db
-      .update(shops)
-      .set({
-        tourCompletedAt: new Date(),
-      })
-      .where(eq(shops.shopDomain, shop));
+    // Update appropriate tour completion timestamp based on type
+    if (tourType === "dashboard") {
+      await db
+        .update(shops)
+        .set({
+          dashboardTourCompletedAt: new Date(),
+        })
+        .where(eq(shops.shopDomain, shop));
+    } else {
+      // Default to product tour
+      await db
+        .update(shops)
+        .set({
+          tourCompletedAt: new Date(),
+        })
+        .where(eq(shops.shopDomain, shop));
+    }
 
     return Response.json({ success: true });
   } catch (error) {

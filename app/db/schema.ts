@@ -73,6 +73,7 @@ export const shops = sqliteTable("shops", {
   versionHistoryEnabled: integer("version_history_enabled", { mode: "boolean" }).default(true).notNull(),
   // Tour completion tracking
   tourCompletedAt: integer("tour_completed_at", { mode: "timestamp" }),
+  dashboardTourCompletedAt: integer("dashboard_tour_completed_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()).notNull(),
 });
