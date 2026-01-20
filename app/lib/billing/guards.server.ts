@@ -1,59 +1,55 @@
 /**
  * Plan Guard Utilities
- * 
+ *
  * Utility functions to enforce plan requirements with clear error responses.
  * Use these in loaders/actions before executing paid features.
  */
 
-import { db } from "~/db";
-import { shops } from "~/db/schema";
-import { eq } from "drizzle-orm";
-import { PLANS, PLAN_CONFIG, BILLING_ERRORS, BULK_LIMITS, type PlanType } from "./constants";
-import { isInTrial, checkAICredits } from "./billing.server";
+import { eq } from "drizzle-orm"
+import { db } from "~/db"
+import { shops } from "~/db/schema"
+import { checkAICredits, isInTrial } from "./billing.server"
+import { BILLING_ERRORS, PLANS, PLAN_CONFIG, type PlanType } from "./constants"
 
 interface GuardResult {
-  allowed: boolean;
-  shop: typeof shops.$inferSelect | null;
-  plan: PlanType;
-  inTrial: boolean;
-  isDevStore: boolean;
-  errorCode?: string;
-  message?: string;
+  allowed: boolean
+  shop: typeof shops.$inferSelect | null
+  plan: PlanType
+  inTrial: boolean
+  isDevStore: boolean
+  errorCode?: string
+  message?: string
 }
 
 // Get dev plan override for local testing
 function getDevPlanOverride(): PlanType | null {
-  if (process.env.NODE_ENV === "production") return null;
-  const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim();
-  if (raw === "free" || raw === "pro") return raw as PlanType;
-  return null;
+  if (process.env.NODE_ENV === "production") return null
+  const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim()
+  if (raw === "free" || raw === "pro") return raw as PlanType
+  return null
 }
 
 /**
  * Get current shop plan status
  */
 export async function getShopPlanStatus(shopDomain: string): Promise<{
-  shop: typeof shops.$inferSelect | null;
-  plan: PlanType;
-  inTrial: boolean;
-  isDevStore: boolean;
+  shop: typeof shops.$inferSelect | null
+  plan: PlanType
+  inTrial: boolean
+  isDevStore: boolean
 }> {
-  const [shop] = await db
-    .select()
-    .from(shops)
-    .where(eq(shops.shopDomain, shopDomain))
-    .limit(1);
+  const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
 
   if (!shop) {
-    return { shop: null, plan: PLANS.FREE, inTrial: false, isDevStore: false };
+    return { shop: null, plan: PLANS.FREE, inTrial: false, isDevStore: false }
   }
 
-  const forcedPlan = getDevPlanOverride();
-  const plan = (forcedPlan ?? shop.plan) as PlanType;
-  const inTrial = isInTrial(shop);
-  const isDevStore = shop.isDevStore && !forcedPlan;
+  const forcedPlan = getDevPlanOverride()
+  const plan = (forcedPlan ?? shop.plan) as PlanType
+  const inTrial = isInTrial(shop)
+  const isDevStore = shop.isDevStore && !forcedPlan
 
-  return { shop, plan, inTrial, isDevStore };
+  return { shop, plan, inTrial, isDevStore }
 }
 
 /**
@@ -62,7 +58,7 @@ export async function getShopPlanStatus(shopDomain: string): Promise<{
  * Pro tier: allowed without confirmation
  */
 export async function enforceGuidedFix(shopDomain: string): Promise<GuardResult & { requiresConfirmation: boolean }> {
-  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain);
+  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain)
 
   if (!shop) {
     return {
@@ -74,18 +70,18 @@ export async function enforceGuidedFix(shopDomain: string): Promise<GuardResult 
       requiresConfirmation: true,
       errorCode: BILLING_ERRORS.SUBSCRIPTION_REQUIRED,
       message: "Shop not found",
-    };
+    }
   }
 
   // Dev stores bypass billing
   if (isDevStore) {
-    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true, requiresConfirmation: false };
+    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true, requiresConfirmation: false }
   }
 
   // Free tier requires confirmation modals
-  const requiresConfirmation = plan === PLANS.FREE;
+  const requiresConfirmation = plan === PLANS.FREE
 
-  return { allowed: true, shop, plan, inTrial, isDevStore, requiresConfirmation };
+  return { allowed: true, shop, plan, inTrial, isDevStore, requiresConfirmation }
 }
 
 /**
@@ -97,7 +93,7 @@ export async function enforceBulkLimit(
   shopDomain: string,
   productCount: number
 ): Promise<GuardResult & { maxAllowed: number; requiresConfirmation: boolean }> {
-  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain);
+  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain)
 
   if (!shop) {
     return {
@@ -110,16 +106,24 @@ export async function enforceBulkLimit(
       requiresConfirmation: true,
       errorCode: BILLING_ERRORS.SUBSCRIPTION_REQUIRED,
       message: "Shop not found",
-    };
+    }
   }
 
   // Dev stores bypass billing
   if (isDevStore) {
-    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true, maxAllowed: 100, requiresConfirmation: false };
+    return {
+      allowed: true,
+      shop,
+      plan: PLANS.PRO,
+      inTrial: false,
+      isDevStore: true,
+      maxAllowed: 100,
+      requiresConfirmation: false,
+    }
   }
 
-  const maxAllowed = PLAN_CONFIG[plan].bulkLimit;
-  const requiresConfirmation = plan === PLANS.FREE;
+  const maxAllowed = PLAN_CONFIG[plan].bulkLimit
+  const requiresConfirmation = plan === PLANS.FREE
 
   if (productCount > maxAllowed) {
     return {
@@ -132,10 +136,10 @@ export async function enforceBulkLimit(
       requiresConfirmation,
       errorCode: BILLING_ERRORS.BULK_LIMIT_EXCEEDED,
       message: `Bulk actions limited to ${maxAllowed} products on ${PLAN_CONFIG[plan].name} plan. Upgrade to Pro for up to 100.`,
-    };
+    }
   }
 
-  return { allowed: true, shop, plan, inTrial, isDevStore, maxAllowed, requiresConfirmation };
+  return { allowed: true, shop, plan, inTrial, isDevStore, maxAllowed, requiresConfirmation }
 }
 
 /**
@@ -143,7 +147,7 @@ export async function enforceBulkLimit(
  * Required for: AI generation, bulk AI, custom rules
  */
 export async function enforcePro(shopDomain: string): Promise<GuardResult> {
-  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain);
+  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain)
 
   if (!shop) {
     return {
@@ -154,12 +158,12 @@ export async function enforcePro(shopDomain: string): Promise<GuardResult> {
       isDevStore: false,
       errorCode: BILLING_ERRORS.SUBSCRIPTION_REQUIRED,
       message: "Shop not found",
-    };
+    }
   }
 
   // Dev stores bypass billing
   if (isDevStore) {
-    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true };
+    return { allowed: true, shop, plan: PLANS.PRO, inTrial: false, isDevStore: true }
   }
 
   // Only Pro allowed
@@ -172,10 +176,10 @@ export async function enforcePro(shopDomain: string): Promise<GuardResult> {
       isDevStore,
       errorCode: BILLING_ERRORS.AI_FEATURE_LOCKED,
       message: "AI features require Pro plan",
-    };
+    }
   }
 
-  return { allowed: true, shop, plan, inTrial, isDevStore };
+  return { allowed: true, shop, plan, inTrial, isDevStore }
 }
 
 /**
@@ -186,30 +190,28 @@ export async function enforceProWithCredits(
   shopDomain: string,
   creditsNeeded = 1
 ): Promise<GuardResult & { creditsRemaining?: number; creditsLimit?: number }> {
-  const proCheck = await enforcePro(shopDomain);
-  
+  const proCheck = await enforcePro(shopDomain)
+
   if (!proCheck.allowed) {
-    return proCheck;
+    return proCheck
   }
 
   // Check AI credits
-  const creditCheck = await checkAICredits(shopDomain, proCheck.plan, proCheck.inTrial);
-  
+  const creditCheck = await checkAICredits(shopDomain, proCheck.plan, proCheck.inTrial)
+
   if (!creditCheck.allowed) {
     return {
       ...proCheck,
       allowed: false,
       errorCode: creditCheck.errorCode,
       message: creditCheck.reason,
-    };
+    }
   }
 
   // Get current credit status
-  const limit = proCheck.inTrial
-    ? PLAN_CONFIG[PLANS.PRO].trialAiCredits
-    : PLAN_CONFIG[PLANS.PRO].aiCredits;
-  
-  const creditsRemaining = Math.max(0, limit - (proCheck.shop?.aiCreditsUsed ?? 0));
+  const limit = proCheck.inTrial ? PLAN_CONFIG[PLANS.PRO].trialAiCredits : PLAN_CONFIG[PLANS.PRO].aiCredits
+
+  const creditsRemaining = Math.max(0, limit - (proCheck.shop?.aiCreditsUsed ?? 0))
 
   // Check if enough credits for requested operation
   if (creditsRemaining < creditsNeeded) {
@@ -220,14 +222,14 @@ export async function enforceProWithCredits(
       message: `Not enough AI credits. Need ${creditsNeeded}, have ${creditsRemaining}.`,
       creditsRemaining,
       creditsLimit: limit,
-    };
+    }
   }
 
   return {
     ...proCheck,
     creditsRemaining,
     creditsLimit: limit,
-  };
+  }
 }
 
 /**
@@ -241,38 +243,37 @@ export function planErrorResponse(guard: GuardResult, status = 403) {
       requiredPlan: PLANS.PRO,
     },
     { status }
-  );
+  )
 }
 
 /**
  * Require guided fix access (all plans, returns confirmation requirement)
  */
 export async function requireGuidedFix(shopDomain: string) {
-  const guard = await enforceGuidedFix(shopDomain);
-  return guard;
+  const guard = await enforceGuidedFix(shopDomain)
+  return guard
 }
 
 /**
  * Require bulk action within plan limits
  */
 export async function requireBulkLimit(shopDomain: string, productCount: number) {
-  const guard = await enforceBulkLimit(shopDomain, productCount);
-  return guard;
+  const guard = await enforceBulkLimit(shopDomain, productCount)
+  return guard
 }
 
 /**
  * Require Pro and return error response if not allowed
  */
 export async function requirePro(shopDomain: string) {
-  const guard = await enforcePro(shopDomain);
-  return guard;
+  const guard = await enforcePro(shopDomain)
+  return guard
 }
 
 /**
  * Require Pro with AI credits
  */
 export async function requireProWithCredits(shopDomain: string, creditsNeeded = 1) {
-  const guard = await enforceProWithCredits(shopDomain, creditsNeeded);
-  return guard;
+  const guard = await enforceProWithCredits(shopDomain, creditsNeeded)
+  return guard
 }
-

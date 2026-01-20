@@ -173,12 +173,8 @@
           "name": "catalog_reports_shop_id_shops_id_fk",
           "tableFrom": "catalog_reports",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -285,12 +281,8 @@
           "name": "catalog_rules_shop_id_shops_id_fk",
           "tableFrom": "catalog_rules",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -413,12 +405,8 @@
           "name": "checklist_items_template_id_checklist_templates_id_fk",
           "tableFrom": "checklist_items",
           "tableTo": "checklist_templates",
-          "columnsFrom": [
-            "template_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["template_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -511,12 +499,8 @@
           "name": "checklist_templates_shop_id_shops_id_fk",
           "tableFrom": "checklist_templates",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -635,12 +619,8 @@
           "name": "compliance_drifts_shop_id_shops_id_fk",
           "tableFrom": "compliance_drifts",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -648,12 +628,8 @@
           "name": "compliance_drifts_rule_id_catalog_rules_id_fk",
           "tableFrom": "compliance_drifts",
           "tableTo": "catalog_rules",
-          "columnsFrom": [
-            "rule_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -752,12 +728,8 @@
           "name": "product_audit_items_audit_id_product_audits_id_fk",
           "tableFrom": "product_audit_items",
           "tableTo": "product_audits",
-          "columnsFrom": [
-            "audit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["audit_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -765,12 +737,8 @@
           "name": "product_audit_items_item_id_checklist_items_id_fk",
           "tableFrom": "product_audit_items",
           "tableTo": "checklist_items",
-          "columnsFrom": [
-            "item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["item_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -901,12 +869,8 @@
           "name": "product_audits_shop_id_shops_id_fk",
           "tableFrom": "product_audits",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -914,12 +878,8 @@
           "name": "product_audits_template_id_checklist_templates_id_fk",
           "tableFrom": "product_audits",
           "tableTo": "checklist_templates",
-          "columnsFrom": [
-            "template_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["template_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1002,12 +962,8 @@
           "name": "product_field_versions_shop_id_shops_id_fk",
           "tableFrom": "product_field_versions",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1124,12 +1080,8 @@
           "name": "product_history_shop_id_shops_id_fk",
           "tableFrom": "product_history",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1280,12 +1232,8 @@
           "name": "scheduled_audits_shop_id_shops_id_fk",
           "tableFrom": "scheduled_audits",
           "tableTo": "shops",
-          "columnsFrom": [
-            "shop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["shop_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1639,9 +1587,7 @@
       "indexes": {
         "shops_shop_domain_unique": {
           "name": "shops_shop_domain_unique",
-          "columns": [
-            "shop_domain"
-          ],
+          "columns": ["shop_domain"],
           "isUnique": true
         }
       },

@@ -1,16 +1,16 @@
-import { Text, InlineStack, ProgressBar, Box, Badge } from "@shopify/polaris";
+import { Badge, Box, InlineStack, ProgressBar, Text } from "@shopify/polaris"
 
 interface AICreditsDisplayProps {
-  used: number;
-  limit: number;
-  inTrial?: boolean;
+  used: number
+  limit: number
+  inTrial?: boolean
 }
 
 export function AICreditsDisplay({ used, limit, inTrial = false }: AICreditsDisplayProps) {
-  const remaining = Math.max(0, limit - used);
-  const percentage = limit > 0 ? (used / limit) * 100 : 0;
-  const isLow = remaining <= 5;
-  const isOut = remaining === 0;
+  const remaining = Math.max(0, limit - used)
+  const percentage = limit > 0 ? (used / limit) * 100 : 0
+  const isLow = remaining <= 5
+  const isOut = remaining === 0
 
   return (
     <Box>
@@ -35,13 +35,8 @@ export function AICreditsDisplay({ used, limit, inTrial = false }: AICreditsDisp
         </InlineStack>
       </InlineStack>
       <Box paddingBlockStart="100">
-        <ProgressBar
-          progress={percentage}
-          size="small"
-          tone={isOut ? "critical" : isLow ? "warning" : "primary"}
-        />
+        <ProgressBar progress={percentage} size="small" tone={isOut ? "critical" : isLow ? "warning" : "primary"} />
       </Box>
     </Box>
-  );
+  )
 }
-

@@ -1,15 +1,15 @@
-import { Modal, Text, BlockStack, InlineStack, Box, Button, Badge, Card, Icon } from "@shopify/polaris";
-import { LockIcon, CheckIcon } from "@shopify/polaris-icons";
-import { PLAN_CONFIG, PLANS, type PlanType } from "~/lib/billing/constants";
+import { Badge, BlockStack, Box, Icon, InlineStack, Modal, Text } from "@shopify/polaris"
+import { CheckIcon, LockIcon } from "@shopify/polaris-icons"
+import { PLAN_CONFIG, type PlanType } from "~/lib/billing/constants"
 
 interface UpgradeModalProps {
-  open: boolean;
-  onClose: () => void;
-  currentPlan: PlanType;
-  requiredPlan: PlanType;
-  feature: string;
-  onUpgrade: (plan: PlanType) => void;
-  loading?: boolean;
+  open: boolean
+  onClose: () => void
+  currentPlan: PlanType
+  requiredPlan: PlanType
+  feature: string
+  onUpgrade: (plan: PlanType) => void
+  loading?: boolean
 }
 
 export function UpgradeModal({
@@ -21,7 +21,7 @@ export function UpgradeModal({
   onUpgrade,
   loading = false,
 }: UpgradeModalProps) {
-  const targetConfig = PLAN_CONFIG[requiredPlan];
+  const targetConfig = PLAN_CONFIG[requiredPlan]
 
   return (
     <Modal
@@ -42,15 +42,14 @@ export function UpgradeModal({
     >
       <Modal.Section>
         <BlockStack gap="400">
-          <Box
-            padding="400"
-            background="bg-surface-secondary"
-            borderRadius="200"
-          >
+          <Box padding="400" background="bg-surface-secondary" borderRadius="200">
             <InlineStack gap="200" align="center">
               <Icon source={LockIcon} tone="subdued" />
               <Text as="p" variant="bodyMd">
-                <Text as="span" fontWeight="semibold">{feature}</Text> requires the {targetConfig.name} plan
+                <Text as="span" fontWeight="semibold">
+                  {feature}
+                </Text>{" "}
+                requires the {targetConfig.name} plan
               </Text>
             </InlineStack>
           </Box>
@@ -59,7 +58,7 @@ export function UpgradeModal({
             <Text as="h3" variant="headingSm">
               What you'll get with {targetConfig.name}:
             </Text>
-            
+
             <BlockStack gap="100">
               <FeatureItem>AI-powered SEO title generation</FeatureItem>
               <FeatureItem>AI-powered description writing</FeatureItem>
@@ -74,18 +73,12 @@ export function UpgradeModal({
             </BlockStack>
           </BlockStack>
 
-          <Box
-            padding="300"
-            background="bg-surface-success"
-            borderRadius="200"
-          >
+          <Box padding="300" background="bg-surface-success" borderRadius="200">
             <InlineStack gap="200" align="center" blockAlign="center">
               <Text as="p" variant="bodyLg" fontWeight="bold">
                 ${targetConfig.price}/month
               </Text>
-              <Badge tone="success">
-                {targetConfig.trialDays}-day free trial
-              </Badge>
+              <Badge tone="success">{targetConfig.trialDays}-day free trial</Badge>
             </InlineStack>
           </Box>
 
@@ -95,7 +88,7 @@ export function UpgradeModal({
         </BlockStack>
       </Modal.Section>
     </Modal>
-  );
+  )
 }
 
 function FeatureItem({ children }: { children: React.ReactNode }) {
@@ -104,8 +97,9 @@ function FeatureItem({ children }: { children: React.ReactNode }) {
       <Box>
         <Icon source={CheckIcon} tone="success" />
       </Box>
-      <Text as="span" variant="bodyMd">{children}</Text>
+      <Text as="span" variant="bodyMd">
+        {children}
+      </Text>
     </InlineStack>
-  );
+  )
 }
-

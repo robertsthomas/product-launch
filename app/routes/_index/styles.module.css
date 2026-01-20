@@ -7,7 +7,7 @@
   text-align: center;
   padding: 2rem;
   background: linear-gradient(135deg, #020617 0%, #0f172a 40%, #1e293b 100%);
-  color: #F8FAFC;
+  color: #f8fafc;
   position: relative;
   overflow: hidden;
 }
@@ -38,8 +38,13 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0) translateX(0); }
-  50% { transform: translateY(-20px) translateX(10px); }
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(-20px) translateX(10px);
+  }
 }
 
 .heading {
@@ -49,7 +54,7 @@
   font-weight: 700;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #7AA2FF 0%, #4FD1C5 100%);
+  background: linear-gradient(135deg, #7aa2ff 0%, #4fd1c5 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -60,7 +65,7 @@
   padding: 0;
   padding-bottom: 2rem;
   margin: 0;
-  color: #94A3B8;
+  color: #94a3b8;
   max-width: 600px;
   line-height: 1.7;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
@@ -89,7 +94,7 @@
   max-width: 20rem;
   text-align: left;
   font-size: 0.9375rem;
-  color: #94A3B8;
+  color: #94a3b8;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
@@ -99,7 +104,7 @@
   border-radius: 10px;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(8px);
-  color: #F8FAFC;
+  color: #f8fafc;
   font-size: 1rem;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
@@ -107,7 +112,7 @@
 
 .input:focus {
   outline: none;
-  border-color: #1F4FD8;
+  border-color: #1f4fd8;
   box-shadow: 0 0 0 4px rgba(31, 79, 216, 0.2);
   background: rgba(15, 23, 42, 0.8);
 }
@@ -118,7 +123,7 @@
 
 .button {
   padding: 0.875rem 2rem;
-  background: linear-gradient(135deg, #1F4FD8 0%, #3BC9DB 100%);
+  background: linear-gradient(135deg, #1f4fd8 0%, #3bc9db 100%);
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -170,7 +175,7 @@
 .list > li strong {
   display: block;
   margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, #7AA2FF 0%, #4FD1C5 100%);
+  background: linear-gradient(135deg, #7aa2ff 0%, #4fd1c5 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -181,7 +186,7 @@
 
 .list > li p,
 .list > li span {
-  color: #94A3B8;
+  color: #94a3b8;
   font-size: 0.9375rem;
   line-height: 1.5;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;

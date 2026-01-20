@@ -29,7 +29,7 @@ export const GET_CURRENT_SUBSCRIPTION_QUERY = `#graphql
       }
     }
   }
-`;
+`
 
 // Get shop plan to detect dev stores
 export const GET_SHOP_PLAN_QUERY = `#graphql
@@ -44,8 +44,4 @@ export const GET_SHOP_PLAN_QUERY = `#graphql
       }
     }
   }
-`;
-
-
-
-
+`

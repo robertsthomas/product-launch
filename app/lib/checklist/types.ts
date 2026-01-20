@@ -1,65 +1,63 @@
-import type { FixType } from "../../db/schema";
+import type { FixType } from "../../db/schema"
 
 // Product shape from Shopify GraphQL API
 export type Product = {
-  id: string;
-  title: string;
-  descriptionHtml: string;
+  id: string
+  title: string
+  descriptionHtml: string
   images: {
     nodes: Array<{
-      id: string;
-      altText: string | null;
-      url: string;
-      width?: number;
-      height?: number;
-    }>;
-  };
+      id: string
+      altText: string | null
+      url: string
+      width?: number
+      height?: number
+    }>
+  }
   seo: {
-    title: string | null;
-    description: string | null;
-  };
+    title: string | null
+    description: string | null
+  }
   collections: {
     nodes: Array<{
-      id: string;
-      title: string;
-    }>;
-  };
+      id: string
+      title: string
+    }>
+  }
   metafields: {
     nodes: Array<{
-      namespace: string;
-      key: string;
-      value: string | null;
-    }>;
-  };
-  tags: string[];
-  status: string;
-  vendor: string;
-  productType: string;
+      namespace: string
+      key: string
+      value: string | null
+    }>
+  }
+  tags: string[]
+  status: string
+  vendor: string
+  productType: string
   featuredImage: {
-    id?: string;
-    url: string;
-  } | null;
-};
+    id?: string
+    url: string
+  } | null
+}
 
-export type RuleConfig = Record<string, unknown>;
+export type RuleConfig = Record<string, unknown>
 
 export interface ChecklistRuleContext {
-  product: Product;
-  config: RuleConfig;
+  product: Product
+  config: RuleConfig
 }
 
 // Enhanced rule result with fix metadata
 export interface RuleResult {
-  status: "passed" | "failed";
-  details?: string;
-  canAutoFix?: boolean;
-  fixType?: FixType; // "manual" | "auto" | "ai"
-  targetField?: string; // Field this rule affects: title, description, seo_title, etc.
+  status: "passed" | "failed"
+  details?: string
+  canAutoFix?: boolean
+  fixType?: FixType // "manual" | "auto" | "ai"
+  targetField?: string // Field this rule affects: title, description, seo_title, etc.
 }
 
-export type ChecklistRule = (
-  ctx: ChecklistRuleContext
-) => Promise<RuleResult> | RuleResult;
+export type ChecklistRule = (ctx: ChecklistRuleContext) => Promise<RuleResult> | RuleResult
 
 // Target fields that can be fixed
 export const TARGET_FIELDS = [
@@ -74,41 +72,41 @@ export const TARGET_FIELDS = [
   "vendor",
   "product_type",
   "metafield",
-] as const;
+] as const
 
-export type TargetField = typeof TARGET_FIELDS[number];
+export type TargetField = (typeof TARGET_FIELDS)[number]
 
 export interface ChecklistItemInput {
-  key: string;
-  label: string;
-  description?: string;
-  configJson?: string;
-  autoFixable?: boolean;
-  fixType?: FixType;
-  targetField?: string;
-  weight?: number;
-  order?: number;
+  key: string
+  label: string
+  description?: string
+  configJson?: string
+  autoFixable?: boolean
+  fixType?: FixType
+  targetField?: string
+  weight?: number
+  order?: number
 }
 
 export interface ProductAuditItemInput {
-  itemId: string;
-  status: "passed" | "failed" | "auto_fixed";
-  details: string | null;
-  canAutoFix: boolean;
-  fixType: FixType;
-  targetField: string | null;
-  weight: number;
+  itemId: string
+  status: "passed" | "failed" | "auto_fixed"
+  details: string | null
+  canAutoFix: boolean
+  fixType: FixType
+  targetField: string | null
+  weight: number
 }
 
 export interface AuditResult {
-  items: ProductAuditItemInput[];
-  overallStatus: "ready" | "incomplete";
-  score: number; // Weighted score 0-100
-  passedCount: number;
-  failedCount: number;
-  totalCount: number;
-  autoFixableCount: number;
-  aiFixableCount: number;
+  items: ProductAuditItemInput[]
+  overallStatus: "ready" | "incomplete"
+  score: number // Weighted score 0-100
+  passedCount: number
+  failedCount: number
+  totalCount: number
+  autoFixableCount: number
+  aiFixableCount: number
 }
 
 // Default checklist items for new shops
@@ -224,21 +222,21 @@ export const DEFAULT_CHECKLIST_ITEMS: ChecklistItemInput[] = [
     weight: 2,
     order: 10,
   },
-];
+]
 
 // ============================================
 // Built-in Industry Templates
 // ============================================
 export interface TemplatePreset {
-  type: "apparel" | "pod" | "digital" | "one_product" | "large_catalog";
-  name: string;
-  description: string;
+  type: "apparel" | "pod" | "digital" | "one_product" | "large_catalog"
+  name: string
+  description: string
   items: Array<{
-    key: string;
-    weight: number;
-    configOverrides?: Record<string, unknown>;
-    enabled?: boolean;
-  }>;
+    key: string
+    weight: number
+    configOverrides?: Record<string, unknown>
+    enabled?: boolean
+  }>
 }
 
 export const TEMPLATE_PRESETS: TemplatePreset[] = [
@@ -327,5 +325,4 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
       { key: "has_collections", weight: 3 },
     ],
   },
-];
-
+]

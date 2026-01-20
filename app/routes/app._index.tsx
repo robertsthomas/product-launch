@@ -1,39 +1,35 @@
-import { useEffect, useState, useMemo } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
-import { useLoaderData, useFetcher, useNavigate } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
-import { boundary } from "@shopify/shopify-app-react-router/server";
-import { getDashboardStats, getShopAudits, auditProduct } from "../lib/services";
-import { initializeShop } from "../lib/services/shop.server";
-import { getDriftSummary } from "../lib/services/monitoring.server";
-import { getShopPlanStatus } from "../lib/billing/guards.server";
-import { PRODUCTS_LIST_QUERY } from "../lib/checklist";
+import { useAppBridge } from "@shopify/app-bridge-react"
+import { boundary } from "@shopify/shopify-app-react-router/server"
+import { useEffect, useMemo, useState } from "react"
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
+import { useFetcher, useLoaderData, useNavigate } from "react-router"
+import { getShopPlanStatus } from "../lib/billing/guards.server"
+import { PRODUCTS_LIST_QUERY } from "../lib/checklist"
+import { auditProduct, getDashboardStats, getShopAudits } from "../lib/services"
+import { getDriftSummary } from "../lib/services/monitoring.server"
+import { initializeShop } from "../lib/services/shop.server"
+import { authenticate } from "../shopify.server"
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
+  const { session } = await authenticate.admin(request)
+  const shop = session.shop
 
-  await initializeShop(shop);
+  await initializeShop(shop)
 
-  const stats = await getDashboardStats(shop);
-  const { audits, total } = await getShopAudits(shop, { limit: 50 });
-  const { plan } = await getShopPlanStatus(shop);
-  
+  const stats = await getDashboardStats(shop)
+  const { audits, total } = await getShopAudits(shop, { limit: 50 })
+  const { plan } = await getShopPlanStatus(shop)
+
   // Pro feature: Get compliance monitoring data
-  let monitoring = null;
+  let monitoring = null
   if (plan === "pro") {
-    const driftSummary = await getDriftSummary(shop, 7);
+    const driftSummary = await getDriftSummary(shop, 7)
     monitoring = {
       driftsThisWeek: driftSummary.total,
       unresolvedDrifts: driftSummary.unresolved,
       productsAffected: driftSummary.productsAffected,
       byType: driftSummary.byType,
-      recentDrifts: driftSummary.recentDrifts.map(d => ({
+      recentDrifts: driftSummary.recentDrifts.map((d) => ({
         id: d.id,
         productId: d.productId,
         productTitle: d.productTitle,
@@ -42,7 +38,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         detectedAt: d.detectedAt instanceof Date ? d.detectedAt.toISOString() : d.detectedAt,
         isResolved: d.isResolved,
       })),
-    };
+    }
   }
 
   return {
@@ -59,85 +55,89 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       passedCount: audit.passedCount,
       failedCount: audit.failedCount,
       totalCount: audit.totalCount,
-      updatedAt: audit.updatedAt instanceof Date 
-        ? audit.updatedAt.toISOString() 
-        : new Date(audit.updatedAt).toISOString(),
+      updatedAt:
+        audit.updatedAt instanceof Date ? audit.updatedAt.toISOString() : new Date(audit.updatedAt).toISOString(),
+      items: audit.items.map((i) => ({
+        id: i.id,
+        status: i.status,
+        label: i.item.label,
+        key: i.item.key,
+        details: i.details,
+        canAutoFix: i.canAutoFix,
+      })),
     })),
     totalAudits: total,
-  };
-};
+  }
+}
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  const shop = session.shop;
-  const formData = await request.formData();
-  const intent = formData.get("intent");
+  const { admin, session } = await authenticate.admin(request)
+  const shop = session.shop
+  const formData = await request.formData()
+  const intent = formData.get("intent")
 
   if (intent === "scan_all") {
-    let hasMore = true;
-    let cursor: string | null = null;
-    let scanned = 0;
+    let hasMore = true
+    let cursor: string | null = null
+    let scanned = 0
 
     while (hasMore) {
       const graphqlResponse = await admin.graphql(PRODUCTS_LIST_QUERY, {
         variables: { first: 50, after: cursor },
-      });
+      })
 
-      const graphqlJson: { data?: { products?: { nodes?: Array<{ id: string }>; pageInfo?: { hasNextPage?: boolean; endCursor?: string } } } } = await graphqlResponse.json();
-      const products = graphqlJson.data?.products?.nodes ?? [];
-      const pageInfo = graphqlJson.data?.products?.pageInfo;
+      const graphqlJson: {
+        data?: {
+          products?: { nodes?: Array<{ id: string }>; pageInfo?: { hasNextPage?: boolean; endCursor?: string } }
+        }
+      } = await graphqlResponse.json()
+      const products = graphqlJson.data?.products?.nodes ?? []
+      const pageInfo = graphqlJson.data?.products?.pageInfo
 
       for (const product of products) {
         try {
           // Skip metafield updates during batch scan to avoid webhook loops
-          await auditProduct(shop, product.id, admin, true);
-          scanned++;
+          await auditProduct(shop, product.id, admin, true)
+          scanned++
         } catch (error) {
-          console.error(`Failed to audit product ${product.id}:`, error);
+          console.error(`Failed to audit product ${product.id}:`, error)
         }
       }
 
-      hasMore = pageInfo?.hasNextPage ?? false;
-      cursor = pageInfo?.endCursor ?? null;
+      hasMore = pageInfo?.hasNextPage ?? false
+      cursor = pageInfo?.endCursor ?? null
     }
 
-    return { success: true, scanned };
+    return { success: true, scanned }
   }
 
-  return { success: false };
-};
+  return { success: false }
+}
 
 // ============================================
 // Circular Progress Component
 // ============================================
 
-function CircularProgress({ 
-  percent, 
+function _CircularProgress({
+  percent,
   size = 140,
   strokeWidth = 8,
-}: { 
-  percent: number;
-  size?: number;
-  strokeWidth?: number;
+}: {
+  percent: number
+  size?: number
+  strokeWidth?: number
 }) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percent / 100) * circumference;
-  const isComplete = percent === 100;
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (percent / 100) * circumference
+  const isComplete = percent === 100
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       {/* Main progress ring */}
       <svg width={size} height={size} className="-rotate-90 transform-gpu" aria-hidden="true">
         {/* Track - subtle gray */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#e5e7eb"
-          strokeWidth={strokeWidth}
-        />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={strokeWidth} />
         {/* Progress fill */}
         <circle
           cx={size / 2}
@@ -152,22 +152,22 @@ function CircularProgress({
           className="transition-all duration-1000 ease-out"
         />
       </svg>
-      
+
       {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
-        <span 
+        <span
           className="font-bold tabular-nums"
-          style={{ 
+          style={{
             fontSize: size * 0.22,
             color: isComplete ? "#10b981" : "#1f2937",
             letterSpacing: "-0.03em",
-            lineHeight: 1
+            lineHeight: 1,
           }}
         >
           {percent}%
         </span>
       </div>
-      
+
       {/* Elegant completion celebration */}
       {isComplete && (
         <>
@@ -177,10 +177,10 @@ function CircularProgress({
             style={{
               border: "2px solid #10b981",
               animation: "pulse-ring 2s ease-out infinite",
-              opacity: 0.5
+              opacity: 0.5,
             }}
           />
-          
+
           {/* Soft glow effect */}
           <div
             className="absolute inset-0 rounded-full pointer-events-none"
@@ -220,25 +220,25 @@ function CircularProgress({
         }
       `}</style>
     </div>
-  );
+  )
 }
 
 // ============================================
 // Stat Card Component
 // ============================================
 
-function StatCard({
+function _StatCard({
   icon,
   label,
   value,
   variant = "default",
   delay = 0,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  variant?: "default" | "success" | "warning";
-  delay?: number;
+  icon: React.ReactNode
+  label: string
+  value: number
+  variant?: "default" | "success" | "warning"
+  delay?: number
 }) {
   const colors = {
     default: {
@@ -256,9 +256,9 @@ function StatCard({
       iconColor: "var(--color-warning)",
       valueColor: "var(--color-warning)",
     },
-  };
+  }
 
-  const c = colors[variant];
+  const c = colors[variant]
 
   return (
     <div
@@ -294,7 +294,8 @@ function StatCard({
             color: "var(--color-muted)",
             marginBottom: "2px",
             textTransform: "uppercase",
-            letterSpacing: "0.03em",
+            letterSpacing: "0.05em",
+            fontWeight: 500,
           }}
         >
           {label}
@@ -302,7 +303,7 @@ function StatCard({
         <div
           style={{
             fontFamily: "var(--font-heading)",
-            fontSize: "var(--text-xl)",
+            fontSize: "var(--text-2xl)",
             fontWeight: 600,
             color: c.valueColor,
           }}
@@ -311,38 +312,38 @@ function StatCard({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 // ============================================
 // Product Row Component
 // ============================================
 
-function ProductRow({ 
-  audit, 
+function _ProductRow({
+  audit,
   onClick,
   delay = 0,
   isSelected = false,
   onToggleSelect,
-}: { 
+}: {
   audit: {
-    id: string;
-    productId: string;
-    productTitle: string;
-    productImage: string | null;
-    status: string;
-    passedCount: number;
-    failedCount: number;
-    totalCount: number;
-  };
-  onClick: () => void;
-  delay?: number;
-  isSelected?: boolean;
-  onToggleSelect?: () => void;
+    id: string
+    productId: string
+    productTitle: string
+    productImage: string | null
+    status: string
+    passedCount: number
+    failedCount: number
+    totalCount: number
+  }
+  onClick: () => void
+  delay?: number
+  isSelected?: boolean
+  onToggleSelect?: () => void
 }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100);
+  const [isHovered, setIsHovered] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
 
   return (
     <div
@@ -413,12 +414,10 @@ function ProductRow({
           cursor: "pointer",
           background: isSelected
             ? "var(--color-primary-soft)"
-            : isHovered 
-              ? "var(--color-surface-elevated)" 
+            : isHovered
+              ? "var(--color-surface-elevated)"
               : "var(--color-surface)",
-          border: isSelected 
-            ? "1px solid rgba(31, 79, 216, 0.25)" 
-            : "1px solid var(--color-border)",
+          border: isSelected ? "1px solid rgba(31, 79, 216, 0.25)" : "1px solid var(--color-border)",
           borderRadius: "12px",
           transition: "all 0.15s ease",
           boxShadow: isHovered && !isSelected ? "0 2px 8px rgba(0,0,0,0.04)" : "none",
@@ -428,258 +427,268 @@ function ProductRow({
         }}
       >
         {/* Product Image */}
-      <div
-        style={{
-          width: "44px",
-          height: "44px",
-          borderRadius: "8px",
-          overflow: "hidden",
-          backgroundColor: "var(--color-surface-strong)",
-          flexShrink: 0,
-        }}
-      >
-        {audit.productImage ? (
-          <img
-            src={audit.productImage}
-            alt={audit.productTitle}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--color-subtle)",
-              fontSize: "20px",
-            }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {/* Product Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontWeight: 500,
-            fontSize: "14px",
-            color: "var(--color-text)",
-            whiteSpace: "nowrap",
+            width: "44px",
+            height: "44px",
+            borderRadius: "8px",
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            marginBottom: "4px",
+            backgroundColor: "var(--color-surface-strong)",
+            flexShrink: 0,
           }}
         >
-          {audit.productTitle}
-        </div>
-        {/* Mini progress bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "80px",
-              height: "3px",
-              background: "var(--color-surface-strong)",
-              borderRadius: "2px",
-              overflow: "hidden",
-            }}
-          >
-            <div
+          {audit.productImage ? (
+            <img
+              src={audit.productImage}
+              alt={audit.productTitle}
               style={{
-                width: `${progressPercent}%`,
+                width: "100%",
                 height: "100%",
-                background: audit.status === "ready" 
-                  ? "var(--color-success)" 
-                  : "var(--color-primary)",
-                borderRadius: "2px",
-                transition: "width 0.3s ease",
+                objectFit: "cover",
               }}
             />
-          </div>
-          <span style={{ fontSize: "12px", color: "var(--color-muted)", fontVariantNumeric: "tabular-nums" }}>
-            {audit.passedCount}/{audit.totalCount}
-          </span>
-        </div>
-      </div>
-
-      {/* Status Badge */}
-      <div
-        style={{
-          padding: "5px 10px",
-          borderRadius: "6px",
-          fontSize: "12px",
-          fontWeight: 500,
-          backgroundColor: audit.status === "ready" 
-            ? "rgba(34, 197, 94, 0.1)" 
-            : "rgba(251, 191, 36, 0.1)",
-          color: audit.status === "ready" 
-            ? "#16a34a" 
-            : "#d97706",
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          gap: "4px",
-        }}
-      >
-        {audit.status === "ready" ? (
-          <>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
-            Ready
-          </>
-        ) : (
-          <>
-            {audit.failedCount} to fix
-          </>
-        )}
-      </div>
-
-      {/* Quick Actions Dropdown - Show when selected */}
-      {isSelected && (
-        <div style={{ position: "relative" }}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDropdown(!showDropdown);
-            }}
-            style={{
-              width: "24px",
-              height: "24px",
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--color-text)",
-              flexShrink: 0,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-
-          {/* Dropdown Menu */}
-          {showDropdown && (
+          ) : (
             <div
               style={{
-                position: "absolute",
-                top: "100%",
-                right: "0",
-                marginTop: "4px",
-                background: "var(--color-surface)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "8px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                zIndex: 1000,
-                minWidth: "180px",
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--color-subtle)",
+                fontSize: "20px",
               }}
-              onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  onClick();
-                  setShowDropdown(false);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--color-text)",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "background var(--transition-fast)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                aria-hidden="true"
               >
-                📝 View Details
-              </button>
-              {audit.failedCount > 0 && (
+                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+          )}
+        </div>
+
+        {/* Product Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontWeight: 500,
+              fontSize: "14px",
+              color: "var(--color-text)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              marginBottom: "4px",
+            }}
+          >
+            {audit.productTitle}
+          </div>
+          {/* Mini progress bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div
+              style={{
+                width: "80px",
+                height: "3px",
+                background: "var(--color-surface-strong)",
+                borderRadius: "2px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${progressPercent}%`,
+                  height: "100%",
+                  background: audit.status === "ready" ? "var(--color-success)" : "var(--color-primary)",
+                  borderRadius: "2px",
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+            <span style={{ fontSize: "12px", color: "var(--color-muted)", fontVariantNumeric: "tabular-nums" }}>
+              {audit.passedCount}/{audit.totalCount}
+            </span>
+          </div>
+        </div>
+
+        {/* Status Badge */}
+        <div
+          style={{
+            padding: "5px 10px",
+            borderRadius: "6px",
+            fontSize: "12px",
+            fontWeight: 500,
+            backgroundColor: audit.status === "ready" ? "rgba(34, 197, 94, 0.1)" : "rgba(251, 191, 36, 0.1)",
+            color: audit.status === "ready" ? "#16a34a" : "#d97706",
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+          }}
+        >
+          {audit.status === "ready" ? (
+            <>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              Ready
+            </>
+          ) : (
+            <>{audit.failedCount} to fix</>
+          )}
+        </div>
+
+        {/* Quick Actions Dropdown - Show when selected */}
+        {isSelected && (
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowDropdown(!showDropdown)
+              }}
+              style={{
+                width: "24px",
+                height: "24px",
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--color-text)",
+                flexShrink: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {/* Dropdown Menu */}
+            {showDropdown && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  right: "0",
+                  marginTop: "4px",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                  zIndex: 1000,
+                  minWidth: "180px",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   type="button"
                   onClick={() => {
-                    // Navigate to dashboard
-                    setShowDropdown(false);
+                    onClick()
+                    setShowDropdown(false)
                   }}
                   style={{
                     width: "100%",
                     padding: "10px 14px",
                     border: "none",
-                    borderTop: "1px solid var(--color-border)",
                     background: "transparent",
-                    color: "var(--color-primary)",
+                    color: "var(--color-text)",
                     fontSize: "var(--text-sm)",
                     fontWeight: 500,
                     cursor: "pointer",
                     textAlign: "left",
                     transition: "background var(--transition-fast)",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-primary-soft)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--color-surface-strong)"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent"
+                  }}
                 >
-                  ⚡ Quick Fix
+                  📝 View Details
                 </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                {audit.failedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Navigate to dashboard
+                      setShowDropdown(false)
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      border: "none",
+                      borderTop: "1px solid var(--color-border)",
+                      background: "transparent",
+                      color: "var(--color-primary)",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "background var(--transition-fast)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--color-primary-soft)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                    }}
+                  >
+                    ⚡ Quick Fix
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Arrow */}
-      <svg 
-        width="16" 
-        height="16" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2"
-        aria-hidden="true"
-        style={{ 
-          color: "var(--color-subtle)",
-          transition: "all 0.15s ease",
-          transform: isHovered ? "translateX(2px)" : "translateX(0)",
-          opacity: isHovered ? 1 : 0.5,
-          flexShrink: 0,
-        }}
-      >
-        <path d="M9 18l6-6-6-6" />
-      </svg>
+        {/* Arrow */}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+          style={{
+            color: "var(--color-subtle)",
+            transition: "all 0.15s ease",
+            transform: isHovered ? "translateX(2px)" : "translateX(0)",
+            opacity: isHovered ? 1 : 0.5,
+            flexShrink: 0,
+          }}
+        >
+          <path d="M9 18l6-6-6-6" />
+        </svg>
       </button>
     </div>
-  );
+  )
 }
 
 // ============================================
 // Empty State Component
 // ============================================
 
-function EmptyState({ 
-  title, 
-  description, 
-  action,
-}: { 
-  title: string; 
-  description: string;
-  action?: React.ReactNode;
-}) {
+function _EmptyState({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
   return (
     <div className="empty-state">
       <div
@@ -694,7 +703,15 @@ function EmptyState({
           marginBottom: "20px",
         }}
       >
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-muted)" strokeWidth="1.5" aria-hidden="true">
+        <svg
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--color-muted)"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
           <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       </div>
@@ -702,7 +719,7 @@ function EmptyState({
       <div className="empty-state-text">{description}</div>
       {action && <div style={{ marginTop: "20px" }}>{action}</div>}
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -713,25 +730,20 @@ function EmptyState({
 // Dashboard Tour Component (Interactive inline tooltips)
 // ============================================
 
-function DashboardTour({
-  isOpen,
-  onClose,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-}) {
-  const [step, setStep] = useState(0);
+function DashboardTour({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [step, setStep] = useState(0)
 
   const steps: Array<{
-    target: string;
-    title: string;
-    description: string;
-    position: "top" | "bottom" | "left" | "right";
+    target: string
+    title: string
+    description: string
+    position: "top" | "bottom" | "left" | "right"
   }> = [
     {
       target: "data-tour-products-table",
       title: "Your Product Catalog",
-      description: "This is your product dashboard. Each row shows a product's launch readiness with status badges and completion scores.",
+      description:
+        "This is your product dashboard. Each row shows a product's launch readiness with status badges and completion scores.",
       position: "bottom",
     },
     {
@@ -752,79 +764,114 @@ function DashboardTour({
       description: "Click Sync to scan all products and update scores. Stays current with your Shopify changes.",
       position: "bottom",
     },
-  ];
+  ]
 
-  const currentStep = steps[step];
-  const isLastStep = step === steps.length - 1;
+  const currentStep = steps[step]
+  const isLastStep = step === steps.length - 1
 
   // Get target element position
-  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0, show: false });
+  const [tooltipPosition, setTooltipPosition] = useState({
+    top: 0,
+    left: 0,
+    show: false,
+    actualPosition: "bottom" as "top" | "bottom" | "left" | "right",
+  })
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) return
 
     const updatePosition = () => {
-      const element = document.querySelector(`[${currentStep.target}]`);
+      const element = document.querySelector(`[${currentStep.target}]`)
       if (element) {
-        const rect = element.getBoundingClientRect();
-        const tooltipWidth = 360;
-        const tooltipHeight = 200;
-        const spacing = 16;
+        const rect = element.getBoundingClientRect()
+        const tooltipWidth = 360
+        const tooltipHeight = 200
+        const spacing = 16
 
-        let top = 0;
-        let left = 0;
+        let top = 0
+        let left = 0
+        let actualPosition = currentStep.position
+        const headerOffset = 140 // Account for sticky headers
 
         switch (currentStep.position) {
           case "bottom":
-            top = rect.bottom + spacing;
-            left = rect.left + rect.width / 2 - tooltipWidth / 2;
-            break;
+            top = rect.bottom + spacing
+            left = rect.left + rect.width / 2 - tooltipWidth / 2
+            break
           case "right":
-            top = rect.top + rect.height / 2 - tooltipHeight / 2;
-            left = rect.right + spacing;
-            break;
+            top = rect.top + rect.height / 2 - tooltipHeight / 2
+            left = rect.right + spacing
+            break
           case "top":
-            top = rect.top - tooltipHeight - spacing;
-            left = rect.left + rect.width / 2 - tooltipWidth / 2;
-            break;
+            top = rect.top - tooltipHeight - spacing
+            left = rect.left + rect.width / 2 - tooltipWidth / 2
+            break
           case "left":
-            top = rect.top + rect.height / 2 - tooltipHeight / 2;
-            left = rect.left - tooltipWidth - spacing;
-            break;
+            top = rect.top + rect.height / 2 - tooltipHeight / 2
+            left = rect.left - tooltipWidth - spacing
+            break
         }
 
-        // Keep within viewport
-        if (left < 10) left = 10;
+        // Keep within viewport horizontally
+        if (left < 10) left = 10
         if (left + tooltipWidth > window.innerWidth - 10) {
-          left = window.innerWidth - tooltipWidth - 10;
+          left = window.innerWidth - tooltipWidth - 10
         }
-        if (top < 10) top = 10;
 
-        setTooltipPosition({ top, left, show: true });
+        // Keep within viewport vertically (account for sticky header)
+        if (top < headerOffset) {
+          // If it goes off top, try bottom
+          if (currentStep.position === "top" || currentStep.position === "bottom") {
+            top = rect.bottom + spacing
+            actualPosition = "bottom"
+          } else {
+            top = headerOffset
+          }
+        }
+
+        if (top + tooltipHeight > window.innerHeight - 10) {
+          // If it goes off bottom, try top
+          if (currentStep.position === "bottom" || currentStep.position === "top") {
+            const newTop = rect.top - tooltipHeight - spacing
+            if (newTop >= headerOffset) {
+              top = newTop
+              actualPosition = "top"
+            } else {
+              top = window.innerHeight - tooltipHeight - 10
+            }
+          } else {
+            top = window.innerHeight - tooltipHeight - 10
+          }
+        }
+
+        // Final safety check
+        if (top < headerOffset) top = headerOffset
+
+        setTooltipPosition({ top, left, show: true, actualPosition })
 
         // Highlight element
-        element.setAttribute('data-tour-active', 'true');
+        element.setAttribute("data-tour-active", "true")
       } else {
-        setTooltipPosition({ top: 0, left: 0, show: false });
+        setTooltipPosition({ top: 0, left: 0, show: false, actualPosition: "bottom" })
       }
-    };
+    }
 
-    updatePosition();
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition);
+    updatePosition()
+    window.addEventListener("resize", updatePosition)
+    window.addEventListener("scroll", updatePosition)
 
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition);
+      window.removeEventListener("resize", updatePosition)
+      window.removeEventListener("scroll", updatePosition)
       // Remove highlight
-      const elements = document.querySelectorAll('[data-tour-active]');
+      const elements = document.querySelectorAll("[data-tour-active]")
       for (let i = 0; i < elements.length; i++) {
-        elements[i].removeAttribute('data-tour-active');
+        elements[i].removeAttribute("data-tour-active")
       }
-    };
-  }, [isOpen, currentStep.target, currentStep.position]);
+    }
+  }, [isOpen, currentStep.target, currentStep.position])
 
-  if (!isOpen || !tooltipPosition.show) return null;
+  if (!isOpen || !tooltipPosition.show) return null
 
   return (
     <>
@@ -835,7 +882,7 @@ function DashboardTour({
           top: tooltipPosition.top,
           left: tooltipPosition.left,
           width: "360px",
-          zIndex: 1000,
+          zIndex: 1001,
           animation: "tooltipFadeIn 0.3s ease",
         }}
       >
@@ -850,12 +897,14 @@ function DashboardTour({
         >
           {/* Header */}
           <div style={{ padding: "16px", background: "#fafbfc", borderBottom: "1px solid #e4e4e7" }}>
-            <h3 style={{ 
-              margin: "0 0 4px", 
-              fontSize: "15px", 
-              fontWeight: 600, 
-              color: "#252F2C",
-            }}>
+            <h3
+              style={{
+                margin: "0 0 4px",
+                fontSize: "15px",
+                fontWeight: 600,
+                color: "#252F2C",
+              }}
+            >
               {currentStep.title}
             </h3>
             <div style={{ fontSize: "11px", color: "#8B8B8B" }}>
@@ -865,25 +914,29 @@ function DashboardTour({
 
           {/* Content */}
           <div style={{ padding: "16px" }}>
-            <p style={{ 
-              margin: 0, 
-              fontSize: "13px", 
-              lineHeight: 1.5, 
-              color: "#52525b",
-            }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "13px",
+                lineHeight: 1.5,
+                color: "#52525b",
+              }}
+            >
               {currentStep.description}
             </p>
           </div>
 
           {/* Footer */}
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "space-between", 
-            padding: "12px 16px", 
-            borderTop: "1px solid #f4f4f5",
-            background: "#fafbfc",
-          }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 16px",
+              borderTop: "1px solid #f4f4f5",
+              background: "#fafbfc",
+            }}
+          >
             <button
               type="button"
               onClick={onClose}
@@ -896,8 +949,12 @@ function DashboardTour({
                 cursor: "pointer",
                 transition: "color 0.15s",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#252F2C"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#8B8B8B"; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "#252F2C"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "#8B8B8B"
+              }}
             >
               Skip
             </button>
@@ -906,7 +963,7 @@ function DashboardTour({
               {step > 0 && (
                 <button
                   type="button"
-                  onClick={() => setStep(s => s - 1)}
+                  onClick={() => setStep((s) => s - 1)}
                   style={{
                     padding: "6px 12px",
                     fontSize: "12px",
@@ -919,12 +976,12 @@ function DashboardTour({
                     transition: "all 0.15s",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#f4f4f5";
-                    e.currentTarget.style.borderColor = "#d4d4d8";
+                    e.currentTarget.style.background = "#f4f4f5"
+                    e.currentTarget.style.borderColor = "#d4d4d8"
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#fff";
-                    e.currentTarget.style.borderColor = "#e4e4e7";
+                    e.currentTarget.style.background = "#fff"
+                    e.currentTarget.style.borderColor = "#e4e4e7"
                   }}
                 >
                   Back
@@ -934,9 +991,9 @@ function DashboardTour({
                 type="button"
                 onClick={() => {
                   if (isLastStep) {
-                    onClose();
+                    onClose()
                   } else {
-                    setStep(s => s + 1);
+                    setStep((s) => s + 1)
                   }
                 }}
                 style={{
@@ -950,8 +1007,12 @@ function DashboardTour({
                   cursor: "pointer",
                   transition: "all 0.15s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#3d4e49"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#465A54"
+                }}
               >
                 {isLastStep ? "Done" : "Next"}
               </button>
@@ -959,7 +1020,15 @@ function DashboardTour({
           </div>
 
           {/* Progress dots */}
-          <div style={{ display: "flex", gap: "4px", padding: "8px 16px", justifyContent: "center", background: "#fafbfc" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "4px",
+              padding: "8px 16px",
+              justifyContent: "center",
+              background: "#fafbfc",
+            }}
+          >
             {steps.map((_, i) => (
               <div
                 key={`dot-${i}`}
@@ -975,32 +1044,66 @@ function DashboardTour({
           </div>
         </div>
 
-        {/* Arrow pointer */}
-        {currentStep.position === "bottom" && (
-          <div style={{
-            position: "absolute",
-            top: "-8px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 0,
-            height: 0,
-            borderLeft: "8px solid transparent",
-            borderRight: "8px solid transparent",
-            borderBottom: "8px solid #465A54",
-          }} />
+        {/* Arrow pointer - uses actualPosition for correct arrow direction */}
+        {tooltipPosition.actualPosition === "bottom" && (
+          <div
+            style={{
+              position: "absolute",
+              top: "-8px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "8px solid transparent",
+              borderRight: "8px solid transparent",
+              borderBottom: "8px solid #465A54",
+            }}
+          />
         )}
-        {currentStep.position === "right" && (
-          <div style={{
-            position: "absolute",
-            left: "-8px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 0,
-            height: 0,
-            borderTop: "8px solid transparent",
-            borderBottom: "8px solid transparent",
-            borderRight: "8px solid #465A54",
-          }} />
+        {tooltipPosition.actualPosition === "top" && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "-8px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "8px solid transparent",
+              borderRight: "8px solid transparent",
+              borderTop: "8px solid #465A54",
+            }}
+          />
+        )}
+        {tooltipPosition.actualPosition === "right" && (
+          <div
+            style={{
+              position: "absolute",
+              left: "-8px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 0,
+              height: 0,
+              borderTop: "8px solid transparent",
+              borderBottom: "8px solid transparent",
+              borderRight: "8px solid #465A54",
+            }}
+          />
+        )}
+        {tooltipPosition.actualPosition === "left" && (
+          <div
+            style={{
+              position: "absolute",
+              right: "-8px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 0,
+              height: 0,
+              borderTop: "8px solid transparent",
+              borderBottom: "8px solid transparent",
+              borderLeft: "8px solid #465A54",
+            }}
+          />
         )}
       </div>
 
@@ -1024,7 +1127,7 @@ function DashboardTour({
         }
       `}</style>
     </>
-  );
+  )
 }
 
 // ============================================
@@ -1032,603 +1135,1307 @@ function DashboardTour({
 // ============================================
 
 export default function Dashboard() {
-  const { stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<typeof action>();
-  const bulkFetcher = useFetcher();
-  const navigate = useNavigate();
-  const shopify = useAppBridge();
-  const [filter, setFilter] = useState<"all" | "ready" | "incomplete">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isScanning, setIsScanning] = useState(false);
-  const [sortBy, setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes");
-  
+  const { stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>()
+  const fetcher = useFetcher<typeof action>()
+  const bulkFetcher = useFetcher()
+  const navigate = useNavigate()
+  const shopify = useAppBridge()
+  const [filter, _setFilter] = useState<"all" | "ready" | "incomplete">("all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isScanning, setIsScanning] = useState(false)
+  const [sortBy, _setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes")
+
   // Tour state - user-level (localStorage)
-  const [isTourOpen, setIsTourOpen] = useState(false);
-  const [tourCompleted, setTourCompleted] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false)
+  const [_tourCompleted, setTourCompleted] = useState(false)
 
   // Bulk selection state
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [bulkAction, setBulkAction] = useState<string | null>(null);
-  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
-  
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
+  const [_showBulkModal, setShowBulkModal] = useState(false)
+  const [_bulkAction, setBulkAction] = useState<string | null>(null)
+  const [_bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null)
+
   // Monitoring modal state (Pro only)
-  const [showMonitoringModal, setShowMonitoringModal] = useState(false);
+  const [showMonitoringModal, setShowMonitoringModal] = useState(false)
 
   // Bulk actions dropdown state
-  const [showBulkDropdown, setShowBulkDropdown] = useState(false);
+  const [showBulkDropdown, setShowBulkDropdown] = useState(false)
 
   // Expandable rows state
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   // Show tour on first visit (user-level)
   useEffect(() => {
-    const completed = localStorage.getItem('dashboardTourCompleted') === 'true';
-    setTourCompleted(completed);
-    
+    const completed = localStorage.getItem("dashboardTourCompleted") === "true"
+    setTourCompleted(completed)
+
     if (!completed) {
-      const timer = setTimeout(() => setIsTourOpen(true), 1500);
-      return () => clearTimeout(timer);
+      const timer = setTimeout(() => setIsTourOpen(true), 1500)
+      return () => clearTimeout(timer)
     }
-  }, []);
+  }, [])
 
   const completeTour = async () => {
-    setTourCompleted(true);
-    localStorage.setItem('dashboardTourCompleted', 'true');
-    setIsTourOpen(false);
-  };
+    setTourCompleted(true)
+    localStorage.setItem("dashboardTourCompleted", "true")
+    setIsTourOpen(false)
+  }
 
   // Track scanning state
   useEffect(() => {
     if (fetcher.state === "submitting" || fetcher.state === "loading") {
       // Check if this is a scan_all submission
-      const intent = fetcher.formData?.get("intent");
+      const intent = fetcher.formData?.get("intent")
       if (intent === "scan_all") {
-        setIsScanning(true);
+        setIsScanning(true)
       }
     } else if (fetcher.state === "idle") {
-      setIsScanning(false);
+      setIsScanning(false)
     }
-  }, [fetcher.state, fetcher.formData]);
+  }, [fetcher.state, fetcher.formData])
 
   useEffect(() => {
     if (fetcher.data?.success && fetcher.data?.scanned !== undefined) {
-      shopify.toast.show(`Scanned ${fetcher.data.scanned} products`);
+      shopify.toast.show(`Scanned ${fetcher.data.scanned} products`)
     }
-  }, [fetcher.data, shopify]);
+  }, [fetcher.data, shopify])
 
   // Handle bulk action response
   useEffect(() => {
     if (bulkFetcher.state === "idle" && bulkFetcher.data) {
-      const data = bulkFetcher.data as { success?: boolean; successCount?: number; errorCount?: number };
+      const data = bulkFetcher.data as { success?: boolean; successCount?: number; errorCount?: number }
       if (data.success) {
-        shopify.toast.show(`Bulk fix complete: ${data.successCount} succeeded, ${data.errorCount} failed`);
-        setSelectedProducts(new Set());
-        setShowBulkModal(false);
-        setBulkProgress(null);
+        shopify.toast.show(`Bulk fix complete: ${data.successCount} succeeded, ${data.errorCount} failed`)
+        setSelectedProducts(new Set())
+        setShowBulkModal(false)
+        setBulkProgress(null)
       }
     }
-  }, [bulkFetcher.state, bulkFetcher.data, shopify]);
+  }, [bulkFetcher.state, bulkFetcher.data, shopify])
+
+  // Animated progress for catalog health
+  const [animatedPercent, setAnimatedPercent] = useState(0)
+  useEffect(() => {
+    const target = stats.totalAudited > 0 ? Math.round((stats.readyCount / stats.totalAudited) * 100) : 0
+    const duration = 1000
+    const startTime = performance.now()
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // Ease out cubic
+      const eased = 1 - (1 - progress) ** 3
+      setAnimatedPercent(Math.round(eased * target))
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    requestAnimationFrame(animate)
+  }, [stats.readyCount, stats.totalAudited])
 
   // Selection handlers
   const toggleProductSelection = (productId: string) => {
-    setSelectedProducts(prev => {
-      const next = new Set(prev);
+    setSelectedProducts((prev) => {
+      const next = new Set(prev)
       if (next.has(productId)) {
-        next.delete(productId);
+        next.delete(productId)
       } else {
-        next.add(productId);
+        next.add(productId)
       }
-      return next;
-    });
-  };
+      return next
+    })
+  }
 
   const selectAllVisible = () => {
-    const visibleIds = filteredAudits.map(a => a.productId);
-    setSelectedProducts(new Set(visibleIds));
-  };
+    const visibleIds = filteredAudits.map((a) => a.productId)
+    setSelectedProducts(new Set(visibleIds))
+  }
 
   const clearSelection = () => {
-    setSelectedProducts(new Set());
-  };
+    setSelectedProducts(new Set())
+  }
 
   const executeBulkAction = (action: string) => {
-    if (selectedProducts.size === 0) return;
-    
-    setBulkAction(action);
-    setBulkProgress({ current: 0, total: selectedProducts.size });
-    
+    if (selectedProducts.size === 0) return
+
+    setBulkAction(action)
+    setBulkProgress({ current: 0, total: selectedProducts.size })
+
     bulkFetcher.submit(
       {
         intent: action,
         productIds: JSON.stringify(Array.from(selectedProducts)),
       },
       { method: "POST", action: "/api/bulk-fix" }
-    );
-  };
+    )
+  }
 
   const filteredAudits = useMemo(() => {
     const filtered = audits.filter((audit) => {
-      if (filter !== "all" && audit.status !== filter) return false;
+      if (filter !== "all" && audit.status !== filter) return false
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return audit.productTitle.toLowerCase().includes(query);
+        const query = searchQuery.toLowerCase()
+        return audit.productTitle.toLowerCase().includes(query)
       }
-      return true;
-    });
+      return true
+    })
 
     // Apply sorting
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
         case "most-fixes":
-          return b.failedCount - a.failedCount;
+          return b.failedCount - a.failedCount
         case "least-fixes":
-          return a.failedCount - b.failedCount;
+          return a.failedCount - b.failedCount
         case "highest-score": {
-          const scoreA = a.passedCount / a.totalCount;
-          const scoreB = b.passedCount / b.totalCount;
-          return scoreB - scoreA;
+          const scoreA = a.passedCount / a.totalCount
+          const scoreB = b.passedCount / b.totalCount
+          return scoreB - scoreA
         }
         case "lowest-score": {
-          const scoreA2 = a.passedCount / a.totalCount;
-          const scoreB2 = b.passedCount / b.totalCount;
-          return scoreA2 - scoreB2;
+          const scoreA2 = a.passedCount / a.totalCount
+          const scoreB2 = b.passedCount / b.totalCount
+          return scoreA2 - scoreB2
         }
         default:
-          return 0;
+          return 0
       }
-    });
-  }, [audits, filter, searchQuery, sortBy]);
+    })
+  }, [audits, filter, searchQuery, sortBy])
 
-  const completionPercent = stats.totalAudited > 0
-    ? Math.round((stats.readyCount / stats.totalAudited) * 100)
-    : 0;
+  const _completionPercent = stats.totalAudited > 0 ? Math.round((stats.readyCount / stats.totalAudited) * 100) : 0
 
   return (
     <div
+      className="dashboard-no-scroll"
       style={{
-        minHeight: "100vh",
+        flex: 1,
         background: "#fafbfc",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif",
       }}
     >
-      {/* Header */}
+      {/* Main Content - 2 Column Layout */}
       <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "24px 40px",
-          borderBottom: "1px solid #e4e4e7",
-          background: "#fff",
-        }}
+        className="dashboard-grid"
+        style={{ display: "grid", gap: "24px", flex: 1, minHeight: 0, padding: "24px 32px" }}
       >
-        <h1 style={{
-          fontSize: "24px",
-          fontWeight: 600,
-          color: "#252F2C",
-          margin: 0,
-          letterSpacing: "-0.01em",
-        }}>
-          Products
-        </h1>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          {/* Search */}
-          <div style={{ position: "relative" }}>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: "200px",
-                padding: "8px 12px 8px 36px",
-                fontSize: "13px",
-                border: "1px solid #e4e4e7",
-                borderRadius: "6px",
-                outline: "none",
-                background: "#fff",
-                color: "#252F2C",
-                transition: "border-color 0.15s",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "#c4c4c7";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "#e4e4e7";
-              }}
-            />
-            <svg
-              style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}
-              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-          </div>
+        <style>{`
+          .dashboard-grid {
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr;
+            height: 100%;
+            overflow: hidden;
+          }
+          .products-table-header,
+          .products-table-row {
+            grid-template-columns: 28px 28px 1fr 90px 160px 120px;
+          }
+          @media (max-width: 900px) {
+            .dashboard-no-scroll {
+              flex: none !important;
+              overflow: auto !important;
+              min-height: 100%;
+            }
+            .dashboard-grid {
+              grid-template-columns: 1fr;
+              grid-template-rows: auto;
+              height: auto;
+              overflow: visible;
+              padding: 16px !important;
+              flex: none;
+            }
+            .dashboard-grid > div:last-child {
+              order: -1;
+            }
+            .dashboard-grid > div:first-child {
+              min-height: auto;
+              overflow: visible;
+            }
+            .products-scroll-container {
+              overflow: visible !important;
+              height: auto !important;
+              flex: none !important;
+            }
+          }
+          @media (max-width: 768px) {
+            .products-table-header,
+            .products-table-row {
+              grid-template-columns: 28px 28px 1fr 70px 100px;
+            }
+            .products-table-header > div:nth-child(5),
+            .products-table-row > div:nth-child(5) {
+              display: none;
+            }
+          }
+          @media (max-width: 600px) {
+            .products-table-header,
+            .products-table-row {
+              grid-template-columns: 28px 1fr 70px;
+            }
+            .products-table-header > div:nth-child(2),
+            .products-table-row > div:nth-child(2),
+            .products-table-header > div:nth-child(6),
+            .products-table-row > div:nth-child(6) {
+              display: none;
+            }
+          }
+        `}</style>
 
-          {/* Sync Button */}
-          <button
-            type="button"
-            data-tour-sync-button
-            onClick={() => {
-              setIsScanning(true);
-              fetcher.submit({ intent: "scan_all" }, { method: "POST" });
-            }}
-            disabled={isScanning}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 16px",
-              background: "#465A54",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "13px",
-              fontWeight: 500,
-              cursor: isScanning ? "not-allowed" : "pointer",
-              transition: "background 0.15s",
-              opacity: isScanning ? 0.7 : 1,
-            }}
-            onMouseEnter={(e) => { if (!isScanning) e.currentTarget.style.background = "#3d4e49"; }}
-            onMouseLeave={(e) => { if (!isScanning) e.currentTarget.style.background = "#465A54"; }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-              <path d="M21 3v5h-5" />
-            </svg>
-            {isScanning ? "Syncing..." : "Sync"}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div style={{ padding: "32px 40px" }}>
-
-      {/* Table Container */}
-      <div
-        data-tour-products-table
-        style={{
-          background: "#fff",
-          border: "1px solid #e4e4e7",
-          borderRadius: "10px",
-          overflow: "hidden",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}
-      >
-        {/* Table Header */}
+        {/* Left: Products Table */}
         <div
+          data-tour-products-table
           style={{
-            display: "grid",
-            gridTemplateColumns: "28px 28px 1fr 90px 160px 70px",
-            gap: "12px",
-            padding: "12px 20px",
-            borderBottom: "1px solid #e4e4e7",
             background: "#fff",
+            border: "1px solid #e4e4e7",
+            borderRadius: "10px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            height: "100%",
+            overflow: "hidden",
           }}
         >
-          <div />
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <input
-              type="checkbox"
-              checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  selectAllVisible();
-                } else {
-                  clearSelection();
-                }
+          {/* Card Header with Title, Search, Sync */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "16px 20px",
+              borderBottom: "1px solid #e4e4e7",
+              background: "#fff",
+              flexShrink: 0,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "#252F2C",
+                margin: 0,
               }}
-              style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#465A54" }}
-            />
-          </div>
-          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em" }}>Product</div>
-          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em" }}>Status</div>
-          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em" }}>Score</div>
-          <div style={{ fontSize: "11px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right" }}>Issues</div>
-        </div>
-
-        {/* Table Rows */}
-        {filteredAudits.length === 0 ? (
-          <div style={{ padding: "80px 20px", textAlign: "center" }}>
-            <div style={{ marginBottom: "12px" }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" strokeWidth="1.5">
-                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            </div>
-            <p style={{ color: "#71717a", fontSize: "14px", margin: 0 }}>No products found</p>
-            <p style={{ color: "#a1a1aa", fontSize: "13px", margin: "4px 0 0" }}>Sync your catalog to get started</p>
-          </div>
-        ) : (
-          filteredAudits.map((audit, idx) => {
-            const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100);
-            const isSelected = selectedProducts.has(audit.productId);
-            const isExpanded = expandedRows.has(audit.id);
-            
-            return (
-              <div key={audit.id} style={{ borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none" }}>
-                {/* Main Row */}
-                <div
-                  {...(idx === 0 ? { "data-tour-expand-row": true } : {})}
+            >
+              Products
+            </h2>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              {/* Search */}
+              <div style={{ position: "relative" }}>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "28px 28px 1fr 90px 160px 70px",
-                    gap: "12px",
-                    padding: "14px 20px",
-                    cursor: "pointer",
-                    transition: "background 0.1s",
-                    background: isExpanded ? "#fafafa" : "transparent",
+                    width: "160px",
+                    padding: "6px 10px 6px 32px",
+                    fontSize: "13px",
+                    border: "1px solid #e4e4e7",
+                    borderRadius: "6px",
+                    outline: "none",
+                    background: "#fff",
+                    color: "#252F2C",
+                    transition: "border-color 0.15s",
                   }}
-                  onMouseEnter={(e) => { if (!isExpanded) e.currentTarget.style.background = "#fafafa"; }}
-                  onMouseLeave={(e) => { if (!isExpanded) e.currentTarget.style.background = "transparent"; }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#c4c4c7"
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#e4e4e7"
+                  }}
+                />
+                <svg
+                  style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }}
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#a1a1aa"
+                  strokeWidth="2"
                 >
-                  {/* Expand Arrow */}
-                  <div
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                    onClick={() => {
-                      const newExpanded = new Set(expandedRows);
-                      if (isExpanded) { newExpanded.delete(audit.id); } else { newExpanded.add(audit.id); }
-                      setExpandedRows(newExpanded);
-                    }}
-                  >
-                    <svg
-                      width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2"
-                      style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0)", transition: "transform 0.15s ease" }}
-                    >
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  </div>
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+              </div>
 
-                  {/* Checkbox */}
-                  <div style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleProductSelection(audit.productId)}
-                      style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#18181b" }}
-                    />
-                  </div>
+              {/* Sync Button */}
+              <button
+                type="button"
+                data-tour-sync-button
+                onClick={() => {
+                  setIsScanning(true)
+                  fetcher.submit({ intent: "scan_all" }, { method: "POST" })
+                }}
+                disabled={isScanning}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  padding: "6px 12px",
+                  background: "#465A54",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: isScanning ? "not-allowed" : "pointer",
+                  transition: "background 0.15s",
+                  opacity: isScanning ? 0.7 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isScanning) e.currentTarget.style.background = "#3d4e49"
+                }}
+                onMouseLeave={(e) => {
+                  if (!isScanning) e.currentTarget.style.background = "#465A54"
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
+                {isScanning ? "Syncing..." : "Sync"}
+              </button>
+            </div>
+          </div>
 
-                  {/* Product */}
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}
-                    onClick={() => { navigate(`/app/products/${audit.productId.split('/').pop()}`); }}
-                  >
-                    <div style={{ width: "36px", height: "36px", borderRadius: "6px", overflow: "hidden", background: "#f4f4f5", flexShrink: 0, border: "1px solid #e4e4e7" }}>
-                      {audit.productImage ? (
-                        <img src={audit.productImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d4d4d8" }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <span style={{ fontSize: "13px", fontWeight: 500, color: "#252F2C", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {audit.productTitle}
-                    </span>
-                  </div>
+          {/* Table Column Headers */}
+          <div
+            className="products-table-header"
+            style={{
+              display: "grid",
+              gap: "12px",
+              padding: "10px 20px",
+              borderBottom: "1px solid #e4e4e7",
+              background: "#fafafa",
+              flexShrink: 0,
+            }}
+          >
+            <div />
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    selectAllVisible()
+                  } else {
+                    clearSelection()
+                  }
+                }}
+                style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#465A54" }}
+              />
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: 500,
+                color: "#8B8B8B",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Product
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: 500,
+                color: "#8B8B8B",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Status
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: 500,
+                color: "#8B8B8B",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Score
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: 500,
+                color: "#8B8B8B",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                textAlign: "right",
+              }}
+            >
+              Issues
+            </div>
+          </div>
 
-                  {/* Status */}
-                  <div data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{
-                      padding: "3px 8px",
-                      borderRadius: "4px",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                      background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
-                      color: audit.status === "ready" ? "#059669" : "#8B7500",
-                      border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
-                    }}>
-                      {audit.status === "ready" ? "Ready" : "Pending"}
-                    </span>
-                  </div>
-
-                  {/* Score */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ flex: 1, height: "6px", background: "#e4e4e7", borderRadius: "3px", overflow: "hidden" }}>
-                      <div style={{
-                        width: `${progressPercent}%`,
-                        height: "100%",
-                        background: audit.status === "ready" ? "#465A54" : progressPercent >= 70 ? "#5A7C66" : "#9B9860",
-                        borderRadius: "3px",
-                        transition: "width 0.3s ease",
-                      }} />
-                    </div>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#3f3f46", minWidth: "32px", textAlign: "right" }}>{progressPercent}%</span>
-                  </div>
-
-                  {/* Issues */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                    <span style={{ 
-                      fontSize: "12px", 
-                      fontWeight: 500, 
-                      color: audit.failedCount > 0 ? "#B53D3D" : "#71717a",
-                      background: audit.failedCount > 0 ? "#fef2f2" : "transparent",
-                      padding: audit.failedCount > 0 ? "2px 8px" : "0",
-                      borderRadius: "4px",
-                    }}>
-                      {audit.failedCount}
-                    </span>
-                  </div>
+          {/* Table Rows */}
+          <div className="products-scroll-container" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            {filteredAudits.length === 0 ? (
+              <div style={{ padding: "80px 20px", textAlign: "center" }}>
+                <div style={{ marginBottom: "12px" }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" strokeWidth="1.5">
+                    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
                 </div>
+                <p style={{ color: "#71717a", fontSize: "14px", margin: 0 }}>No products found</p>
+                <p style={{ color: "#a1a1aa", fontSize: "13px", margin: "4px 0 0" }}>
+                  Sync your catalog to get started
+                </p>
+              </div>
+            ) : (
+              filteredAudits.map((audit, idx) => {
+                const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
+                const isSelected = selectedProducts.has(audit.productId)
+                const isExpanded = expandedRows.has(audit.id)
 
-                {/* Expanded Content - Enhanced Analytics */}
-                {isExpanded && (
-                  <div style={{ padding: "0 20px 20px 56px", background: "#fafafa" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
-                      
-                      {/* Top Row: Quick Stats + Progress */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
-                        {/* Completion Rate */}
-                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
-                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                            Completion
-                          </div>
-                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-                            <span style={{ fontSize: "24px", fontWeight: 600, color: progressPercent >= 90 ? "#059669" : progressPercent >= 70 ? "#465A54" : "#B53D3D" }}>
-                              {progressPercent}%
-                            </span>
-                            <span style={{ fontSize: "11px", color: "#71717a" }}>
-                              {audit.passedCount}/{audit.totalCount}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Critical Issues */}
-                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
-                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                            Critical
-                          </div>
-                          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-                            <span style={{ fontSize: "24px", fontWeight: 600, color: audit.failedCount > 0 ? "#B53D3D" : "#059669" }}>
-                              {audit.failedCount}
-                            </span>
-                            <span style={{ fontSize: "11px", color: "#71717a" }}>
-                              {audit.failedCount === 0 ? "All clear" : "to fix"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Status Badge */}
-                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
-                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                            Status
-                          </div>
-                          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 10px", borderRadius: "4px", background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7", border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a" }}>
-                            <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: audit.status === "ready" ? "#059669" : "#8B7500" }} />
-                            <span style={{ fontSize: "12px", fontWeight: 500, color: audit.status === "ready" ? "#059669" : "#8B7500" }}>
-                              {audit.status === "ready" ? "Launch Ready" : "Needs Work"}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Last Updated */}
-                        <div style={{ padding: "16px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
-                          <div style={{ fontSize: "10px", fontWeight: 500, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
-                            Last Checked
-                          </div>
-                          <div style={{ fontSize: "12px", color: "#252F2C", fontWeight: 500 }}>
-                            {new Date(audit.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </div>
-                          <div style={{ fontSize: "10px", color: "#71717a", marginTop: "2px" }}>
-                            {new Date(audit.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                          </div>
-                        </div>
+                return (
+                  <div
+                    key={audit.id}
+                    style={{ borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none" }}
+                  >
+                    {/* Main Row */}
+                    <div
+                      className="products-table-row"
+                      {...(idx === 0 ? { "data-tour-expand-row": true } : {})}
+                      onClick={() => {
+                        const newExpanded = new Set(expandedRows)
+                        if (isExpanded) {
+                          newExpanded.delete(audit.id)
+                        } else {
+                          newExpanded.add(audit.id)
+                        }
+                        setExpandedRows(newExpanded)
+                      }}
+                      style={{
+                        display: "grid",
+                        gap: "12px",
+                        padding: "14px 20px",
+                        cursor: "pointer",
+                        transition: "background 0.1s",
+                        background: isExpanded ? "#fafafa" : "transparent",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isExpanded) e.currentTarget.style.background = "#fafafa"
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isExpanded) e.currentTarget.style.background = "transparent"
+                      }}
+                    >
+                      {/* Expand Arrow */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#a1a1aa"
+                          strokeWidth="2"
+                          style={{
+                            transform: isExpanded ? "rotate(90deg)" : "rotate(0)",
+                            transition: "transform 0.15s ease",
+                          }}
+                        >
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
                       </div>
 
-                      {/* Bottom Row: Detailed Breakdown */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
-                        
-                        {/* Left: Category Breakdown */}
-                        <div style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
-                          <div style={{ fontSize: "11px", fontWeight: 500, color: "#71717a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            Checklist Breakdown
-                          </div>
-                          
-                          {/* Progress Bar with Segments */}
-                          <div style={{ marginBottom: "20px" }}>
-                            <div style={{ display: "flex", height: "10px", borderRadius: "5px", overflow: "hidden", background: "#e4e4e7" }}>
-                              <div 
-                                style={{ 
-                                  width: `${(audit.passedCount / audit.totalCount) * 100}%`, 
-                                  background: "linear-gradient(90deg, #465A54, #5A7C66)", 
-                                  transition: "width 0.3s ease" 
-                                }} 
-                                title={`${audit.passedCount} passed`}
-                              />
-                              <div 
-                                style={{ 
-                                  width: `${(audit.failedCount / audit.totalCount) * 100}%`, 
-                                  background: "linear-gradient(90deg, #B53D3D, #D95D5D)", 
-                                  transition: "width 0.3s ease" 
-                                }} 
-                                title={`${audit.failedCount} failed`}
-                              />
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "11px", color: "#71717a" }}>
-                              <span>{audit.passedCount} completed</span>
-                              <span>{audit.failedCount} remaining</span>
-                            </div>
-                          </div>
+                      {/* Checkbox */}
+                      <div style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleProductSelection(audit.productId)}
+                          style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#18181b" }}
+                        />
+                      </div>
 
-                          {/* Category Items */}
-                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {/* Simulated categories based on typical checks */}
-                            {[
-                              { name: "Content Quality", passed: Math.floor(audit.passedCount * 0.4), total: Math.floor(audit.totalCount * 0.4), priority: "high" },
-                              { name: "Images & Media", passed: Math.floor(audit.passedCount * 0.3), total: Math.floor(audit.totalCount * 0.3), priority: "high" },
-                              { name: "SEO Optimization", passed: Math.floor(audit.passedCount * 0.2), total: Math.floor(audit.totalCount * 0.2), priority: "medium" },
-                              { name: "Organization", passed: Math.ceil(audit.passedCount * 0.1), total: Math.ceil(audit.totalCount * 0.1), priority: "low" },
-                            ].map((category, idx) => {
-                              const categoryPercent = category.total > 0 ? Math.round((category.passed / category.total) * 100) : 100;
-                              const isComplete = category.passed === category.total;
-                              
-                              return (
-                                <div 
-                                  key={idx}
-                                  style={{ 
-                                    display: "flex", 
-                                    alignItems: "center", 
-                                    gap: "12px",
-                                    padding: "12px",
-                                    background: "#fafafa",
-                                    borderRadius: "6px",
-                                    border: "1px solid #f4f4f5"
+                      {/* Product */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            background: "#f4f4f5",
+                            flexShrink: 0,
+                            border: "1px solid #e4e4e7",
+                          }}
+                        >
+                          {audit.productImage ? (
+                            <img
+                              src={audit.productImage}
+                              alt=""
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#d4d4d8",
+                              }}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                              >
+                                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            color: "#252F2C",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {audit.productTitle}
+                        </span>
+                      </div>
+
+                      {/* Status */}
+                      <div data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
+                        <span
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            fontWeight: 500,
+                            background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
+                            color: audit.status === "ready" ? "#059669" : "#8B7500",
+                            border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
+                          }}
+                        >
+                          {audit.status === "ready" ? "Ready" : "Pending"}
+                        </span>
+                      </div>
+
+                      {/* Score */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div
+                          style={{
+                            flex: 1,
+                            height: "6px",
+                            background: "#e4e4e7",
+                            borderRadius: "3px",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${progressPercent}%`,
+                              height: "100%",
+                              background:
+                                audit.status === "ready" ? "#465A54" : progressPercent >= 70 ? "#5A7C66" : "#9B9860",
+                              borderRadius: "3px",
+                              transition: "width 0.3s ease",
+                            }}
+                          />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "#3f3f46",
+                            minWidth: "32px",
+                            textAlign: "right",
+                          }}
+                        >
+                          {progressPercent}%
+                        </span>
+                      </div>
+
+                      {/* Issues + View Details */}
+                      <div
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 500,
+                            color: audit.failedCount > 0 ? "#B53D3D" : "#71717a",
+                            background: audit.failedCount > 0 ? "#fef2f2" : "transparent",
+                            padding: audit.failedCount > 0 ? "2px 8px" : "0",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {audit.failedCount}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/app/products/${audit.productId.split("/").pop()}`)
+                          }}
+                          style={{
+                            padding: "4px 8px",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            background: "transparent",
+                            border: "1px solid #e4e4e7",
+                            borderRadius: "4px",
+                            color: "#252F2C",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                            whiteSpace: "nowrap",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#f4f4f5"
+                            e.currentTarget.style.borderColor = "#d4d4d8"
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent"
+                            e.currentTarget.style.borderColor = "#e4e4e7"
+                          }}
+                        >
+                          View Details
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded Content - Enhanced Analytics */}
+                    {isExpanded && (
+                      <div style={{ padding: "0 20px 20px 56px", background: "#fafafa" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
+                          {/* Top Row: Quick Stats + Progress */}
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                            {/* Completion Rate */}
+                            <div
+                              style={{
+                                padding: "12px",
+                                background: "#fff",
+                                borderRadius: "6px",
+                                border: "1px solid #e4e4e7",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: 500,
+                                  color: "#71717a",
+                                  marginBottom: "4px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                }}
+                              >
+                                Completion
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: 600,
+                                  color:
+                                    progressPercent >= 90 ? "#059669" : progressPercent >= 70 ? "#465A54" : "#B53D3D",
+                                }}
+                              >
+                                {progressPercent}%
+                              </div>
+                            </div>
+
+                            {/* Critical Issues */}
+                            <div
+                              style={{
+                                padding: "12px",
+                                background: "#fff",
+                                borderRadius: "6px",
+                                border: "1px solid #e4e4e7",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: 500,
+                                  color: "#71717a",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                  marginBottom: "4px",
+                                }}
+                              >
+                                Issues
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "14px",
+                                  fontWeight: 600,
+                                  color: audit.failedCount > 0 ? "#B53D3D" : "#059669",
+                                }}
+                              >
+                                {audit.failedCount}
+                              </div>
+                            </div>
+
+                            {/* Status Badge */}
+                            <div
+                              style={{
+                                padding: "12px",
+                                background: "#fff",
+                                borderRadius: "6px",
+                                border: "1px solid #e4e4e7",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 500,
+                                  color: "#71717a",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                  marginBottom: "4px",
+                                }}
+                              >
+                                Status
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <div
+                                  style={{
+                                    width: "6px",
+                                    height: "6px",
+                                    borderRadius: "50%",
+                                    background: audit.status === "ready" ? "#059669" : "#8B7500",
+                                  }}
+                                />
+                                <span
+                                  style={{
+                                    fontSize: "12px",
+                                    fontWeight: 500,
+                                    color: audit.status === "ready" ? "#059669" : "#8B7500",
                                   }}
                                 >
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                                      <span style={{ fontSize: "13px", fontWeight: 500, color: "#252F2C" }}>
-                                        {category.name}
-                                      </span>
-                                      {category.priority === "high" && !isComplete && (
-                                        <span style={{ 
-                                          fontSize: "9px", 
-                                          fontWeight: 600, 
-                                          color: "#B53D3D", 
-                                          background: "#fef2f2", 
-                                          padding: "2px 6px", 
-                                          borderRadius: "3px",
-                                          textTransform: "uppercase",
-                                          letterSpacing: "0.03em"
-                                        }}>
-                                          Priority
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                      <div style={{ flex: 1, height: "4px", background: "#e4e4e7", borderRadius: "2px", overflow: "hidden" }}>
-                                        <div style={{ 
-                                          width: `${categoryPercent}%`, 
-                                          height: "100%", 
-                                          background: isComplete ? "#465A54" : categoryPercent >= 50 ? "#5A7C66" : "#9B9860",
-                                          borderRadius: "2px",
-                                          transition: "width 0.3s ease"
-                                        }} />
+                                  {audit.status === "ready" ? "Ready" : "Needs Work"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Last Updated */}
+                            <div
+                              style={{
+                                padding: "12px",
+                                background: "#fff",
+                                borderRadius: "6px",
+                                border: "1px solid #e4e4e7",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 500,
+                                  color: "#71717a",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                  marginBottom: "4px",
+                                }}
+                              >
+                                Last Checked
+                              </div>
+                              <div style={{ fontSize: "12px", color: "#252F2C", fontWeight: 500 }}>
+                                {new Date(audit.updatedAt).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom Row: Detailed Breakdown - Real Data Issues */}
+                          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }}>
+                            {/* Left: Issues List (Real Data) */}
+                            <div
+                              style={{
+                                padding: "20px",
+                                background: "#fff",
+                                borderRadius: "8px",
+                                border: "1px solid #e4e4e7",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 500,
+                                  color: "#71717a",
+                                  marginBottom: "16px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                }}
+                              >
+                                Checklist Breakdown
+                              </div>
+
+                              {/* Items List */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                {/* Failed Items */}
+                                {audit.items && audit.items.filter((i: any) => i.status === "failed").length > 0 ? (
+                                  <>
+                                    {audit.items
+                                      .filter((i: any) => i.status === "failed")
+                                      .slice(0, 5)
+                                      .map((item: any) => (
+                                        <div
+                                          key={item.id}
+                                          style={{
+                                            padding: "12px",
+                                            background: "#fef2f2",
+                                            border: "1px solid #fecaca",
+                                            borderRadius: "6px",
+                                            display: "flex",
+                                            alignItems: "flex-start",
+                                            gap: "12px",
+                                            transition: "transform 0.1s",
+                                            cursor: "default",
+                                          }}
+                                          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateX(2px)")}
+                                          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateX(0)")}
+                                          title={item.details}
+                                        >
+                                          <div style={{ flex: 1 }}>
+                                            <div
+                                              style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "#991b1b" }}
+                                            >
+                                              {item.label}
+                                            </div>
+                                            <div
+                                              style={{
+                                                fontSize: "var(--text-sm)",
+                                                color: "#b91c1c",
+                                                marginTop: "2px",
+                                                lineHeight: 1.4,
+                                              }}
+                                            >
+                                              {item.details || "Check failed"}
+                                            </div>
+                                          </div>
+                                          {item.canAutoFix && (
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "4px",
+                                                background: "#fff",
+                                                padding: "4px 8px",
+                                                borderRadius: "12px",
+                                                border: "1px solid #fca5a5",
+                                                flexShrink: 0,
+                                              }}
+                                            >
+                                              <svg
+                                                width="10"
+                                                height="10"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="#B53D3D"
+                                                strokeWidth="2.5"
+                                              >
+                                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                              </svg>
+                                              <span style={{ fontSize: "10px", fontWeight: 700, color: "#B53D3D" }}>
+                                                AUTO
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    {audit.items.filter((i: any) => i.status === "failed").length > 5 && (
+                                      <div
+                                        style={{
+                                          padding: "8px 12px",
+                                          textAlign: "center",
+                                          fontSize: "12px",
+                                          color: "#71717a",
+                                          borderTop: "1px solid #e4e4e7",
+                                          marginTop: "4px",
+                                        }}
+                                      >
+                                        +{audit.items.filter((i: any) => i.status === "failed").length - 5} more issues
                                       </div>
-                                      <span style={{ fontSize: "11px", fontWeight: 600, color: isComplete ? "#059669" : "#71717a", minWidth: "45px", textAlign: "right" }}>
-                                        {category.passed}/{category.total}
-                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div style={{ fontSize: "var(--text-sm)", color: "#52525b" }}>
+                                    <div style={{ fontWeight: 600, marginBottom: "4px" }}>All checks passed!</div>
+                                    <div style={{ fontSize: "var(--text-xs)", opacity: 0.8 }}>
+                                      This product is ready for launch.
                                     </div>
                                   </div>
+                                )}
+
+                                {audit.items && audit.items.filter((i: any) => i.status === "passed").length > 0 && (
+                                  <details style={{ cursor: "pointer", marginTop: "12px" }}>
+                                    <summary
+                                      style={{
+                                        fontSize: "var(--text-sm)",
+                                        color: "#71717a",
+                                        fontWeight: 500,
+                                        userSelect: "none",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "6px",
+                                        padding: "8px 0",
+                                        transition: "color 0.15s ease",
+                                      }}
+                                      onMouseEnter={(e) => (e.currentTarget.style.color = "#252F2C")}
+                                      onMouseLeave={(e) => (e.currentTarget.style.color = "#71717a")}
+                                    >
+                                      <svg
+                                        width="12"
+                                        height="12"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="3"
+                                        style={{ transition: "transform 0.3s ease" }}
+                                      >
+                                        <polyline points="6 9 12 15 18 9" />
+                                      </svg>
+                                      <span>
+                                        View {audit.items.filter((i: any) => i.status === "passed").length} passed
+                                        checks
+                                      </span>
+                                    </summary>
+                                    <div
+                                      style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        gap: "8px",
+                                        padding: "12px",
+                                        background: "#f4f4f5",
+                                        borderRadius: "6px",
+                                        animation: "slideDown 0.3s ease",
+                                      }}
+                                    >
+                                      {audit.items
+                                        .filter((i: any) => i.status === "passed")
+                                        .map((item: any) => (
+                                          <div
+                                            key={item.id}
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "8px",
+                                              fontSize: "var(--text-sm)",
+                                              color: "#52525b",
+                                            }}
+                                          >
+                                            <div style={{ color: "#059669" }}>
+                                              <svg
+                                                width="12"
+                                                height="12"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="3"
+                                              >
+                                                <polyline points="20 6 9 17 4 12" />
+                                              </svg>
+                                            </div>
+                                            <span
+                                              style={{
+                                                whiteSpace: "nowrap",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                              }}
+                                            >
+                                              {item.label}
+                                            </span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                    <style>{`
+                                  details {
+                                    overflow: hidden;
+                                  }
+                                  details[open] summary svg {
+                                    transform: rotate(180deg);
+                                  }
+                                  details > div {
+                                    animation: slideDown 0.3s ease forwards;
+                                    margin-top: 8px;
+                                  }
+                                  details:not([open]) > div {
+                                    animation: slideUp 0.3s ease forwards;
+                                    margin-top: 0;
+                                  }
+                                  @keyframes slideDown {
+                                    from {
+                                      opacity: 0;
+                                      transform: translateY(-8px);
+                                      max-height: 0;
+                                    }
+                                    to {
+                                      opacity: 1;
+                                      transform: translateY(0);
+                                      max-height: 500px;
+                                    }
+                                  }
+                                  @keyframes slideUp {
+                                    from {
+                                      opacity: 1;
+                                      transform: translateY(0);
+                                      max-height: 500px;
+                                    }
+                                    to {
+                                      opacity: 0;
+                                      transform: translateY(-8px);
+                                      max-height: 0;
+                                    }
+                                  }
+                                `}</style>
+                                  </details>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Right: Quick Actions Panel */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                              <div
+                                style={{
+                                  padding: "16px",
+                                  background: "#fff",
+                                  borderRadius: "8px",
+                                  border: "1px solid #e4e4e7",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: 500,
+                                    color: "#71717a",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    marginBottom: "12px",
+                                  }}
+                                >
+                                  Quick Actions
                                 </div>
-                              );
-                            })}
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                                  {audit.failedCount > 0 ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        navigate(`/app/products/${audit.productId.split("/").pop()}?autoFix=true`)
+                                      }}
+                                      style={{
+                                        width: "100%",
+                                        padding: "10px",
+                                        background: "#fff",
+                                        color: "#B53D3D",
+                                        border: "1px solid #fecaca",
+                                        borderRadius: "6px",
+                                        fontSize: "var(--text-sm)",
+                                        fontWeight: 500,
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "6px",
+                                        transition: "all 0.15s",
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = "#fef2f2"
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = "#fff"
+                                      }}
+                                    >
+                                      <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                      >
+                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                      </svg>
+                                      Fix
+                                    </button>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        padding: "10px",
+                                        background: "#ecfdf5",
+                                        border: "1px solid #d1fae5",
+                                        borderRadius: "6px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: "var(--text-sm)",
+                                        fontWeight: 500,
+                                        color: "#059669",
+                                      }}
+                                    >
+                                      Ready
+                                    </div>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      navigate("/app/settings?tab=version-history")
+                                    }}
+                                    style={{
+                                      width: "100%",
+                                      padding: "10px",
+                                      background: "#fff",
+                                      color: "#71717a",
+                                      border: "1px solid #e4e4e7",
+                                      borderRadius: "6px",
+                                      fontSize: "var(--text-sm)",
+                                      fontWeight: 500,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      gap: "6px",
+                                      transition: "all 0.15s",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = "#f4f4f5"
+                                      e.currentTarget.style.borderColor = "#d4d4d8"
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = "#fff"
+                                      e.currentTarget.style.borderColor = "#e4e4e7"
+                                    }}
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                    >
+                                      <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                    </svg>
+                                    History
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Insight Box */}
+                              <div
+                                style={{
+                                  padding: "12px",
+                                  background: "#f0f9ff",
+                                  borderRadius: "6px",
+                                  border: "1px solid #bae6fd",
+                                }}
+                              >
+                                <div style={{ fontSize: "12px", color: "#0369a1", lineHeight: 1.5 }}>
+                                  <strong>Tip:</strong>{" "}
+                                  {audit.failedCount > 0
+                                    ? "Prioritize fixing 'Critical' issues like missing images or descriptions."
+                                    : "Great job! Your product is fully optimized."}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+                )
+              })
+            )}
+          </div>
+        </div>
 
-      {/* Floating Bulk Actions Bar */}
+        {/* Right: Catalog Score Card */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px", overflow: "hidden" }}>
+          {/* Overall Score Card */}
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #e4e4e7",
+              borderRadius: "12px",
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "var(--text-xs)",
+                fontWeight: 500,
+                color: "#71717a",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                marginBottom: "20px",
+              }}
+            >
+              Products Health
+            </div>
+
+            {/* Circular Progress */}
+            <div style={{ position: "relative", width: "120px", height: "120px", marginBottom: "20px" }}>
+              <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
+                {/* Background circle */}
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
+                {/* Progress circle */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="50"
+                  fill="none"
+                  stroke={animatedPercent >= 80 ? "#059669" : animatedPercent >= 60 ? "#465A54" : "#B53D3D"}
+                  strokeWidth="8"
+                  strokeDasharray={`${(animatedPercent / 100) * 314.159} 314.159`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              {/* Center text */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "28px",
+                    fontWeight: 600,
+                    color: "#252F2C",
+                  }}
+                >
+                  {animatedPercent}%
+                </div>
+                <div
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    color: "#71717a",
+                    marginTop: "4px",
+                  }}
+                >
+                  Ready
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       {selectedProducts.size > 0 && (
         <div
           style={{
@@ -1663,25 +2470,29 @@ export default function Dashboard() {
                 borderRight: "1px solid #e4e4e7",
               }}
             >
-              <div style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "6px",
-                background: "#465A54",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                fontSize: "13px",
-                fontWeight: 600,
-              }}>
+              <div
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "6px",
+                  background: "#465A54",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+              >
                 {selectedProducts.size}
               </div>
-              <span style={{
-                fontSize: "13px",
-                fontWeight: 500,
-                color: "#252F2C",
-              }}>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#252F2C",
+                }}
+              >
                 selected
               </span>
             </div>
@@ -1708,18 +2519,18 @@ export default function Dashboard() {
               }}
               onMouseEnter={(e) => {
                 if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "#3d4e49";
+                  e.currentTarget.style.background = "#3d4e49"
                 }
               }}
               onMouseLeave={(e) => {
                 if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "#465A54";
+                  e.currentTarget.style.background = "#465A54"
                 }
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-                <line x1="7" y1="7" x2="7.01" y2="7"/>
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
               </svg>
               Tags
             </button>
@@ -1745,18 +2556,18 @@ export default function Dashboard() {
               }}
               onMouseEnter={(e) => {
                 if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "#f4f4f5";
-                  e.currentTarget.style.borderColor = "#d4d4d8";
+                  e.currentTarget.style.background = "#f4f4f5"
+                  e.currentTarget.style.borderColor = "#d4d4d8"
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.borderColor = "#e4e4e7";
+                e.currentTarget.style.background = "transparent"
+                e.currentTarget.style.borderColor = "#e4e4e7"
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
               </svg>
               SEO
             </button>
@@ -1782,17 +2593,17 @@ export default function Dashboard() {
               }}
               onMouseEnter={(e) => {
                 if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)";
+                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.background = "transparent"
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <path d="M21 15l-5-5L5 21"/>
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
               </svg>
               Images
             </button>
@@ -1817,17 +2628,17 @@ export default function Dashboard() {
                   justifyContent: "center",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)";
+                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.background = "transparent"
                 }}
                 title="More actions"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="1"/>
-                  <circle cx="19" cy="12" r="1"/>
-                  <circle cx="5" cy="12" r="1"/>
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="19" cy="12" r="1" />
+                  <circle cx="5" cy="12" r="1" />
                 </svg>
               </button>
 
@@ -1850,12 +2661,24 @@ export default function Dashboard() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Section: AI Actions */}
-                  <div style={{ padding: "8px 12px 4px", fontSize: "10px", fontWeight: 600, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <div
+                    style={{
+                      padding: "8px 12px 4px",
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      color: "#8B8B8B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
                     Generate
                   </div>
                   <button
                     type="button"
-                    onClick={() => { executeBulkAction("generate_seo_desc"); setShowBulkDropdown(false); }}
+                    onClick={() => {
+                      executeBulkAction("generate_seo_desc")
+                      setShowBulkDropdown(false)
+                    }}
                     disabled={bulkFetcher.state !== "idle"}
                     style={{
                       width: "100%",
@@ -1870,14 +2693,21 @@ export default function Dashboard() {
                       transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={(e) => {
+                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                    }}
                   >
                     SEO Description
                   </button>
                   <button
                     type="button"
-                    onClick={() => { executeBulkAction("generate_alt_text"); setShowBulkDropdown(false); }}
+                    onClick={() => {
+                      executeBulkAction("generate_alt_text")
+                      setShowBulkDropdown(false)
+                    }}
                     disabled={bulkFetcher.state !== "idle"}
                     style={{
                       width: "100%",
@@ -1892,14 +2722,21 @@ export default function Dashboard() {
                       transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={(e) => {
+                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                    }}
                   >
                     Image Alt Text
                   </button>
                   <button
                     type="button"
-                    onClick={() => { executeBulkAction("generate_seo_title"); setShowBulkDropdown(false); }}
+                    onClick={() => {
+                      executeBulkAction("generate_seo_title")
+                      setShowBulkDropdown(false)
+                    }}
                     disabled={bulkFetcher.state !== "idle"}
                     style={{
                       width: "100%",
@@ -1914,19 +2751,37 @@ export default function Dashboard() {
                       transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={(e) => {
+                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                    }}
                   >
                     SEO Title
                   </button>
 
                   {/* Section: Auto Fix Actions */}
-                  <div style={{ borderTop: "1px solid #e4e4e7", marginTop: "4px", padding: "6px 12px 4px", fontSize: "10px", fontWeight: 600, color: "#8B8B8B", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <div
+                    style={{
+                      borderTop: "1px solid #e4e4e7",
+                      marginTop: "4px",
+                      padding: "6px 12px 4px",
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      color: "#8B8B8B",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
                     Actions
                   </div>
                   <button
                     type="button"
-                    onClick={() => { executeBulkAction("generate_tags"); setShowBulkDropdown(false); }}
+                    onClick={() => {
+                      executeBulkAction("generate_tags")
+                      setShowBulkDropdown(false)
+                    }}
                     disabled={bulkFetcher.state !== "idle"}
                     style={{
                       width: "100%",
@@ -1941,14 +2796,21 @@ export default function Dashboard() {
                       transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={(e) => {
+                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                    }}
                   >
                     Apply Tags
                   </button>
                   <button
                     type="button"
-                    onClick={() => { executeBulkAction("apply_collection"); setShowBulkDropdown(false); }}
+                    onClick={() => {
+                      executeBulkAction("apply_collection")
+                      setShowBulkDropdown(false)
+                    }}
                     disabled={bulkFetcher.state !== "idle"}
                     style={{
                       width: "100%",
@@ -1963,8 +2825,12 @@ export default function Dashboard() {
                       transition: "background 0.15s",
                       opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                     }}
-                    onMouseEnter={(e) => { if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    onMouseEnter={(e) => {
+                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                    }}
                   >
                     Add to Collection
                   </button>
@@ -1973,7 +2839,10 @@ export default function Dashboard() {
                   <div style={{ borderTop: "1px solid #e4e4e7", marginTop: "4px" }}>
                     <button
                       type="button"
-                      onClick={() => { clearSelection(); setShowBulkDropdown(false); }}
+                      onClick={() => {
+                        clearSelection()
+                        setShowBulkDropdown(false)
+                      }}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -1987,12 +2856,12 @@ export default function Dashboard() {
                         transition: "background 0.15s",
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#f4f4f5";
-                        e.currentTarget.style.color = "#252F2C";
+                        e.currentTarget.style.background = "#f4f4f5"
+                        e.currentTarget.style.color = "#252F2C"
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "#a1a1aa";
+                        e.currentTarget.style.background = "transparent"
+                        e.currentTarget.style.color = "#a1a1aa"
                       }}
                     >
                       Clear Selection
@@ -2022,19 +2891,19 @@ export default function Dashboard() {
                 fontSize: "18px",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f4f4f5";
-                e.currentTarget.style.borderColor = "#d4d4d8";
-                e.currentTarget.style.color = "#252F2C";
+                e.currentTarget.style.background = "#f4f4f5"
+                e.currentTarget.style.borderColor = "#d4d4d8"
+                e.currentTarget.style.color = "#252F2C"
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.borderColor = "#e4e4e7";
-                e.currentTarget.style.color = "#8B8B8B";
+                e.currentTarget.style.background = "transparent"
+                e.currentTarget.style.borderColor = "#e4e4e7"
+                e.currentTarget.style.color = "#8B8B8B"
               }}
               title="Close"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6L6 18M6 6l12 12"/>
+                <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -2057,7 +2926,7 @@ export default function Dashboard() {
             zIndex: 1000,
           }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowMonitoringModal(false);
+            if (e.target === e.currentTarget) setShowMonitoringModal(false)
           }}
         >
           <div
@@ -2074,16 +2943,26 @@ export default function Dashboard() {
             }}
           >
             {/* Header */}
-            <div style={{
-              padding: "24px",
-              borderBottom: "1px solid var(--color-border-subtle)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "transparent",
-            }}>
+            <div
+              style={{
+                padding: "24px",
+                borderBottom: "1px solid var(--color-border-subtle)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "transparent",
+              }}
+            >
               <div>
-                <h2 style={{ fontSize: "var(--text-xl)", fontWeight: 600, margin: 0, color: "var(--color-text)", letterSpacing: "-0.01em" }}>
+                <h2
+                  style={{
+                    fontSize: "var(--text-xl)",
+                    fontWeight: 600,
+                    margin: 0,
+                    color: "var(--color-text)",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
                   Catalog Monitor
                 </h2>
                 <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", margin: "4px 0 0" }}>
@@ -2110,13 +2989,17 @@ export default function Dashboard() {
             {/* Content */}
             <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
               {/* Summary Cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}>
-                <div style={{
-                  padding: "16px",
-                  background: "var(--color-surface-secondary)",
-                  borderRadius: "var(--radius-md)",
-                  textAlign: "center",
-                }}>
+              <div
+                style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}
+              >
+                <div
+                  style={{
+                    padding: "16px",
+                    background: "var(--color-surface-secondary)",
+                    borderRadius: "var(--radius-md)",
+                    textAlign: "center",
+                  }}
+                >
                   <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--color-text)" }}>
                     {monitoring.driftsThisWeek}
                   </div>
@@ -2124,29 +3007,36 @@ export default function Dashboard() {
                     Drifts This Week
                   </div>
                 </div>
-                <div style={{
-                  padding: "16px",
-                  background: monitoring.unresolvedDrifts > 0 ? "var(--color-warning-soft)" : "var(--color-success-soft)",
-                  borderRadius: "var(--radius-md)",
-                  textAlign: "center",
-                }}>
-                  <div style={{ 
-                    fontSize: "28px", 
-                    fontWeight: 600, 
-                    color: monitoring.unresolvedDrifts > 0 ? "var(--color-warning)" : "var(--color-success)" 
-                  }}>
+                <div
+                  style={{
+                    padding: "16px",
+                    background:
+                      monitoring.unresolvedDrifts > 0 ? "var(--color-warning-soft)" : "var(--color-success-soft)",
+                    borderRadius: "var(--radius-md)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 600,
+                      color: monitoring.unresolvedDrifts > 0 ? "var(--color-warning)" : "var(--color-success)",
+                    }}
+                  >
                     {monitoring.unresolvedDrifts}
                   </div>
                   <div style={{ fontSize: "11px", color: "var(--color-muted)", textTransform: "uppercase" }}>
                     Unresolved
                   </div>
                 </div>
-                <div style={{
-                  padding: "16px",
-                  background: "var(--color-surface-secondary)",
-                  borderRadius: "var(--radius-md)",
-                  textAlign: "center",
-                }}>
+                <div
+                  style={{
+                    padding: "16px",
+                    background: "var(--color-surface-secondary)",
+                    borderRadius: "var(--radius-md)",
+                    textAlign: "center",
+                  }}
+                >
                   <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--color-text)" }}>
                     {monitoring.productsAffected}
                   </div>
@@ -2159,30 +3049,33 @@ export default function Dashboard() {
               {/* Issues by Type */}
               {Object.keys(monitoring.byType).length > 0 && (
                 <div style={{ marginBottom: "24px" }}>
-                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>
-                    Issues by Type
-                  </h3>
+                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Issues by Type</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {Object.entries(monitoring.byType).map(([type, count]) => (
-                      <div key={type} style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "10px 14px",
-                        background: "var(--color-surface-secondary)",
-                        borderRadius: "var(--radius-sm)",
-                      }}>
+                      <div
+                        key={type}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 14px",
+                          background: "var(--color-surface-secondary)",
+                          borderRadius: "var(--radius-sm)",
+                        }}
+                      >
                         <span style={{ fontSize: "13px", color: "var(--color-text)" }}>
-                          {type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                          {type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                         </span>
-                        <span style={{ 
-                          fontSize: "13px", 
-                          fontWeight: 600, 
-                          color: "var(--color-warning)",
-                          background: "var(--color-warning-soft)",
-                          padding: "2px 8px",
-                          borderRadius: "var(--radius-full)",
-                        }}>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "var(--color-warning)",
+                            background: "var(--color-warning-soft)",
+                            padding: "2px 8px",
+                            borderRadius: "var(--radius-full)",
+                          }}
+                        >
                           {count}
                         </span>
                       </div>
@@ -2194,18 +3087,16 @@ export default function Dashboard() {
               {/* Recent Drifts */}
               {monitoring.recentDrifts.length > 0 && (
                 <div>
-                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>
-                    Recent Issues
-                  </h3>
+                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Recent Issues</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     {monitoring.recentDrifts.slice(0, 5).map((drift) => (
                       <button
                         key={drift.id}
                         type="button"
                         onClick={() => {
-                          setShowMonitoringModal(false);
-                          const numericId = drift.productId.split('/').pop();
-                          navigate(`/app/products/${numericId}`);
+                          setShowMonitoringModal(false)
+                          const numericId = drift.productId.split("/").pop()
+                          navigate(`/app/products/${numericId}`)
                         }}
                         style={{
                           display: "flex",
@@ -2227,23 +3118,27 @@ export default function Dashboard() {
                             {drift.driftType.replace(/_/g, " ")}
                           </div>
                         </div>
-                        <div style={{
-                          padding: "4px 8px",
-                          borderRadius: "var(--radius-full)",
-                          fontSize: "10px",
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          background: drift.severity === "high" 
-                            ? "var(--color-danger-soft)" 
-                            : drift.severity === "medium"
-                              ? "var(--color-warning-soft)"
-                              : "var(--color-surface-strong)",
-                          color: drift.severity === "high" 
-                            ? "var(--color-danger)" 
-                            : drift.severity === "medium"
-                              ? "var(--color-warning)"
-                              : "var(--color-muted)",
-                        }}>
+                        <div
+                          style={{
+                            padding: "4px 8px",
+                            borderRadius: "var(--radius-full)",
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            background:
+                              drift.severity === "high"
+                                ? "var(--color-danger-soft)"
+                                : drift.severity === "medium"
+                                  ? "var(--color-warning-soft)"
+                                  : "var(--color-surface-strong)",
+                            color:
+                              drift.severity === "high"
+                                ? "var(--color-danger)"
+                                : drift.severity === "medium"
+                                  ? "var(--color-warning)"
+                                  : "var(--color-muted)",
+                          }}
+                        >
                           {drift.severity}
                         </div>
                       </button>
@@ -2255,23 +3150,30 @@ export default function Dashboard() {
               {/* Empty state */}
               {monitoring.driftsThisWeek === 0 && (
                 <div style={{ textAlign: "center", padding: "32px" }}>
-                  <div style={{
-                    width: "64px",
-                    height: "64px",
-                    borderRadius: "50%",
-                    background: "var(--color-success-soft)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    margin: "0 auto 16px",
-                  }}>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2">
+                  <div
+                    style={{
+                      width: "64px",
+                      height: "64px",
+                      borderRadius: "50%",
+                      background: "var(--color-success-soft)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 16px",
+                    }}
+                  >
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--color-success)"
+                      strokeWidth="2"
+                    >
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </div>
-                  <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>
-                    All Clear!
-                  </h3>
+                  <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>All Clear!</h3>
                   <p style={{ fontSize: "13px", color: "var(--color-muted)" }}>
                     No compliance drifts detected in the last 7 days.
                   </p>
@@ -2280,14 +3182,16 @@ export default function Dashboard() {
             </div>
 
             {/* Footer */}
-            <div style={{
-              padding: "20px 24px",
-              borderTop: "1px solid var(--color-border-subtle)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "transparent",
-            }}>
+            <div
+              style={{
+                padding: "20px 24px",
+                borderTop: "1px solid var(--color-border-subtle)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "transparent",
+              }}
+            >
               <button
                 type="button"
                 onClick={() => navigate("/app/standards")}
@@ -2323,15 +3227,13 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      </div>
-      {/* End Main Content */}
 
       {/* Dashboard Tour */}
       <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
     </div>
-  );
+  )
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
-};
+  return boundary.headers(headersArgs)
+}

@@ -1,10 +1,10 @@
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
-import { login } from "../shopify.server";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router"
+import { login } from "../shopify.server"
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  return login(request);
-};
+  return login(request)
+}
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  return login(request);
-};
+  return login(request)
+}

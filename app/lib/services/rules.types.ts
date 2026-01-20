@@ -2,17 +2,20 @@
  * Rule type definitions - shared between server and client
  */
 
-import type { RuleType } from "~/db/schema";
+import type { RuleType } from "~/db/schema"
 
 // Rule type definitions with validation schema
-export const RULE_DEFINITIONS: Record<RuleType, {
-  label: string;
-  description: string;
-  configSchema: {
-    type: "number" | "range" | "tags" | "metafields" | "regex";
-    fields: { key: string; label: string; type: string; default?: unknown }[];
-  };
-}> = {
+export const RULE_DEFINITIONS: Record<
+  RuleType,
+  {
+    label: string
+    description: string
+    configSchema: {
+      type: "number" | "range" | "tags" | "metafields" | "regex"
+      fields: { key: string; label: string; type: string; default?: unknown }[]
+    }
+  }
+> = {
   min_images: {
     label: "Minimum Images",
     description: "Products must have at least this many images",
@@ -135,7 +138,7 @@ export const RULE_DEFINITIONS: Record<RuleType, {
       ],
     },
   },
-};
+}
 
 // Pre-built rule templates for quick setup
 export const RULE_TEMPLATES = {
@@ -168,4 +171,4 @@ export const RULE_TEMPLATES = {
       { ruleType: "collection_required", config: {}, severity: "medium" },
     ],
   },
-};
+}

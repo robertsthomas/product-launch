@@ -1,7 +1,7 @@
-import { eq, and } from "drizzle-orm";
-import { db, shops, checklistTemplates, checklistItems } from "../../db";
-import { DEFAULT_CHECKLIST_ITEMS } from "../checklist/types";
-import { createId } from "@paralleldrive/cuid2";
+import { createId } from "@paralleldrive/cuid2"
+import { eq } from "drizzle-orm"
+import { checklistItems, checklistTemplates, db, shops } from "../../db"
+import { DEFAULT_CHECKLIST_ITEMS } from "../checklist/types"
 
 /**
  * Initialize a shop with default checklist template
@@ -14,33 +14,33 @@ export async function initializeShop(shopDomain: string) {
     with: {
       checklistTemplates: true,
     },
-  });
+  })
 
   if (existingShop && existingShop.checklistTemplates.length > 0) {
-    return existingShop;
+    return existingShop
   }
 
   // Create shop if it doesn't exist
-  let shop = existingShop;
+  let shop = existingShop
   if (!shop) {
-    const shopId = createId();
+    const shopId = createId()
     await db.insert(shops).values({
       id: shopId,
       shopDomain,
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    })
     shop = await db.query.shops.findFirst({
       where: eq(shops.id, shopId),
-    });
+    })
   }
 
   if (!shop) {
-    throw new Error("Failed to create shop");
+    throw new Error("Failed to create shop")
   }
 
   // Create default checklist template
-  const templateId = createId();
+  const templateId = createId()
   await db.insert(checklistTemplates).values({
     id: templateId,
     shopId: shop.id,
@@ -49,7 +49,7 @@ export async function initializeShop(shopDomain: string) {
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  });
+  })
 
   // Create default checklist items
   const itemsToInsert = DEFAULT_CHECKLIST_ITEMS.map((item, index) => ({
@@ -64,15 +64,13 @@ export async function initializeShop(shopDomain: string) {
     order: item.order ?? index,
     createdAt: new Date(),
     updatedAt: new Date(),
-  }));
+  }))
 
-  await db.insert(checklistItems).values(itemsToInsert);
+  await db.insert(checklistItems).values(itemsToInsert)
 
-  console.log(
-    `Initialized shop ${shopDomain} with template ${templateId} and ${itemsToInsert.length} checklist items`
-  );
+  console.log(`Initialized shop ${shopDomain} with template ${templateId} and ${itemsToInsert.length} checklist items`)
 
-  return shop;
+  return shop
 }
 
 /**
@@ -89,10 +87,10 @@ export async function getOrCreateShop(shopDomain: string) {
         },
       },
     },
-  });
+  })
 
   if (!shop) {
-    await initializeShop(shopDomain);
+    await initializeShop(shopDomain)
     shop = await db.query.shops.findFirst({
       where: eq(shops.shopDomain, shopDomain),
       with: {
@@ -103,10 +101,10 @@ export async function getOrCreateShop(shopDomain: string) {
           },
         },
       },
-    });
+    })
   }
 
-  return shop!;
+  return shop!
 }
 
 /**
@@ -115,7 +113,7 @@ export async function getOrCreateShop(shopDomain: string) {
 export async function getShopSettings(shopDomain: string) {
   return db.query.shops.findFirst({
     where: eq(shops.shopDomain, shopDomain),
-  });
+  })
 }
 
 /**
@@ -124,19 +122,19 @@ export async function getShopSettings(shopDomain: string) {
 export async function updateShopSettings(
   shopDomain: string,
   settings: {
-    autoRunOnCreate?: boolean;
-    autoRunOnUpdate?: boolean;
-    defaultCollectionId?: string | null;
-    defaultTags?: string; // JSON string array
-    defaultMetafields?: string; // JSON string array
-    versionHistoryEnabled?: boolean;
-    brandVoicePreset?: string | null;
-    brandVoiceNotes?: string | null;
-    activeTemplateId?: string | null;
-    openaiApiKey?: string | null;
-    useOwnOpenAIKey?: boolean;
-    openaiTextModel?: string | null;
-    openaiImageModel?: string | null;
+    autoRunOnCreate?: boolean
+    autoRunOnUpdate?: boolean
+    defaultCollectionId?: string | null
+    defaultTags?: string // JSON string array
+    defaultMetafields?: string // JSON string array
+    versionHistoryEnabled?: boolean
+    brandVoicePreset?: string | null
+    brandVoiceNotes?: string | null
+    activeTemplateId?: string | null
+    openaiApiKey?: string | null
+    useOwnOpenAIKey?: boolean
+    openaiTextModel?: string | null
+    openaiImageModel?: string | null
   }
 ) {
   return db
@@ -145,7 +143,7 @@ export async function updateShopSettings(
       ...settings,
       updatedAt: new Date(),
     })
-    .where(eq(shops.shopDomain, shopDomain));
+    .where(eq(shops.shopDomain, shopDomain))
 }
 
 /**
@@ -154,10 +152,10 @@ export async function updateShopSettings(
 export async function getOpenAIApiKey(shopDomain: string): Promise<string | null> {
   const shop = await db.query.shops.findFirst({
     where: eq(shops.shopDomain, shopDomain),
-  });
+  })
 
   // Return merchant's key if set, otherwise fall back to app's key
-  return shop?.openaiApiKey || process.env.OPENAI_API_KEY || null;
+  return shop?.openaiApiKey || process.env.OPENAI_API_KEY || null
 }
 
 /**
@@ -167,33 +165,33 @@ export async function getOpenAIApiKey(shopDomain: string): Promise<string | null
 export async function isUsingOwnOpenAIKey(shopDomain: string): Promise<boolean> {
   const shop = await db.query.shops.findFirst({
     where: eq(shops.shopDomain, shopDomain),
-  });
+  })
 
   // Both conditions must be true: has a key AND toggle is on
-  return !!shop?.openaiApiKey && shop.useOwnOpenAIKey !== false;
+  return !!shop?.openaiApiKey && shop.useOwnOpenAIKey !== false
 }
 
 /**
  * Get the shop's OpenAI configuration (API key and model preferences)
  */
 export async function getShopOpenAIConfig(shopDomain: string): Promise<{
-  apiKey: string | null;
-  isUsingOwnKey: boolean;
-  textModel: string | null;
-  imageModel: string | null;
+  apiKey: string | null
+  isUsingOwnKey: boolean
+  textModel: string | null
+  imageModel: string | null
 }> {
   const shop = await db.query.shops.findFirst({
     where: eq(shops.shopDomain, shopDomain),
-  });
+  })
 
-  const isUsingOwnKey = !!shop?.openaiApiKey && shop.useOwnOpenAIKey !== false;
+  const isUsingOwnKey = !!shop?.openaiApiKey && shop.useOwnOpenAIKey !== false
 
   return {
     apiKey: isUsingOwnKey ? shop?.openaiApiKey || null : null,
     isUsingOwnKey,
     textModel: isUsingOwnKey ? shop?.openaiTextModel || null : null,
     imageModel: isUsingOwnKey ? shop?.openaiImageModel || null : null,
-  };
+  }
 }
 
 /**
@@ -203,17 +201,14 @@ export async function toggleUseOwnOpenAIKey(shopDomain: string, enabled: boolean
   return db
     .update(shops)
     .set({ useOwnOpenAIKey: enabled, updatedAt: new Date() })
-    .where(eq(shops.shopDomain, shopDomain));
+    .where(eq(shops.shopDomain, shopDomain))
 }
 
 /**
  * Toggle a checklist item's enabled state
  */
 export async function toggleChecklistItem(itemId: string, isEnabled: boolean) {
-  return db
-    .update(checklistItems)
-    .set({ isEnabled, updatedAt: new Date() })
-    .where(eq(checklistItems.id, itemId));
+  return db.update(checklistItems).set({ isEnabled, updatedAt: new Date() }).where(eq(checklistItems.id, itemId))
 }
 
 /**
@@ -221,10 +216,7 @@ export async function toggleChecklistItem(itemId: string, isEnabled: boolean) {
  */
 export async function updateChecklistItemWeight(itemId: string, weight: number) {
   if (weight < 1 || weight > 10) {
-    throw new Error("Invalid weight");
+    throw new Error("Invalid weight")
   }
-  return db
-    .update(checklistItems)
-    .set({ weight, updatedAt: new Date() })
-    .where(eq(checklistItems.id, itemId));
+  return db.update(checklistItems).set({ weight, updatedAt: new Date() }).where(eq(checklistItems.id, itemId))
 }

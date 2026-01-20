@@ -5,82 +5,91 @@
  * Organized by content type and product category for easy maintenance
  */
 
-import type { BrandVoicePreset } from "../../db/schema";
+import type { BrandVoicePreset } from "../../db/schema"
 
 // ============================================
 // Brand Voice Profiles
 // ============================================
 
-export const BRAND_VOICE_PROFILES: Record<BrandVoicePreset, {
-  name: string;
-  description: string;
-  tone: string;
-  vocabulary: string;
-  examples: string;
-}> = {
+export const BRAND_VOICE_PROFILES: Record<
+  BrandVoicePreset,
+  {
+    name: string
+    description: string
+    tone: string
+    vocabulary: string
+    examples: string
+  }
+> = {
   minimal: {
     name: "Minimal",
     description: "Clean, understated, less is more",
     tone: "Simple, clean, understated. Let the product speak for itself.",
-    vocabulary: "Use short sentences. Avoid superlatives. Focus on essential details only. No fluff or marketing speak.",
-    examples: "Good: 'Organic cotton tee. Relaxed fit. Machine wash.' Bad: 'Absolutely stunning premium cotton t-shirt that will transform your wardrobe!'",
+    vocabulary:
+      "Use short sentences. Avoid superlatives. Focus on essential details only. No fluff or marketing speak.",
+    examples:
+      "Good: 'Organic cotton tee. Relaxed fit. Machine wash.' Bad: 'Absolutely stunning premium cotton t-shirt that will transform your wardrobe!'",
   },
   premium: {
     name: "Premium",
     description: "Luxurious, sophisticated, exclusive",
     tone: "Sophisticated, refined, exclusive. Emphasize quality, craftsmanship, and timeless elegance.",
-    vocabulary: "Use words like: curated, artisanal, meticulously crafted, exceptional, refined, signature, heritage, distinguished. Avoid: cheap, basic, simple.",
-    examples: "Good: 'Meticulously crafted from the finest Italian leather, each piece embodies generations of artisanal expertise.' Bad: 'Nice leather bag.'",
+    vocabulary:
+      "Use words like: curated, artisanal, meticulously crafted, exceptional, refined, signature, heritage, distinguished. Avoid: cheap, basic, simple.",
+    examples:
+      "Good: 'Meticulously crafted from the finest Italian leather, each piece embodies generations of artisanal expertise.' Bad: 'Nice leather bag.'",
   },
   fun: {
     name: "Fun",
     description: "Playful, energetic, approachable",
     tone: "Playful, energetic, and approachable. Make shopping feel exciting and enjoyable.",
-    vocabulary: "Use casual language, action words, and enthusiasm. Emojis are okay sparingly. Words like: amazing, love, perfect, awesome, grab, snag, rock.",
-    examples: "Good: 'Ready to rock your next adventure? This bag has got you covered!' Bad: 'This bag is suitable for travel purposes.'",
+    vocabulary:
+      "Use casual language, action words, and enthusiasm. Emojis are okay sparingly. Words like: amazing, love, perfect, awesome, grab, snag, rock.",
+    examples:
+      "Good: 'Ready to rock your next adventure? This bag has got you covered!' Bad: 'This bag is suitable for travel purposes.'",
   },
   technical: {
     name: "Technical",
     description: "Precise, detailed, specification-focused",
     tone: "Precise, informative, and specification-focused. Appeal to detail-oriented buyers who research before purchasing.",
-    vocabulary: "Include measurements, materials, specs. Use technical terminology. Provide comparison points. Be factual over emotional.",
-    examples: "Good: 'Features 600D ripstop nylon, YKK zippers, 15L capacity, IPX4 water resistance rating.' Bad: 'Waterproof and durable!'",
+    vocabulary:
+      "Include measurements, materials, specs. Use technical terminology. Provide comparison points. Be factual over emotional.",
+    examples:
+      "Good: 'Features 600D ripstop nylon, YKK zippers, 15L capacity, IPX4 water resistance rating.' Bad: 'Waterproof and durable!'",
   },
   bold: {
     name: "Bold",
     description: "Confident, assertive, attention-grabbing",
     tone: "Confident, assertive, attention-grabbing. Make strong claims and stand out from competitors.",
-    vocabulary: "Use power words: revolutionary, game-changing, unrivaled, dominate, unstoppable, fearless. Short punchy sentences. Occasional all-caps for emphasis.",
+    vocabulary:
+      "Use power words: revolutionary, game-changing, unrivaled, dominate, unstoppable, fearless. Short punchy sentences. Occasional all-caps for emphasis.",
     examples: "Good: 'The ONLY bag you'll ever need. Period.' Bad: 'This is a nice bag that you might like.'",
   },
-};
+}
 
 /**
  * Build brand voice instruction for AI prompts
  */
-export function buildBrandVoiceInstruction(
-  preset?: BrandVoicePreset | null,
-  customNotes?: string | null
-): string {
+export function buildBrandVoiceInstruction(preset?: BrandVoicePreset | null, customNotes?: string | null): string {
   if (!preset && !customNotes) {
-    return "";
+    return ""
   }
 
-  let instruction = "\n\nBRAND VOICE GUIDELINES:\n";
-  
+  let instruction = "\n\nBRAND VOICE GUIDELINES:\n"
+
   if (preset && BRAND_VOICE_PROFILES[preset]) {
-    const profile = BRAND_VOICE_PROFILES[preset];
-    instruction += `Tone: ${profile.tone}\n`;
-    instruction += `Style: ${profile.vocabulary}\n`;
+    const profile = BRAND_VOICE_PROFILES[preset]
+    instruction += `Tone: ${profile.tone}\n`
+    instruction += `Style: ${profile.vocabulary}\n`
   }
 
   if (customNotes?.trim()) {
-    instruction += `\nAdditional brand notes: ${customNotes.trim()}\n`;
+    instruction += `\nAdditional brand notes: ${customNotes.trim()}\n`
   }
 
-  instruction += "\nIMPORTANT: Apply these voice guidelines consistently while maintaining all other requirements.";
-  
-  return instruction;
+  instruction += "\nIMPORTANT: Apply these voice guidelines consistently while maintaining all other requirements."
+
+  return instruction
 }
 
 // ============================================
@@ -121,14 +130,14 @@ export const TITLE_FORMULAS = {
   automotive: "Brand + Product Name + + Part Number",
 
   // Fallback
-  general: "Brand + Product Type + Key Feature + Modifier"
-} as const;
+  general: "Brand + Product Type + Key Feature + Modifier",
+} as const
 
 // ============================================
 // Meta Description Formula
 // ============================================
 
-export const META_DESCRIPTION_FORMULA = "[Benefit] + [Key Feature] + [Call to Action]";
+export const META_DESCRIPTION_FORMULA = "[Benefit] + [Key Feature] + [Call to Action]"
 
 // ============================================
 // AI Image Generation Prompt Templates
@@ -136,50 +145,72 @@ export const META_DESCRIPTION_FORMULA = "[Benefit] + [Key Feature] + [Call to Ac
 
 export const IMAGE_PROMPT_TEMPLATES = {
   // Beauty & Personal Care
-  skincare: "Studio packshot of [Product], soft diffused lighting, white podium, botanical elements, eucalyptus leaves, water droplets, 8k, high key photography --ar 4:5",
-  cosmetics: "Luxury beauty photography, [Product] texture smear, satin background, gold accents, softbox lighting, macro detail, commercial aesthetic --ar 4:5",
-  fragrance: "Elegant perfume bottle photography, [Product], reflection on glass surface, moody lighting, floating flower petals, cinematic depth of field, amber tones --ar 4:5",
+  skincare:
+    "Studio packshot of [Product], soft diffused lighting, white podium, botanical elements, eucalyptus leaves, water droplets, 8k, high key photography --ar 4:5",
+  cosmetics:
+    "Luxury beauty photography, [Product] texture smear, satin background, gold accents, softbox lighting, macro detail, commercial aesthetic --ar 4:5",
+  fragrance:
+    "Elegant perfume bottle photography, [Product], reflection on glass surface, moody lighting, floating flower petals, cinematic depth of field, amber tones --ar 4:5",
 
   // Fashion & Apparel
-  streetwear: "Streetwear fashion photography, [Product], urban concrete background, neon city lights, cinematic lighting, depth of field, hypebeast style, shot on Sony A7R IV --ar 3:2",
-  apparel: "Fashion photography, [Product], professional studio setup, soft lighting, premium quality, neutral beige background, commercial style --ar 3:4",
-  footwear: "Levitating sneaker product shot, [Product], dynamic angle, urban street environment, puddle reflection, dramatic rim lighting, 8k resolution --ar 3:2",
-  jewelry: "Macro jewelry photography, [Product], black velvet background, dramatic spotlight, sparkle diffraction, sharp focus, luxury catalog style --ar 1:1",
-  eyewear: "Summer lifestyle photography, [Product], sunglasses on sand, sunlight refraction, beach background bokeh, golden hour, tropical vibes --ar 16:9",
+  streetwear:
+    "Streetwear fashion photography, [Product], urban concrete background, neon city lights, cinematic lighting, depth of field, hypebeast style, shot on Sony A7R IV --ar 3:2",
+  apparel:
+    "Fashion photography, [Product], professional studio setup, soft lighting, premium quality, neutral beige background, commercial style --ar 3:4",
+  footwear:
+    "Levitating sneaker product shot, [Product], dynamic angle, urban street environment, puddle reflection, dramatic rim lighting, 8k resolution --ar 3:2",
+  jewelry:
+    "Macro jewelry photography, [Product], black velvet background, dramatic spotlight, sparkle diffraction, sharp focus, luxury catalog style --ar 1:1",
+  eyewear:
+    "Summer lifestyle photography, [Product], sunglasses on sand, sunlight refraction, beach background bokeh, golden hour, tropical vibes --ar 16:9",
   bags: "Luxury leather goods photography, [Product], airport lounge context, travel aesthetic, soft natural light through window, shallow depth of field --ar 4:5",
 
   // Home & Living
-  "home-decor": "Interior design photography, [Product] in a modern Scandinavian living room, morning sunlight, beige tones, minimalist furniture, cozy atmosphere, architectural digest style --ar 16:9",
-  furniture: "Modern furniture photography, [Product], spacious loft apartment, industrial chic, concrete floor, large windows, soft daylight, wide angle --ar 16:9",
-  kitchenware: "Gourmet kitchen styling, [Product] on marble countertop, fresh ingredients, blurred kitchen background, cinematic lighting, food magazine style --ar 4:5",
-  bedding: "Cozy bedroom photography, [Product], unmade bed aesthetic, morning light, linen texture detail, warm tones, inviting atmosphere --ar 4:5",
-  plants: "Indoor gardening photography, [Product], sunroom setting, terracotta textures, dappled sunlight, lush greenery background, bokeh --ar 4:5",
+  "home-decor":
+    "Interior design photography, [Product] in a modern Scandinavian living room, morning sunlight, beige tones, minimalist furniture, cozy atmosphere, architectural digest style --ar 16:9",
+  furniture:
+    "Modern furniture photography, [Product], spacious loft apartment, industrial chic, concrete floor, large windows, soft daylight, wide angle --ar 16:9",
+  kitchenware:
+    "Gourmet kitchen styling, [Product] on marble countertop, fresh ingredients, blurred kitchen background, cinematic lighting, food magazine style --ar 4:5",
+  bedding:
+    "Cozy bedroom photography, [Product], unmade bed aesthetic, morning light, linen texture detail, warm tones, inviting atmosphere --ar 4:5",
+  plants:
+    "Indoor gardening photography, [Product], sunroom setting, terracotta textures, dappled sunlight, lush greenery background, bokeh --ar 4:5",
 
   // Tech & Gadgets
-  electronics: "Tech product photography, [Product], clean matte black background, studio lighting, rim light, centered composition, technical precision, high detail --ar 1:1",
-  audio: "High-fidelity audio equipment, [Product], sound studio background, acoustic foam texture, moody blue and purple gel lighting, sleek modern design --ar 16:9",
-  cases: "Phone case lifestyle shot, [Product], held in hand, cafe background, latte art, natural lighting, social media influencer style --ar 4:5",
+  electronics:
+    "Tech product photography, [Product], clean matte black background, studio lighting, rim light, centered composition, technical precision, high detail --ar 1:1",
+  audio:
+    "High-fidelity audio equipment, [Product], sound studio background, acoustic foam texture, moody blue and purple gel lighting, sleek modern design --ar 16:9",
+  cases:
+    "Phone case lifestyle shot, [Product], held in hand, cafe background, latte art, natural lighting, social media influencer style --ar 4:5",
 
   // Food & Beverage
-  consumables: "Food packaging photography, [Product], clean background, professional lighting, appetizing presentation, fresh ingredients surrounding --ar 4:5",
-  beverage: "Commercial beverage photography, [Product], condensation droplets on bottle, splashing liquid, backlit, ice cubes, fresh fruit slices, thirst-quenching, high speed sync --ar 4:5",
-  supplements: "Health supplement photography, [Product], clean white clinical background, floating pills, scientific lighting, crisp focus, vitality theme --ar 1:1",
+  consumables:
+    "Food packaging photography, [Product], clean background, professional lighting, appetizing presentation, fresh ingredients surrounding --ar 4:5",
+  beverage:
+    "Commercial beverage photography, [Product], condensation droplets on bottle, splashing liquid, backlit, ice cubes, fresh fruit slices, thirst-quenching, high speed sync --ar 4:5",
+  supplements:
+    "Health supplement photography, [Product], clean white clinical background, floating pills, scientific lighting, crisp focus, vitality theme --ar 1:1",
 
   // Kids & Hobby
   toys: "Playful toy photography, [Product], vibrant colors, kid's playroom background, soft high-key lighting, eye-level angle, joy and fun --ar 1:1",
   baby: "Soft baby product photography, [Product], pastel colors, fluffy texture, nursery background, gentle diffused window light, dreamy atmosphere --ar 4:5",
-  sports: "Dynamic sports photography, [Product], gym environment, harsh contrast lighting, sweat texture, action shot, motion blur background --ar 3:2",
-  books: "Book flat lay photography, [Product], wooden coffee table, cup of tea, reading glasses, cozy blanket, overhead shot, warm lighting --ar 4:5",
+  sports:
+    "Dynamic sports photography, [Product], gym environment, harsh contrast lighting, sweat texture, action shot, motion blur background --ar 3:2",
+  books:
+    "Book flat lay photography, [Product], wooden coffee table, cup of tea, reading glasses, cozy blanket, overhead shot, warm lighting --ar 4:5",
 
   // General/Fallback
-  generic: "Professional product photography, [Product], neutral studio background, three-point lighting, 8k resolution, photorealistic, sharp focus --ar 1:1"
-} as const;
+  generic:
+    "Professional product photography, [Product], neutral studio background, three-point lighting, 8k resolution, photorealistic, sharp focus --ar 1:1",
+} as const
 
 // ============================================
 // Alt Text Pattern
 // ============================================
 
-export const ALT_TEXT_PATTERN = "[Product Name] + [Key Attribute] + [Visual Context]";
+export const ALT_TEXT_PATTERN = "[Product Name] + [Key Attribute] + [Visual Context]"
 
 // ============================================
 // System Prompts for Different Content Types
@@ -232,8 +263,8 @@ Great alt text:
 - Includes the product name and type naturally
 - Mentions key visual elements (color, material, context)
 - Is conversational, not keyword-stuffed
-- Helps blind users understand what sighted users see`
-} as const;
+- Helps blind users understand what sighted users see`,
+} as const
 
 // ============================================
 // Product Category Detection
@@ -264,33 +295,36 @@ export const PRODUCT_CATEGORIES = {
   consumables: ["coffee", "tea", "snack", "chocolate", "candy", "sauce", "spice", "beverage", "soda"],
   "pet-supplies": ["dog food", "cat toy", "leash", "bed", "collar", "treat", "aquarium", "grooming", "litter"],
   toys: ["puzzle", "doll", "action figure", "board game", "plush", "building blocks", "educational", "outdoor"],
-  automotive: ["car part", "accessory", "tool", "wax", "cleaner", "light", "organizer", "seat cover"]
-} as const;
+  automotive: ["car part", "accessory", "tool", "wax", "cleaner", "light", "organizer", "seat cover"],
+} as const
 
-export function detectProductCategory(productType?: string | null, tags?: string[]): keyof typeof IMAGE_PROMPT_TEMPLATES {
-  if (!productType && !tags) return "generic"; // default
+export function detectProductCategory(
+  productType?: string | null,
+  tags?: string[]
+): keyof typeof IMAGE_PROMPT_TEMPLATES {
+  if (!productType && !tags) return "generic" // default
 
-  const searchText = `${productType || ""} ${tags?.join(" ") || ""}`.toLowerCase();
+  const searchText = `${productType || ""} ${tags?.join(" ") || ""}`.toLowerCase()
 
   for (const [category, keywords] of Object.entries(PRODUCT_CATEGORIES)) {
-    if (keywords.some(keyword => searchText.includes(keyword))) {
+    if (keywords.some((keyword) => searchText.includes(keyword))) {
       // Map PRODUCT_CATEGORIES to IMAGE_PROMPT_TEMPLATES
       // Most categories map directly, but some need special handling
       switch (category) {
         case "supplements":
-          return "supplements";
+          return "supplements"
         case "pet-supplies":
-          return "generic"; // No specific pet template, use generic
+          return "generic" // No specific pet template, use generic
         case "automotive":
-          return "generic"; // No specific automotive template, use generic
+          return "generic" // No specific automotive template, use generic
         default:
           // Direct mapping for categories that exist in both
-          return category as keyof typeof IMAGE_PROMPT_TEMPLATES;
+          return category as keyof typeof IMAGE_PROMPT_TEMPLATES
       }
     }
   }
 
-  return "generic"; // default fallback
+  return "generic" // default fallback
 }
 
 // ============================================
@@ -298,8 +332,8 @@ export function detectProductCategory(productType?: string | null, tags?: string
 // ============================================
 
 export interface BrandVoiceContext {
-  preset?: BrandVoicePreset | null;
-  customNotes?: string | null;
+  preset?: BrandVoicePreset | null
+  customNotes?: string | null
 }
 
 // ============================================
@@ -308,19 +342,19 @@ export interface BrandVoiceContext {
 
 export function buildTitlePrompt(
   product: {
-  title: string;
-  productType?: string | null;
-  vendor?: string | null;
-  tags?: string[];
-  descriptionHtml?: string | null;
+    title: string
+    productType?: string | null
+    vendor?: string | null
+    tags?: string[]
+    descriptionHtml?: string | null
   },
   brandVoice?: BrandVoiceContext
 ) {
-  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400);
-  const category = detectProductCategory(product.productType, product.tags);
+  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400)
+  const category = detectProductCategory(product.productType, product.tags)
 
-  const formula = TITLE_FORMULAS[category as keyof typeof TITLE_FORMULAS] || TITLE_FORMULAS.general;
-  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
+  const formula = TITLE_FORMULAS[category as keyof typeof TITLE_FORMULAS] || TITLE_FORMULAS.general
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
 
   return `Create a compelling, search-optimized product title.
 
@@ -346,20 +380,20 @@ GOOD EXAMPLES:
 - "Nike Air Max 270 Men's Running Shoes - Black/White" (Footwear)
 - "Dior Poison Girl Eau de Parfum - 30ml" (Fragrance)
 - "Apple AirPods Pro Wireless Earbuds - White" (Electronics)
-- "La Mer The Moisturizing Cream - 30ml" (Skincare)${voiceInstruction}`;
+- "La Mer The Moisturizing Cream - 30ml" (Skincare)${voiceInstruction}`
 }
 
 export function buildSeoTitlePrompt(
   product: {
-  title: string;
-  productType?: string | null;
-  vendor?: string | null;
-  tags?: string[];
+    title: string
+    productType?: string | null
+    vendor?: string | null
+    tags?: string[]
   },
   brandVoice?: BrandVoiceContext
 ) {
-  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
-  
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
+
   return `Write a search-optimized meta title for this product page.
 
 PRODUCT INFO:
@@ -381,21 +415,21 @@ FORMAT: [Primary Keyword + Modifier] | [Brand or Benefit]
 EXAMPLES (note the character counts):
 - "Leather Wallets for Men | RFID Blocking | Free Shipping" (54 chars)
 - "Organic Cotton T-Shirt | Eco-Friendly & Sustainable" (51 chars)
-- "Professional Chef Knife Set | Premium German Steel" (50 chars)${voiceInstruction}`;
+- "Professional Chef Knife Set | Premium German Steel" (50 chars)${voiceInstruction}`
 }
 
 export function buildSeoDescriptionPrompt(
   product: {
-  title: string;
-  productType?: string | null;
-  vendor?: string | null;
-  tags?: string[];
-  descriptionHtml?: string | null;
+    title: string
+    productType?: string | null
+    vendor?: string | null
+    tags?: string[]
+    descriptionHtml?: string | null
   },
   brandVoice?: BrandVoiceContext
 ) {
-  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400);
-  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
+  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400)
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
 
   return `Write a compelling meta description that drives clicks from search results.
 
@@ -419,55 +453,59 @@ FORMULA: [Benefit hook] + [Key feature/keyword] + [Social proof or urgency] + [C
 
 EXAMPLES:
 - "Discover our premium leather wallet with RFID protection. Handcrafted for style & security. Free shipping on orders over $50. Shop now!" (134 chars)
-- "Transform your kitchen with this professional-grade chef knife. German steel blade stays sharp 10x longer. Order yours today!" (124 chars)${voiceInstruction}`;
+- "Transform your kitchen with this professional-grade chef knife. German steel blade stays sharp 10x longer. Order yours today!" (124 chars)${voiceInstruction}`
 }
 
 export function buildImagePrompt(product: {
-  title: string;
-  productType?: string | null;
-  vendor?: string | null;
-  tags?: string[];
-  descriptionHtml?: string | null;
-  customPrompt?: string;
-  existingImages?: Array<{ id: string; url: string; altText?: string | null }>;
+  title: string
+  productType?: string | null
+  vendor?: string | null
+  tags?: string[]
+  descriptionHtml?: string | null
+  customPrompt?: string
+  existingImages?: Array<{ id: string; url: string; altText?: string | null }>
 }) {
-  const category = detectProductCategory(product.productType, product.tags);
-  const template = IMAGE_PROMPT_TEMPLATES[category] || IMAGE_PROMPT_TEMPLATES.apparel;
+  const category = detectProductCategory(product.productType, product.tags)
+  const template = IMAGE_PROMPT_TEMPLATES[category] || IMAGE_PROMPT_TEMPLATES.apparel
 
   // Replace [Product] placeholder with actual product info
-  let prompt = template.replace("[Product]", `${product.vendor ? `${product.vendor} ` : ""}${product.title}`);
+  let prompt = template.replace("[Product]", `${product.vendor ? `${product.vendor} ` : ""}${product.title}`)
 
   // Add product details if available
-  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 200);
+  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 200)
   if (existingDesc) {
-    prompt += ` Product details: ${existingDesc}.`;
+    prompt += ` Product details: ${existingDesc}.`
   }
 
   // Add style consistency guidance if existing images
   if (product.existingImages && product.existingImages.length > 0) {
-    prompt += " Create a complementary image that matches the visual style and quality of existing product photography.";
+    prompt += " Create a complementary image that matches the visual style and quality of existing product photography."
   }
 
   // Add custom prompt if provided
   if (product.customPrompt?.trim()) {
-    prompt += ` Additional style preferences: ${product.customPrompt.trim()}`;
+    prompt += ` Additional style preferences: ${product.customPrompt.trim()}`
   }
 
-  return prompt;
+  return prompt
 }
 
-export function buildAltTextPrompt(product: {
-  title: string;
-  productType?: string | null;
-  vendor?: string | null;
-}, imageIndex: number) {
-  const imageContext = imageIndex === 0
-    ? "main product image showing the full product"
-    : imageIndex === 1
-    ? "secondary image showing product details or alternate angle"
-    : imageIndex === 2
-    ? "lifestyle or context image showing product in use"
-    : `additional product image #${imageIndex + 1}`;
+export function buildAltTextPrompt(
+  product: {
+    title: string
+    productType?: string | null
+    vendor?: string | null
+  },
+  imageIndex: number
+) {
+  const imageContext =
+    imageIndex === 0
+      ? "main product image showing the full product"
+      : imageIndex === 1
+        ? "secondary image showing product details or alternate angle"
+        : imageIndex === 2
+          ? "lifestyle or context image showing product in use"
+          : `additional product image #${imageIndex + 1}`
 
   return `Write descriptive alt text for this product image.
 
@@ -491,21 +529,21 @@ EXAMPLES BY IMAGE TYPE:
 - Main image: "Black leather bifold wallet open showing 6 card slots and ID window"
 - Detail shot: "Close-up of hand-stitched seams on brown leather wallet edge"
 - Lifestyle: "Man removing slim wallet from back pocket of navy dress pants"
-- Alternate angle: "Front and back view of minimalist cardholder in cognac leather"`;
+- Alternate angle: "Front and back view of minimalist cardholder in cognac leather"`
 }
 
 export function buildProductDescriptionPrompt(
   product: {
-  title: string;
-  productType?: string | null;
-  vendor?: string | null;
-  tags?: string[];
-  descriptionHtml?: string | null;
+    title: string
+    productType?: string | null
+    vendor?: string | null
+    tags?: string[]
+    descriptionHtml?: string | null
   },
   brandVoice?: BrandVoiceContext
 ) {
-  const existingDesc = stripHtml(product.descriptionHtml || "");
-  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes);
+  const existingDesc = stripHtml(product.descriptionHtml || "")
+  const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
 
   return `Write a conversion-optimized product description.
 
@@ -536,24 +574,22 @@ EXAMPLE STRUCTURE:
 
 [Key features presented as benefits - what they mean for the customer.]
 
-[Confidence builder and soft call-to-action.]"${voiceInstruction}`;
+[Confidence builder and soft call-to-action.]"${voiceInstruction}`
 }
 
 export function buildTagsPrompt(
   product: {
-  title: string;
-  productType?: string | null;
-  vendor?: string | null;
-  tags?: string[];
-  descriptionHtml?: string | null;
-  collections?: Array<{ title: string }>;
+    title: string
+    productType?: string | null
+    vendor?: string | null
+    tags?: string[]
+    descriptionHtml?: string | null
+    collections?: Array<{ title: string }>
   },
   brandVoice?: BrandVoiceContext
 ) {
-  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400);
-  const voiceInstruction = brandVoice?.customNotes 
-    ? `\n\nBrand context: ${brandVoice.customNotes}` 
-    : "";
+  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400)
+  const voiceInstruction = brandVoice?.customNotes ? `\n\nBrand context: ${brandVoice.customNotes}` : ""
 
   return `Generate strategic, search-optimized tags for this product.
 
@@ -562,7 +598,7 @@ PRODUCT INFO:
 - Type: ${product.productType || "product"}
 - Brand: ${product.vendor || "N/A"}
 - Description: ${existingDesc || "none"}
-- Collections: ${product.collections?.map(c => c.title).join(", ") || "none"}
+- Collections: ${product.collections?.map((c) => c.title).join(", ") || "none"}
 
 REQUIREMENTS:
 1. Generate exactly 8 tags
@@ -576,10 +612,10 @@ REQUIREMENTS:
 5. Output as comma-separated list ONLY
 
 EXAMPLE OUTPUT for a leather wallet:
-mens-wallet, rfid-blocking, genuine-leather, minimalist-wallet, gift-for-him, everyday-carry, slim-wallet, fathers-day-gift${voiceInstruction}`;
+mens-wallet, rfid-blocking, genuine-leather, minimalist-wallet, gift-for-him, everyday-carry, slim-wallet, fathers-day-gift${voiceInstruction}`
 }
 
 // Utility function
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, "").trim();
+  return html.replace(/<[^>]*>/g, "").trim()
 }

@@ -1,5 +1,5 @@
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
-import "./styles/theme.css";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router"
+import "./styles/theme.css"
 
 export default function App() {
   return (
@@ -25,5 +25,5 @@ export default function App() {
         <Scripts />
       </body>
     </html>
-  );
+  )
 }

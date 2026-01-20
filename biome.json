@@ -2,13 +2,18 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
-      "a11y": {
-        "noSvgWithoutTitle": "off",
-        "useKeyWithClickEvents": "off",
-        "noNoninteractiveElementToInteractiveRole": "off",
-        "useFocusableInteractive": "off",
-        "noLabelWithoutControl": "off"
+      "recommended": false,
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "useTemplate": "off",
+        "useImportType": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off"
       }
     }
   },
@@ -17,12 +22,16 @@
     "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 80
+    "lineWidth": 120
   },
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
-      "trailingCommas": "es5"
+      "trailingCommas": "es5",
+      "semicolons": "asNeeded"
     }
+  },
+  "organizeImports": {
+    "enabled": true
   }
 }

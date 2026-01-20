@@ -4,13 +4,13 @@ export enum PLANS {
   PRO = "pro",
 }
 
-export type PlanType = PLANS;
+export type PlanType = PLANS
 
 // Bulk limits
 export const BULK_LIMITS = {
   [PLANS.FREE]: 10, // max 10 products per bulk action
   [PLANS.PRO]: 100, // higher batch sizes
-} as const;
+} as const
 
 // AI Credit costs per action
 // Model: gpt-4o-mini (cheap + good)
@@ -23,7 +23,7 @@ export const AI_CREDIT_COSTS = {
   altText: 1, // per image, ~60-120 output tokens
   fullProductRefresh: 3, // title + meta + tags bundle
   bulkSeoMeta: 1, // per product in bulk
-} as const;
+} as const
 
 // Token limits per generation (prevents runaway costs)
 export const AI_TOKEN_LIMITS = {
@@ -36,7 +36,7 @@ export const AI_TOKEN_LIMITS = {
     altText: 120,
   },
   regenLimitPerFieldPerDay: 3, // prevent regen abuse
-} as const;
+} as const
 
 // Pricing configuration
 export const PLAN_CONFIG = {
@@ -83,7 +83,7 @@ export const PLAN_CONFIG = {
       brandVoice: true,
     },
   },
-} as const;
+} as const
 
 // Error codes for feature gating
 export const BILLING_ERRORS = {
@@ -96,7 +96,7 @@ export const BILLING_ERRORS = {
   SUBSCRIPTION_REQUIRED: "SUBSCRIPTION_REQUIRED",
   SCHEDULED_AUDITS_LOCKED: "SCHEDULED_AUDITS_LOCKED",
   BRAND_VOICE_LOCKED: "BRAND_VOICE_LOCKED",
-} as const;
+} as const
 
 // Subscription statuses
 export const SUBSCRIPTION_STATUS = {
@@ -105,6 +105,4 @@ export const SUBSCRIPTION_STATUS = {
   CANCELLED: "CANCELLED",
   EXPIRED: "EXPIRED",
   FROZEN: "FROZEN",
-} as const;
-
-
+} as const

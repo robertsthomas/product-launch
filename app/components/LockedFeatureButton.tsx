@@ -1,17 +1,17 @@
-import { Button, Tooltip, InlineStack, Icon } from "@shopify/polaris";
-import { LockIcon } from "@shopify/polaris-icons";
-import type { PlanType } from "~/lib/billing/constants";
+import { Button, Tooltip } from "@shopify/polaris"
+import { LockIcon } from "@shopify/polaris-icons"
+import type { PlanType } from "~/lib/billing/constants"
 
 interface LockedFeatureButtonProps {
-  children: React.ReactNode;
-  locked: boolean;
-  requiredPlan: PlanType;
-  onLockedClick: () => void;
-  onAction?: () => void;
-  loading?: boolean;
-  disabled?: boolean;
-  variant?: "primary" | "secondary" | "tertiary" | "plain";
-  tone?: "critical" | "success";
+  children: React.ReactNode
+  locked: boolean
+  requiredPlan: PlanType
+  onLockedClick: () => void
+  onAction?: () => void
+  loading?: boolean
+  disabled?: boolean
+  variant?: "primary" | "secondary" | "tertiary" | "plain"
+  tone?: "critical" | "success"
 }
 
 export function LockedFeatureButton({
@@ -28,28 +28,16 @@ export function LockedFeatureButton({
   if (locked) {
     return (
       <Tooltip content="Requires Pro plan">
-        <Button
-          onClick={onLockedClick}
-          variant={variant}
-          icon={LockIcon}
-          disabled={disabled}
-        >
+        <Button onClick={onLockedClick} variant={variant} icon={LockIcon} disabled={disabled}>
           {children}
         </Button>
       </Tooltip>
-    );
+    )
   }
 
   return (
-    <Button
-      onClick={onAction}
-      loading={loading}
-      disabled={disabled}
-      variant={variant}
-      tone={tone}
-    >
+    <Button onClick={onAction} loading={loading} disabled={disabled} variant={variant} tone={tone}>
       {children}
     </Button>
-  );
+  )
 }
-

@@ -1,4 +1,4 @@
-import { defineConfig } from "drizzle-kit";
+import { defineConfig } from "drizzle-kit"
 
 export default defineConfig({
   schema: "./app/db/schema.ts",
@@ -7,6 +7,4 @@ export default defineConfig({
   dbCredentials: {
     url: "prisma/dev.sqlite",
   },
-});
-
-
+})
