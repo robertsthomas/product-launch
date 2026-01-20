@@ -1557,8 +1557,8 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Bottom Row: Detailed Breakdown + Actions */}
-                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "12px" }}>
+                      {/* Bottom Row: Detailed Breakdown */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
                         
                         {/* Left: Category Breakdown */}
                         <div style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7" }}>
@@ -1656,105 +1656,6 @@ export default function Dashboard() {
                               );
                             })}
                           </div>
-                        </div>
-
-                        {/* Right: Quick Actions */}
-                        <div style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #e4e4e7", display: "flex", flexDirection: "column" }}>
-                          <div style={{ fontSize: "11px", fontWeight: 500, color: "#71717a", marginBottom: "16px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            Quick Actions
-                          </div>
-                          
-                          <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/app/products/${audit.productId.split('/').pop()}`)}
-                              style={{ 
-                                padding: "10px 14px", 
-                                borderRadius: "6px", 
-                                border: "none",
-                                background: "#465A54", 
-                                color: "#fff", 
-                                fontSize: "12px", 
-                                fontWeight: 500, 
-                                cursor: "pointer",
-                                transition: "all 0.15s",
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.background = "#3d4e49"; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = "#465A54"; }}
-                            >
-                              Edit Product
-                            </button>
-
-                            {audit.failedCount > 0 && (
-                              <button
-                                type="button"
-                                style={{ 
-                                  padding: "10px 14px", 
-                                  borderRadius: "6px", 
-                                  border: "1px solid #e4e4e7",
-                                  background: "#fff", 
-                                  color: "#252F2C", 
-                                  fontSize: "12px", 
-                                  fontWeight: 500, 
-                                  cursor: "pointer",
-                                  transition: "all 0.15s",
-                                }}
-                                onMouseEnter={(e) => { 
-                                  e.currentTarget.style.background = "#fafafa"; 
-                                  e.currentTarget.style.borderColor = "#d4d4d8"; 
-                                }}
-                                onMouseLeave={(e) => { 
-                                  e.currentTarget.style.background = "#fff"; 
-                                  e.currentTarget.style.borderColor = "#e4e4e7"; 
-                                }}
-                              >
-                                Auto-Fix Issues
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              style={{ 
-                                padding: "10px 14px", 
-                                borderRadius: "6px", 
-                                border: "1px solid #e4e4e7",
-                                background: "#fff", 
-                                color: "#252F2C", 
-                                fontSize: "12px", 
-                                fontWeight: 500, 
-                                cursor: "pointer",
-                                transition: "all 0.15s",
-                              }}
-                              onMouseEnter={(e) => { 
-                                e.currentTarget.style.background = "#fafafa"; 
-                                e.currentTarget.style.borderColor = "#d4d4d8"; 
-                              }}
-                              onMouseLeave={(e) => { 
-                                e.currentTarget.style.background = "#fff"; 
-                                e.currentTarget.style.borderColor = "#e4e4e7"; 
-                              }}
-                            >
-                              Re-scan
-                            </button>
-                          </div>
-
-                          {/* Insight Box */}
-                          {audit.failedCount > 0 && (
-                            <div style={{ 
-                              padding: "12px", 
-                              background: "#fffbeb", 
-                              border: "1px solid #fde68a",
-                              borderRadius: "6px",
-                              marginTop: "12px"
-                            }}>
-                              <div style={{ fontSize: "10px", fontWeight: 600, color: "#8B7500", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                                Tip
-                              </div>
-                              <div style={{ fontSize: "11px", color: "#713f12", lineHeight: "1.4" }}>
-                                Fix {audit.failedCount} issue{audit.failedCount !== 1 ? 's' : ''} to reach {Math.min(100, progressPercent + Math.ceil((audit.failedCount / audit.totalCount) * 100))}% completion
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
