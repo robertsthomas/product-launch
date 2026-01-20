@@ -9,7 +9,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getDashboardStats, getShopAudits, auditProduct } from "../lib/services";
-import { initializeShop, getShopSettings } from "../lib/services/shop.server";
+import { initializeShop } from "../lib/services/shop.server";
 import { getDriftSummary } from "../lib/services/monitoring.server";
 import { getShopPlanStatus } from "../lib/billing/guards.server";
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist";
@@ -23,7 +23,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const stats = await getDashboardStats(shop);
   const { audits, total } = await getShopAudits(shop, { limit: 50 });
   const { plan } = await getShopPlanStatus(shop);
-  const shopSettings = await getShopSettings(shop);
   
   // Pro feature: Get compliance monitoring data
   let monitoring = null;
@@ -51,7 +50,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     stats,
     plan,
     monitoring,
-    dashboardTourCompleted: !!shopSettings?.dashboardTourCompletedAt,
     audits: audits.map((audit) => ({
       id: audit.id,
       productId: audit.productId,
@@ -1034,7 +1032,7 @@ function DashboardTour({
 // ============================================
 
 export default function Dashboard() {
-  const { stats, audits, plan, monitoring, totalAudits, dashboardTourCompleted } = useLoaderData<typeof loader>();
+  const { stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const bulkFetcher = useFetcher();
   const navigate = useNavigate();
@@ -1044,8 +1042,9 @@ export default function Dashboard() {
   const [isScanning, setIsScanning] = useState(false);
   const [sortBy, setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes");
   
-  // Tour state
+  // Tour state - user-level (localStorage)
   const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourCompleted, setTourCompleted] = useState(false);
 
   // Bulk selection state
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
@@ -1062,24 +1061,20 @@ export default function Dashboard() {
   // Expandable rows state
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Show tour on first visit
+  // Show tour on first visit (user-level)
   useEffect(() => {
-    if (!dashboardTourCompleted) {
+    const completed = localStorage.getItem('dashboardTourCompleted') === 'true';
+    setTourCompleted(completed);
+    
+    if (!completed) {
       const timer = setTimeout(() => setIsTourOpen(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, [dashboardTourCompleted]);
+  }, []);
 
   const completeTour = async () => {
-    try {
-      await fetch(`/api/tour/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tourType: "dashboard" }),
-      });
-    } catch (error) {
-      console.error('Failed to save tour completion:', error);
-    }
+    setTourCompleted(true);
+    localStorage.setItem('dashboardTourCompleted', 'true');
     setIsTourOpen(false);
   };
 
