@@ -1,0 +1,18 @@
+
+> launch-ready@ dev /Users/thomasroberts/Desktop/projects/product-launch
+> shopify app dev
+
+╭─ info ───────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Using shopify.app.toml for default values:                                  │
+│                                                                              │
+│    • Org:             ReadyStack                                             │
+│    • App:             launch-ready                                           │
+│    • Dev store:       super-chewy.myshopify.com                              │
+│    • Update URLs:     Yes                                                    │
+│                                                                              │
+│   You can pass `--reset` to your command to reset your app configuration.    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ ELIFECYCLE  Command failed with exit code 1.

@@ -763,6 +763,26 @@ function DashboardTour({
   const isLastStep = step === steps.length - 1;
   const targetElement = document.querySelector(`[${currentStep.target}]`);
 
+  // Auto-skip to next step if element not found (after 2 seconds to allow loading)
+  useEffect(() => {
+    if (!targetElement && step < steps.length - 1) {
+      const timer = setTimeout(() => {
+        setStep(s => s + 1);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [targetElement, step]);
+
+  // If no target element found on last step, close tour
+  if (!targetElement) {
+    if (isLastStep) {
+      onClose();
+      return null;
+    }
+    // Return null while waiting for next element to load
+    return null;
+  }
+
   // Get element position for tooltip
   let tooltipStyle: React.CSSProperties = {
     position: "fixed",
@@ -771,30 +791,28 @@ function DashboardTour({
     transform: "translate(-50%, -50%)",
   };
 
-  if (targetElement) {
-    const rect = targetElement.getBoundingClientRect();
-    const tooltipWidth = 360;
-    const tooltipHeight = 280;
+  const rect = targetElement.getBoundingClientRect();
+  const tooltipWidth = 360;
+  const tooltipHeight = 280;
 
-    let top = rect.top + rect.height / 2 - tooltipHeight / 2;
-    let left = rect.right + 24;
+  let top = rect.top + rect.height / 2 - tooltipHeight / 2;
+  let left = rect.right + 24;
 
-    if (left + tooltipWidth > window.innerWidth) {
-      left = rect.left - tooltipWidth - 24;
-    }
-    if (top < 20) {
-      top = 20;
-    }
-    if (top + tooltipHeight > window.innerHeight) {
-      top = window.innerHeight - tooltipHeight - 20;
-    }
-
-    tooltipStyle = {
-      position: "fixed",
-      top,
-      left,
-    };
+  if (left + tooltipWidth > window.innerWidth) {
+    left = rect.left - tooltipWidth - 24;
   }
+  if (top < 20) {
+    top = 20;
+  }
+  if (top + tooltipHeight > window.innerHeight) {
+    top = window.innerHeight - tooltipHeight - 20;
+  }
+
+  tooltipStyle = {
+    position: "fixed",
+    top,
+    left,
+  };
 
   return (
     <>
@@ -1014,7 +1032,7 @@ export default function Dashboard() {
   // Show tour on first visit
   useEffect(() => {
     if (!dashboardTourCompleted) {
-      const timer = setTimeout(() => setIsTourOpen(true), 800);
+      const timer = setTimeout(() => setIsTourOpen(true), 1500);
       return () => clearTimeout(timer);
     }
   }, [dashboardTourCompleted]);
@@ -1232,6 +1250,40 @@ export default function Dashboard() {
               <path d="M21 3v5h-5" />
             </svg>
             {isScanning ? "Syncing..." : "Sync"}
+          </button>
+
+          {/* Help/Tour Button */}
+          <button
+            type="button"
+            onClick={() => setIsTourOpen(true)}
+            title="Show tour"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 16px",
+              background: "#fff",
+              color: "#252F2C",
+              border: "1px solid #e4e4e7",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#fafafa";
+              e.currentTarget.style.borderColor = "#d4d4d8";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#fff";
+              e.currentTarget.style.borderColor = "#e4e4e7";
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
           </button>
         </div>
       </div>

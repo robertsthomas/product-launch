@@ -3943,21 +3943,18 @@ export default function ProductEditor() {
 
   return (
     <div style={{ 
-      display: "flex", 
-      flexDirection: "column", 
-      gap: "32px", 
-      minHeight: "100%",
-      maxWidth: "1200px",
-      margin: "0 auto",
-      padding: "8px 0 48px",
+      minHeight: "100vh",
+      background: "#fafbfc",
     }}>
-      {/* Page Header - Minimal */}
+      {/* Page Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "16px",
+          padding: "24px 40px",
+          borderBottom: "1px solid #e4e4e7",
+          background: "#fff",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -3970,89 +3967,106 @@ export default function ProductEditor() {
               justifyContent: "center",
               width: "36px",
               height: "36px",
-              borderRadius: "50%",
-              border: "none",
-              background: "transparent",
+              borderRadius: "6px",
+              border: "1px solid #e4e4e7",
+              background: "#fff",
               cursor: "pointer",
-              color: "var(--color-muted)",
-              transition: "all var(--transition-fast)",
+              color: "#8B8B8B",
+              transition: "all 0.15s",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#f4f4f5"; e.currentTarget.style.borderColor = "#d4d4d8"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e4e4e7"; }}
             aria-label="Back to dashboard"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
           </button>
           <div>
             <h1 style={{
-              fontSize: "var(--text-2xl)",
+              fontSize: "22px",
               fontWeight: 600,
-              color: "var(--color-text)",
-              margin: 0,
-              letterSpacing: "-0.02em",
+              color: "#252F2C",
+              margin: "0 0 4px 0",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "12px",
             }}>
               {product.title}
               {audit?.status === "ready" && (
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  style={{ flexShrink: 0 }}
-                >
-                  <circle cx="12" cy="12" r="12" fill="#10B981" />
-                  <path
-                    d="M8.5 12.5L11 15L15.5 9.5"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <span style={{
+                  padding: "3px 8px",
+                  borderRadius: "4px",
+                  background: "#ecfdf5",
+                  color: "#059669",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  border: "1px solid #a7f3d0",
+                }}>
+                  Ready
+                </span>
+              )}
+              {audit?.status !== "ready" && (
+                <span style={{
+                  padding: "3px 8px",
+                  borderRadius: "4px",
+                  background: "#fef9e7",
+                  color: "#8B7500",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  border: "1px solid #fde68a",
+                }}>
+                  Pending
+                </span>
               )}
             </h1>
             <p style={{
-              margin: "4px 0 0",
-              fontSize: "var(--text-sm)",
-              color: "var(--color-muted)",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
+              margin: 0,
+              fontSize: "13px",
+              color: "#8B8B8B",
             }}>
-              <span>Edit product details</span>
-              <span style={{ opacity: 0.5 }}>·</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const numericId = product.id.split('/').pop();
-                  window.top.location.href = `https://${shop}/admin/products/${numericId}`;
-                }}
-                style={{
-                  color: "var(--color-primary)",
-                  textDecoration: "none",
-                  cursor: "pointer",
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  font: "inherit",
-                }}
-              >
-                See product
-              </button>
+              Product details and optimization
             </p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            const numericId = product.id.split('/').pop();
+            window.open(`https://${shop}/admin/products/${numericId}`, "_blank");
+          }}
+          style={{
+            padding: "8px 16px",
+            fontSize: "13px",
+            fontWeight: 500,
+            border: "1px solid #e4e4e7",
+            borderRadius: "6px",
+            background: "#fff",
+            color: "#252F2C",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#f4f4f5"; e.currentTarget.style.borderColor = "#d4d4d8"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e4e4e7"; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Open in Shopify
+        </button>
       </div>
 
+      {/* Main Content */}
+      <div style={{ padding: "32px 40px" }}>
       {/* Main Content Grid */}
-      <div className="section-grid split" style={{ gap: "48px", alignItems: "flex-start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "32px", alignItems: "flex-start" }}>
           {/* Main Editor */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "48px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             
             {/* Product Hero - Featured Image & Title */}
             <div
@@ -4060,22 +4074,24 @@ export default function ProductEditor() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "40px",
-                padding: "32px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                backgroundColor: "var(--color-surface)"
+                gap: "24px",
+                padding: "24px",
+                border: "1px solid #e4e4e7",
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
               }}
             >
-              <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
-                {/* Product Image - Larger, more prominent */}
+              <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
+                {/* Product Image */}
                 <div style={{
-                  width: "140px",
-                  height: "140px",
-                  borderRadius: "var(--radius-xl)",
+                  width: "100px",
+                  height: "100px",
+                  borderRadius: "8px",
                   overflow: "hidden",
-                  backgroundColor: "var(--color-surface-strong)",
+                  backgroundColor: "#f4f4f5",
                   flexShrink: 0,
+                  border: "1px solid #e4e4e7",
                 }}>
                   {product.featuredImage ? (
                     <img
@@ -4090,9 +4106,9 @@ export default function ProductEditor() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "var(--color-subtle)",
+                      color: "#d4d4d8",
                     }}>
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                         <circle cx="8.5" cy="8.5" r="1.5"/>
                         <path d="M21 15l-5-5L5 21"/>
@@ -4102,7 +4118,7 @@ export default function ProductEditor() {
                 </div>
 
                 {/* Title & Basic Info */}
-                <div style={{ flex: 1, paddingTop: "4px" }}>
+                <div style={{ flex: 1 }}>
                   <div id="field-title">
                     <EditableField
                       label="Title"
@@ -4121,7 +4137,7 @@ export default function ProductEditor() {
                       onInlineRevert={() => revertToPreGeneration("title")}
                     />
                   </div>
-                  <div style={{ display: "flex", gap: "24px" }}>
+                  <div style={{ display: "flex", gap: "16px", marginTop: "8px" }}>
                     <div id="field-vendor" style={{ flex: 1 }}>
                       <AutocompleteField
                         label="Vendor"
@@ -4167,9 +4183,9 @@ export default function ProductEditor() {
 
               {/* Tags */}
               <div style={{ 
-                borderTop: "1px solid var(--color-border)", 
-                marginTop: "24px", 
-                paddingTop: "24px" 
+                borderTop: "1px solid #e5e7eb", 
+                marginTop: "20px", 
+                paddingTop: "20px" 
               }}>
                 <div id="field-tags">
                   <TagsInput
@@ -4194,10 +4210,11 @@ export default function ProductEditor() {
             <div
               id="section-images"
               style={{
-                padding: "32px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                backgroundColor: "var(--color-surface)"
+                padding: "24px",
+                border: "1px solid #e4e4e7",
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
               }}
             >
               <ImageManager
@@ -4219,53 +4236,60 @@ export default function ProductEditor() {
             <div
               id="section-seo"
               style={{
-                padding: "32px",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                backgroundColor: "var(--color-surface)"
+                padding: "24px",
+                border: "1px solid #e4e4e7",
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
               }}
             >
-              <h3 style={{
-                margin: "0 0 32px",
-                fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-lg)",
-                fontWeight: 600,
-                color: "var(--color-text)",
-                letterSpacing: "-0.01em",
-              }}>
-                Search Engine Listing
-              </h3>
+              <div style={{ marginBottom: "20px" }}>
+                <h3 style={{
+                  margin: "0 0 4px 0",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                  color: "#252F2C",
+                }}>
+                  Search Engine Listing
+                </h3>
+                <p style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  color: "#8B8B8B",
+                }}>
+                  Optimize how this product appears in search results
+                </p>
+              </div>
               
-              {/* Preview - Cleaner styling */}
+              {/* Preview - Google style */}
               <div style={{
-                padding: "20px 24px",
-                backgroundColor: "var(--color-surface-strong)",
-                borderRadius: "var(--radius-lg)",
-                marginBottom: "32px",
+                padding: "16px 20px",
+                backgroundColor: "#f4f4f5",
+                borderRadius: "8px",
+                marginBottom: "24px",
+                border: "1px solid #e4e4e7",
               }}>
                 <div style={{ 
                   color: "#1a0dab", 
-                  fontSize: "var(--text-lg)", 
+                  fontSize: "16px", 
                   marginBottom: "4px",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
-                  fontWeight: 400,
                 }}>
                   {form.seoTitle || form.title || "Page title"}
                 </div>
                 <div style={{ 
                   color: "#006621", 
-                  fontSize: "var(--text-sm)", 
-                  marginBottom: "8px",
-                  fontWeight: 400,
+                  fontSize: "13px", 
+                  marginBottom: "6px",
                 }}>
                   yourstore.com › products › {product.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}
                 </div>
                 <div style={{ 
                   color: "#545454", 
-                  fontSize: "var(--text-sm)",
-                  lineHeight: "1.6",
+                  fontSize: "13px",
+                  lineHeight: "1.5",
                   display: "-webkit-box",
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: "vertical",
@@ -4320,33 +4344,33 @@ export default function ProductEditor() {
             </div>
           </div>
 
-          {/* Sidebar - Minimal */}
+          {/* Sidebar */}
           <div
             style={{
               position: "sticky",
               top: "24px",
               display: "flex",
               flexDirection: "column",
-              gap: "24px",
+              gap: "16px",
             }}
           >
             {/* Checklist with integrated actions */}
             <div
               style={{
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-lg)",
-                backgroundColor: "var(--color-surface)",
+                border: "1px solid #e4e4e7",
+                borderRadius: "10px",
+                backgroundColor: "#fff",
                 overflow: "hidden",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
               }}
             >
-              {/* Action Buttons - Stacked vertically */}
+              {/* Action Buttons */}
               <div style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: "8px",
                 padding: "16px",
-                borderBottom: "1px solid var(--color-border)",
-                backgroundColor: "var(--color-surface-strong)",
+                borderBottom: "1px solid #e4e4e7",
               }}>
                 <button
                   type="button"
@@ -4354,33 +4378,59 @@ export default function ProductEditor() {
                   disabled={!hasChanges || isSaving}
                   style={{
                     padding: "10px 16px",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 600,
-                    border: "none",
-                    borderRadius: "var(--radius-md)",
-                    background: hasChanges ? "var(--color-text)" : "var(--color-surface)",
-                    color: hasChanges ? "var(--color-surface)" : "var(--color-subtle)",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    border: hasChanges ? "1px solid #465A54" : "1px solid #e4e4e7",
+                    borderRadius: "6px",
+                    background: hasChanges ? "#465A54" : "#fff",
+                    color: hasChanges ? "#fff" : "#8B8B8B",
                     cursor: (!hasChanges || isSaving) ? "default" : "pointer",
                     opacity: isSaving ? 0.7 : 1,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: "8px",
-                    transition: "all var(--transition-fast)",
+                    transition: "all 0.15s ease",
                     width: "100%",
                     whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (hasChanges && !isSaving) {
+                      e.currentTarget.style.background = "#3d4e49";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (hasChanges && !isSaving) {
+                      e.currentTarget.style.background = "#465A54";
+                    }
                   }}
                 >
                   {isSaving ? (
                     <>
                       <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                        <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
-                        <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
-                        <span style={{ background: hasChanges ? "var(--color-surface)" : "var(--color-subtle)" }}/>
+                        <span style={{ background: hasChanges ? "#fff" : "var(--color-subtle)" }}/>
+                        <span style={{ background: hasChanges ? "#fff" : "var(--color-subtle)" }}/>
+                        <span style={{ background: hasChanges ? "#fff" : "var(--color-subtle)" }}/>
                       </span>
                       Saving
                     </>
-                  ) : hasChanges ? "Save changes" : "Saved"}
+                  ) : hasChanges ? (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                      </svg>
+                      Save Changes
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                      Saved
+                    </>
+                  )}
                 </button>
                 {aiAvailable && (
                   <button
@@ -4389,152 +4439,56 @@ export default function ProductEditor() {
                     disabled={generatingAll}
                     style={{
                       padding: "10px 16px",
-                      fontSize: "var(--text-sm)",
+                      fontSize: "13px",
                       fontWeight: 500,
-                      border: "none",
-                      borderRadius: "var(--radius-md)",
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                      color: "white",
+                      border: generatingAll ? "1px solid #e4e4e7" : "1px solid #465A54",
+                      borderRadius: "6px",
+                      background: generatingAll ? "#fff" : "#465A54",
+                      color: generatingAll ? "#8B8B8B" : "#fff",
                       cursor: generatingAll ? "not-allowed" : "pointer",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      gap: "6px",
-                      transition: "all var(--transition-fast)",
-                      opacity: generatingAll ? 0.6 : 1,
+                      gap: "8px",
+                      transition: "all 0.15s ease",
                       width: "100%",
                       whiteSpace: "nowrap",
-                      boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
-                      transform: "translateY(0)",
-                      position: "relative",
-                      overflow: "hidden",
                     }}
                     onMouseEnter={(e) => {
                       if (!generatingAll) {
-                        e.currentTarget.style.boxShadow = "0 8px 25px rgba(102, 126, 234, 0.6)";
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                        const star = e.currentTarget.querySelector('.star-animation') as HTMLElement;
-                        if (star) {
-                          star.style.opacity = '1';
-                          star.style.display = 'block';
-                          star.style.animation = 'starFly 1.5s ease-in-out forwards';
-
-                          // Remove star after animation completes
-                          const handleAnimationEnd = () => {
-                            star.style.display = 'none';
-                            star.style.animation = 'none';
-                            star.removeEventListener('animationend', handleAnimationEnd);
-                          };
-                          star.addEventListener('animationend', handleAnimationEnd);
-                        }
+                        e.currentTarget.style.background = "#3d4e49";
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!generatingAll) {
-                        e.currentTarget.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.4)";
-                        e.currentTarget.style.transform = "translateY(0)";
-                        const star = e.currentTarget.querySelector('.star-animation') as HTMLElement;
-                        if (star) {
-                          // Remove any pending animation end listeners
-                          star.style.display = 'none';
-                          star.style.animation = 'none';
-                        }
+                        e.currentTarget.style.background = "#465A54";
                       }
                     }}
                   >
-                    {/* Star animation element */}
-                    <style>{`
-                      @keyframes starFly {
-                        0% {
-                          transform: translateX(-100%) translateY(10px) rotate(0deg);
-                          opacity: 0;
-                        }
-                        10% {
-                          opacity: 1;
-                        }
-                        90% {
-                          opacity: 1;
-                        }
-                        100% {
-                          transform: translateX(100%) translateY(-10px) rotate(360deg);
-                          opacity: 0;
-                        }
-                      }
-                    `}</style>
-                    <div
-                      className="star-animation"
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        left: "0",
-                        width: "12px",
-                        height: "12px",
-                        display: "none",
-                        pointerEvents: "none",
-                        zIndex: 1,
-                      }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#ffffff" style={{ filter: "drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))" }}>
-                        <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-                      </svg>
-                    </div>
-                    <div style={{ position: "relative", zIndex: 2 }}>
-                      {generatingAll ? (
-                        <>
-                          <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                            <span/>
-                            <span/>
-                            <span/>
-                          </span>
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                         
-                          Generate All
-                        </>
-                      )}
-                    </div>
+                    {generatingAll ? (
+                      <>
+                        <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
+                          <span style={{ background: "#9ca3af" }}/>
+                          <span style={{ background: "#9ca3af" }}/>
+                          <span style={{ background: "#9ca3af" }}/>
+                        </span>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
+                        </svg>
+                        Generate All
+                      </>
+                    )}
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => fetcher.submit({ intent: "open_product" }, { method: "POST" })}
-                  style={{
-                    padding: "10px 16px",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-md)",
-                    background: "transparent",
-                    color: "var(--color-text)",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                    transition: "all var(--transition-fast)",
-                    width: "100%",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.background = "var(--color-surface)";
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                    <polyline points="15 3 21 3 21 9"/>
-                    <line x1="10" y1="14" x2="21" y2="3"/>
-                  </svg>
-                  Open in Shopify
-                </button>
+
               </div>
 
-              {/* Checklist content */}
-              <div style={{ padding: "24px" }}>
+                {/* Checklist content */}
+              <div style={{ padding: "16px" }}>
                 <ChecklistSidebar 
                   audit={audit}
                   onRescan={handleRescan}
@@ -4555,7 +4509,8 @@ export default function ProductEditor() {
             </div>
           </div>
         </div>
-      
+      </div>
+      {/* End Main Content */}
 
       {/* Unsaved Changes Dialog */}
       {showUnsavedDialog && blocker.state === "blocked" && (
