@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -814,7 +815,7 @@ function DashboardTour({
     left,
   };
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -825,7 +826,7 @@ function DashboardTour({
           right: 0,
           bottom: 0,
           background: "rgba(0, 0, 0, 0.5)",
-          zIndex: 9998,
+          zIndex: 99998,
           backdropFilter: "blur(4px)",
         }}
         onClick={(e) => {
@@ -847,7 +848,7 @@ function DashboardTour({
             border: "2px solid #465A54",
             borderRadius: "12px",
             boxShadow: "0 0 0 4px rgba(70, 90, 84, 0.2), 0 0 24px rgba(70, 90, 84, 0.4)",
-            zIndex: 9999,
+            zIndex: 99999,
             pointerEvents: "none",
           }}
         />
@@ -857,7 +858,7 @@ function DashboardTour({
       <div
         style={{
           ...tooltipStyle,
-          zIndex: 10000,
+          zIndex: 100000,
           background: "#fff",
           borderRadius: "10px",
           border: "1px solid #e4e4e7",
@@ -992,7 +993,8 @@ function DashboardTour({
           }
         }
       `}</style>
-    </>
+    </>,
+    document.body
   );
 }
 
