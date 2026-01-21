@@ -749,7 +749,7 @@ function DashboardTour({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     {
       target: "data-tour-expand-row",
       title: "Expand for Details",
-      description: "Click the arrow to see detailed analytics, category breakdowns, and quick actions for any product.",
+      description: "Select a product to see detailed analytics, category breakdowns, and quick actions.",
       position: "right",
     },
     {
@@ -939,7 +939,10 @@ function DashboardTour({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
           >
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                localStorage.setItem("dashboard", "true")
+                onClose()
+              }}
               style={{
                 background: "none",
                 border: "none",

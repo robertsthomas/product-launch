@@ -753,6 +753,39 @@ export default function Settings() {
           {activeTab === "ai" && (
             <div className="animate-fade-in-up">
               <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+                {/* Plan Badge */}
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 600,
+                      borderRadius: "var(--radius-full)",
+                      background: shop.plan === "pro" ? "var(--color-primary-soft)" : "var(--color-surface-strong)",
+                      color: shop.plan === "pro" ? "var(--color-primary)" : "var(--color-muted)",
+                      border: `1px solid ${shop.plan === "pro" ? "var(--color-primary)" : "var(--color-border)"}`,
+                    }}
+                  >
+                    {shop.plan === "pro" ? "Pro Plan" : "Free Plan"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/app/plans")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      fontSize: "var(--text-sm)",
+                      color: "var(--color-primary)",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      textDecoration: "underline",
+                      textUnderlineOffset: "2px",
+                    }}
+                  >
+                    {shop.plan === "pro" ? "Manage" : "Upgrade"}
+                  </button>
+                </div>
+
                 {/* AI Credits Section */}
                 {aiCredits.plan === "pro" && (
                   <div>

@@ -42,6 +42,10 @@ function AppNavigation() {
   const location = useLocation()
   const isDashboard = location.pathname === "/app"
   const isSettings = location.pathname.startsWith("/app/settings")
+  const isPlans = location.pathname === "/app/plans"
+
+  // Hide nav on plans page
+  if (isPlans) return null
 
   const navItems = [
     { to: "/app", label: "Dashboard", isActive: isDashboard },
@@ -77,6 +81,36 @@ function AppNavigation() {
   )
 }
 
+// Back button for plans page
+function BackButton() {
+  const location = useLocation()
+  if (location.pathname !== "/app/plans") return null
+
+  return (
+    <Link
+      to="/app/settings?tab=ai"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
+        padding: "6px 10px",
+        marginRight: "8px",
+        borderRadius: "6px",
+        fontSize: "13px",
+        fontWeight: 500,
+        color: "#64748b",
+        textDecoration: "none",
+        transition: "all 150ms ease",
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M19 12H5M12 19l-7-7 7-7" />
+      </svg>
+      Back
+    </Link>
+  )
+}
+
 export default function App() {
   const { apiKey } = useLoaderData<typeof loader>()
 
@@ -101,28 +135,31 @@ export default function App() {
               justifyContent: "space-between",
             }}
           >
-            <Link
-              to="/app"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                textDecoration: "none",
-                cursor: "pointer",
-              }}
-            >
-              <LogoIcon />
-              <span
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <BackButton />
+              <Link
+                to="/app"
                 style={{
-                  fontSize: "18px",
-                  fontWeight: 600,
-                  color: "#18181b",
-                  fontFamily: '"Inter", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  textDecoration: "none",
+                  cursor: "pointer",
                 }}
               >
-                Launch Ready
-              </span>
-            </Link>
+                <LogoIcon />
+                <span
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 600,
+                    color: "#18181b",
+                    fontFamily: '"Inter", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+                  }}
+                >
+                  Launch Ready
+                </span>
+              </Link>
+            </div>
             <AppNavigation />
           </div>
         </header>

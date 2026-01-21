@@ -761,10 +761,10 @@ function ImageAddDropdown({
   );
 }
 // ============================================
-// Onboarding Modal Component
+// Tour Modal Component
 // ============================================
 
-function OnboardingModal({
+function TourModal({
   isOpen,
   onClose,
 }: {
@@ -775,10 +775,10 @@ function OnboardingModal({
 
   const slides = [
     {
-      title: "Welcome to Launch Ready",
-      description: "Your all-in-one toolkit to get products from draft to live in seconds. Let's take a quick tour of the features.",
+      title: "Hey there! 👋",
+      description: "Let's get your products ready to sell. This will only take a minute.",
       icon: (
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" className="animate-rocket">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
           <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.71-2.13.71-2.13l-4.42-.16s-1.29 0-2.13.71zM15 3s-3.33 0-6 2.67a12.11 12.11 0 0 0-3.41 6.83L3 19l5-2 1.39-1.39a12.11 12.11 0 0 0 6.83-3.41C19 9.53 19 6 19 6h2l-3-3z"/>
           <path d="M12 12l4-4"/>
         </svg>
@@ -786,30 +786,29 @@ function OnboardingModal({
       color: "var(--color-primary-soft)",
     },
     {
-      title: "AI Optimization",
-      description: "Generate high-converting titles, descriptions, and SEO metadata. Even create stunning product images with AI.",
+      title: "Write with AI",
+      description: "Click any sparkle button to generate titles, descriptions, or SEO—instantly.",
       icon: (
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
           <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
-          <path d="M20 4l-1.5 4.5L14 10l4.5 1.5L20 16l1.5-4.5L26 10l-4.5-1.5L20 4z" style={{ transform: "scale(0.5) translate(12px, -12px)" }}/>
         </svg>
       ),
       color: "var(--color-ai-soft)",
     },
     {
-      title: "Brand Voice",
-      description: "Make the AI sound like you. Set your unique brand voice and custom instructions in Settings to maintain consistency.",
+      title: "Stay on track",
+      description: "The checklist on the right shows what's missing. Green means good to go.",
       icon: (
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          <path d="M8 9h8M8 13h6"/>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <path d="M22 4L12 14.01l-3-3"/>
         </svg>
       ),
-      color: "var(--color-highlight-soft)",
+      color: "var(--color-success-soft)",
     },
     {
-      title: "Version History",
-      description: "Every AI generation is saved. Compare current values with previous versions and revert anytime with one click.",
+      title: "Undo anytime",
+      description: "Don't like a change? Every edit is saved—just hit revert to go back.",
       icon: (
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -820,15 +819,15 @@ function OnboardingModal({
       color: "var(--color-accent-soft)",
     },
     {
-      title: "Smart Checklist",
-      description: "The sidebar keeps you on track. Automatically fix missing collections, tags, and status issues to ensure every product is launch-ready.",
+      title: "Make it yours",
+      description: "Head to Settings to set your brand voice. The AI will match your style.",
       icon: (
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-          <path d="M22 4L12 14.01l-3-3"/>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <path d="M8 9h8M8 13h6"/>
         </svg>
       ),
-      color: "var(--color-success-soft)",
+      color: "var(--color-highlight-soft)",
     },
   ];
 
@@ -864,7 +863,7 @@ function OnboardingModal({
           borderRadius: "var(--radius-xl)",
           width: "100%",
           maxWidth: "480px",
-          minHeight: "480px", // Consistent height to prevent shifting
+          minHeight: "420px",
           boxShadow: "var(--shadow-elevated)",
           border: "1px solid var(--color-border)",
           overflow: "hidden",
@@ -877,7 +876,7 @@ function OnboardingModal({
         <div style={{ display: "flex", height: "4px", background: "transparent" }}>
           {slides.map((_, i) => (
             <div
-              key={`dot-${i}`}
+              key={`progress-${i}`}
               style={{
                 flex: 1,
                 height: "100%",
@@ -933,6 +932,7 @@ function OnboardingModal({
               fontSize: "var(--text-base)",
               color: "var(--color-muted)",
               lineHeight: 1.6,
+              maxWidth: "380px",
             }}
           >
             {currentSlide.description}
@@ -3431,30 +3431,17 @@ export default function ProductEditor() {
   const [hasChanges, setHasChanges] = useState(false);
   const [altTextChanges, setAltTextChanges] = useState<Record<string, string>>({});
   const [generatingAll, setGeneratingAll] = useState(false);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [tourOpen, setTourOpen] = useState(!tourCompleted);
 
-  // Check if tour has been completed
-  useEffect(() => {
-    if (!tourCompleted) {
-      setOnboardingOpen(true);
-    }
-  }, [tourCompleted]);
-
-  const completeOnboarding = async () => {
+  const completeTour = async () => {
+    setTourOpen(false);
     try {
-      // Save tour completion to database
       await fetch(`/api/tour/complete`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
-      setOnboardingOpen(false);
     } catch (error) {
       console.error('Failed to save tour completion:', error);
-      // Still close the modal even if saving fails
-      setOnboardingOpen(false);
     }
   };
 
@@ -4766,11 +4753,8 @@ Describe your desired style, or leave blank for defaults.
         </div>
       )}
 
-      {/* Onboarding Modal */}
-      <OnboardingModal
-        isOpen={onboardingOpen}
-        onClose={completeOnboarding}
-      />
+      {/* Tour Modal */}
+      <TourModal isOpen={tourOpen} onClose={completeTour} />
 
     </div>
   );
