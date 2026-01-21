@@ -19,7 +19,6 @@ import {
   ProductMediaCard,
   ProductSeoCard,
   ProductChecklistCard,
-  CompactActionCard,
 } from "../components/product";
 
 // Helper to strip HTML tags
@@ -3751,13 +3750,6 @@ export default function ProductEditor() {
 
           {/* Right Column: Sticky Sidebar */}
           <div style={{ position: "sticky", top: "90px", display: "flex", flexDirection: "column", gap: "16px" }}>
-            {/* Save Button */}
-            <CompactActionCard
-              hasChanges={hasChanges}
-              isSaving={isSaving}
-              onSave={handleSave}
-            />
-
             {/* Checklist */}
             <ProductChecklistCard
               audit={audit as any}
