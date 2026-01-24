@@ -1183,7 +1183,8 @@ export default function Dashboard() {
   const [filter, _setFilter] = useState<"all" | "ready" | "incomplete">("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [isScanning, setIsScanning] = useState(false)
-  const [sortBy, _setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes")
+  const [sortBy, setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes")
+  const [showSortDropdown, setShowSortDropdown] = useState(false)
 
   // Tour state - user-level (localStorage)
   const [isTourOpen, setIsTourOpen] = useState(false)
@@ -1516,6 +1517,117 @@ export default function Dashboard() {
                   <circle cx="11" cy="11" r="8" />
                   <path d="M21 21l-4.35-4.35" />
                 </svg>
+              </div>
+
+              {/* Sort Dropdown */}
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSortDropdown(!showSortDropdown)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 10px",
+                    fontSize: "13px",
+                    border: "1px solid #e4e4e7",
+                    borderRadius: "6px",
+                    outline: "none",
+                    background: "#fff",
+                    color: "#252F2C",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "#c4c4c7"
+                    e.currentTarget.style.background = "#fafafa"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#e4e4e7"
+                    e.currentTarget.style.background = "#fff"
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z" />
+                  </svg>
+                  Sort
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+
+                {/* Sort Dropdown Menu */}
+                {showSortDropdown && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      marginTop: "4px",
+                      background: "#fff",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.07)",
+                      zIndex: 10,
+                      minWidth: "180px",
+                    }}
+                    onMouseLeave={() => setShowSortDropdown(false)}
+                  >
+                    {[
+                      { value: "most-fixes", label: "Most Fixes Needed" },
+                      { value: "least-fixes", label: "Least Fixes Needed" },
+                      { value: "highest-score", label: "Highest Score" },
+                      { value: "lowest-score", label: "Lowest Score" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setSortBy(option.value as any)
+                          setShowSortDropdown(false)
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          width: "100%",
+                          padding: "10px 12px",
+                          border: "none",
+                          background: sortBy === option.value ? "#f0f9ff" : "transparent",
+                          color: sortBy === option.value ? "#0c4a6e" : "#252F2C",
+                          cursor: "pointer",
+                          fontSize: "13px",
+                          textAlign: "left",
+                          transition: "background 0.15s",
+                          borderRadius: 0,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (sortBy !== option.value) {
+                            e.currentTarget.style.background = "#f5f5f5"
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = sortBy === option.value ? "#f0f9ff" : "transparent"
+                        }}
+                      >
+                        {sortBy === option.value && (
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                          >
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        )}
+                        {sortBy !== option.value && <div style={{ width: "14px" }} />}
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Sync Button */}
