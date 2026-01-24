@@ -14,7 +14,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request)
   const shop = session.shop
 
-  await initializeShop(shop)
+  // Ensure shop is properly initialized before any operations
+  const shopRecord = await initializeShop(shop)
+  if (!shopRecord) {
+    console.error(`Failed to initialize shop: ${shop}`)
+    throw new Error("Shop initialization failed")
+  }
 
   const stats = await getDashboardStats(shop)
   const { audits, total } = await getShopAudits(shop, { limit: 50 })
@@ -88,7 +93,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const graphqlJson: {
         data?: {
-          products?: { nodes?: Array<{ id: string }>; pageInfo?: { hasNextPage?: boolean; endCursor?: string } }
+          products?: {
+            nodes?: Array<{ id: string }>
+            pageInfo?: { hasNextPage?: boolean; endCursor?: string }
+          }
         }
       } = await graphqlResponse.json()
       const products = graphqlJson.data?.products?.nodes ?? []
@@ -510,7 +518,13 @@ function _ProductRow({
                 }}
               />
             </div>
-            <span style={{ fontSize: "12px", color: "var(--color-muted)", fontVariantNumeric: "tabular-nums" }}>
+            <span
+              style={{
+                fontSize: "12px",
+                color: "var(--color-muted)",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
               {audit.passedCount}/{audit.totalCount}
             </span>
           </div>
@@ -688,7 +702,15 @@ function _ProductRow({
 // Empty State Component
 // ============================================
 
-function _EmptyState({ title, description, action }: { title: string; description: string; action?: React.ReactNode }) {
+function _EmptyState({
+  title,
+  description,
+  action,
+}: {
+  title: string
+  description: string
+  action?: React.ReactNode
+}) {
   return (
     <div className="empty-state">
       <div
@@ -730,7 +752,13 @@ function _EmptyState({ title, description, action }: { title: string; descriptio
 // Dashboard Tour Component (Interactive inline tooltips)
 // ============================================
 
-function DashboardTour({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function DashboardTour({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean
+  onClose: () => void
+}) {
   const [step, setStep] = useState(0)
 
   const steps: Array<{
@@ -852,7 +880,12 @@ function DashboardTour({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
         // Highlight element
         element.setAttribute("data-tour-active", "true")
       } else {
-        setTooltipPosition({ top: 0, left: 0, show: false, actualPosition: "bottom" })
+        setTooltipPosition({
+          top: 0,
+          left: 0,
+          show: false,
+          actualPosition: "bottom",
+        })
       }
     }
 
@@ -896,7 +929,13 @@ function DashboardTour({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
           }}
         >
           {/* Header */}
-          <div style={{ padding: "16px", background: "#fafbfc", borderBottom: "1px solid #e4e4e7" }}>
+          <div
+            style={{
+              padding: "16px",
+              background: "#fafbfc",
+              borderBottom: "1px solid #e4e4e7",
+            }}
+          >
             <h3
               style={{
                 margin: "0 0 4px",
@@ -1154,7 +1193,10 @@ export default function Dashboard() {
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
   const [_showBulkModal, setShowBulkModal] = useState(false)
   const [_bulkAction, setBulkAction] = useState<string | null>(null)
-  const [_bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null)
+  const [_bulkProgress, setBulkProgress] = useState<{
+    current: number
+    total: number
+  } | null>(null)
 
   // Monitoring modal state (Pro only)
   const [showMonitoringModal, setShowMonitoringModal] = useState(false)
@@ -1204,7 +1246,11 @@ export default function Dashboard() {
   // Handle bulk action response
   useEffect(() => {
     if (bulkFetcher.state === "idle" && bulkFetcher.data) {
-      const data = bulkFetcher.data as { success?: boolean; successCount?: number; errorCount?: number }
+      const data = bulkFetcher.data as {
+        success?: boolean
+        successCount?: number
+        errorCount?: number
+      }
       if (data.success) {
         shopify.toast.show(`Bulk fix complete: ${data.successCount} succeeded, ${data.errorCount} failed`)
         setSelectedProducts(new Set())
@@ -1320,7 +1366,13 @@ export default function Dashboard() {
       {/* Main Content - 2 Column Layout */}
       <div
         className="dashboard-grid"
-        style={{ display: "grid", gap: "24px", flex: 1, minHeight: 0, padding: "24px 32px" }}
+        style={{
+          display: "grid",
+          gap: "24px",
+          flex: 1,
+          minHeight: 0,
+          padding: "24px 32px",
+        }}
       >
         <style>{`
           .dashboard-grid {
@@ -1448,7 +1500,12 @@ export default function Dashboard() {
                   }}
                 />
                 <svg
-                  style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }}
+                  style={{
+                    position: "absolute",
+                    left: "10px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }}
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
@@ -1525,7 +1582,12 @@ export default function Dashboard() {
                     clearSelection()
                   }
                 }}
-                style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#465A54" }}
+                style={{
+                  width: "15px",
+                  height: "15px",
+                  cursor: "pointer",
+                  accentColor: "#465A54",
+                }}
               />
             </div>
             <div
@@ -1585,7 +1647,13 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <p style={{ color: "#71717a", fontSize: "14px", margin: 0 }}>No products found</p>
-                <p style={{ color: "#a1a1aa", fontSize: "13px", margin: "4px 0 0" }}>
+                <p
+                  style={{
+                    color: "#a1a1aa",
+                    fontSize: "13px",
+                    margin: "4px 0 0",
+                  }}
+                >
                   Sync your catalog to get started
                 </p>
               </div>
@@ -1598,7 +1666,9 @@ export default function Dashboard() {
                 return (
                   <div
                     key={audit.id}
-                    style={{ borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none" }}
+                    style={{
+                      borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none",
+                    }}
                   >
                     {/* Main Row */}
                     <div
@@ -1629,7 +1699,13 @@ export default function Dashboard() {
                       }}
                     >
                       {/* Expand Arrow */}
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
                         <svg
                           width="14"
                           height="14"
@@ -1652,12 +1728,24 @@ export default function Dashboard() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleProductSelection(audit.productId)}
-                          style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#18181b" }}
+                          style={{
+                            width: "15px",
+                            height: "15px",
+                            cursor: "pointer",
+                            accentColor: "#18181b",
+                          }}
                         />
                       </div>
 
                       {/* Product */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "12px",
+                          minWidth: 0,
+                        }}
+                      >
                         <div
                           style={{
                             width: "36px",
@@ -1673,7 +1761,11 @@ export default function Dashboard() {
                             <img
                               src={audit.productImage}
                               alt=""
-                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
                             />
                           ) : (
                             <div
@@ -1732,7 +1824,13 @@ export default function Dashboard() {
                       </div>
 
                       {/* Score */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
                         <div
                           style={{
                             flex: 1,
@@ -1768,7 +1866,12 @@ export default function Dashboard() {
 
                       {/* Issues + View Details */}
                       <div
-                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "8px",
+                        }}
                       >
                         <span
                           style={{
@@ -1816,10 +1919,27 @@ export default function Dashboard() {
 
                     {/* Expanded Content - Enhanced Analytics */}
                     {isExpanded && (
-                      <div style={{ padding: "0 20px 20px 56px", background: "#fafafa" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
+                      <div
+                        style={{
+                          padding: "0 20px 20px 56px",
+                          background: "#fafafa",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr",
+                            gap: "16px",
+                          }}
+                        >
                           {/* Top Row: Quick Stats + Progress */}
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(4, 1fr)",
+                              gap: "12px",
+                            }}
+                          >
                             {/* Completion Rate */}
                             <div
                               style={{
@@ -1906,7 +2026,13 @@ export default function Dashboard() {
                               >
                                 Status
                               </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
                                 <div
                                   style={{
                                     width: "6px",
@@ -1948,7 +2074,13 @@ export default function Dashboard() {
                               >
                                 Last Checked
                               </div>
-                              <div style={{ fontSize: "12px", color: "#252F2C", fontWeight: 500 }}>
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#252F2C",
+                                  fontWeight: 500,
+                                }}
+                              >
                                 {new Date(audit.updatedAt).toLocaleDateString("en-US", {
                                   month: "short",
                                   day: "numeric",
@@ -1958,7 +2090,13 @@ export default function Dashboard() {
                           </div>
 
                           {/* Bottom Row: Detailed Breakdown - Real Data Issues */}
-                          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }}>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "2fr 1fr",
+                              gap: "16px",
+                            }}
+                          >
                             {/* Left: Issues List (Real Data) */}
                             <div
                               style={{
@@ -1982,7 +2120,13 @@ export default function Dashboard() {
                               </div>
 
                               {/* Items List */}
-                              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "8px",
+                                }}
+                              >
                                 {/* Failed Items */}
                                 {audit.items && audit.items.filter((i: any) => i.status === "failed").length > 0 ? (
                                   <>
@@ -2009,7 +2153,11 @@ export default function Dashboard() {
                                         >
                                           <div style={{ flex: 1 }}>
                                             <div
-                                              style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "#991b1b" }}
+                                              style={{
+                                                fontSize: "var(--text-sm)",
+                                                fontWeight: 600,
+                                                color: "#991b1b",
+                                              }}
                                             >
                                               {item.label}
                                             </div>
@@ -2047,7 +2195,13 @@ export default function Dashboard() {
                                               >
                                                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                                               </svg>
-                                              <span style={{ fontSize: "10px", fontWeight: 700, color: "#B53D3D" }}>
+                                              <span
+                                                style={{
+                                                  fontSize: "10px",
+                                                  fontWeight: 700,
+                                                  color: "#B53D3D",
+                                                }}
+                                              >
                                                 AUTO
                                               </span>
                                             </div>
@@ -2070,16 +2224,38 @@ export default function Dashboard() {
                                     )}
                                   </>
                                 ) : (
-                                  <div style={{ fontSize: "var(--text-sm)", color: "#52525b" }}>
-                                    <div style={{ fontWeight: 600, marginBottom: "4px" }}>All checks passed!</div>
-                                    <div style={{ fontSize: "var(--text-xs)", opacity: 0.8 }}>
+                                  <div
+                                    style={{
+                                      fontSize: "var(--text-sm)",
+                                      color: "#52525b",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        fontWeight: 600,
+                                        marginBottom: "4px",
+                                      }}
+                                    >
+                                      All checks passed!
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: "var(--text-xs)",
+                                        opacity: 0.8,
+                                      }}
+                                    >
                                       This product is ready for launch.
                                     </div>
                                   </div>
                                 )}
 
                                 {audit.items && audit.items.filter((i: any) => i.status === "passed").length > 0 && (
-                                  <details style={{ cursor: "pointer", marginTop: "12px" }}>
+                                  <details
+                                    style={{
+                                      cursor: "pointer",
+                                      marginTop: "12px",
+                                    }}
+                                  >
                                     <summary
                                       style={{
                                         fontSize: "var(--text-sm)",
@@ -2102,7 +2278,9 @@ export default function Dashboard() {
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="3"
-                                        style={{ transition: "transform 0.3s ease" }}
+                                        style={{
+                                          transition: "transform 0.3s ease",
+                                        }}
                                       >
                                         <polyline points="6 9 12 15 18 9" />
                                       </svg>
@@ -2205,7 +2383,13 @@ export default function Dashboard() {
                             </div>
 
                             {/* Right: Quick Actions Panel */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "12px",
+                              }}
+                            >
                               <div
                                 style={{
                                   padding: "16px",
@@ -2226,7 +2410,13 @@ export default function Dashboard() {
                                 >
                                   Quick Actions
                                 </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 1fr",
+                                    gap: "8px",
+                                  }}
+                                >
                                   {audit.failedCount > 0 ? (
                                     <button
                                       onClick={(e) => {
@@ -2340,7 +2530,13 @@ export default function Dashboard() {
                                   border: "1px solid #bae6fd",
                                 }}
                               >
-                                <div style={{ fontSize: "12px", color: "#0369a1", lineHeight: 1.5 }}>
+                                <div
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#0369a1",
+                                    lineHeight: 1.5,
+                                  }}
+                                >
                                   <strong>Tip:</strong>{" "}
                                   {audit.failedCount > 0
                                     ? "Prioritize fixing 'Critical' issues like missing images or descriptions."
@@ -2360,7 +2556,14 @@ export default function Dashboard() {
         </div>
 
         {/* Right: Catalog Score Card */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px", overflow: "hidden" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
+            overflow: "hidden",
+          }}
+        >
           {/* Overall Score Card */}
           <div
             style={{
@@ -2388,7 +2591,14 @@ export default function Dashboard() {
             </div>
 
             {/* Circular Progress */}
-            <div style={{ position: "relative", width: "120px", height: "120px", marginBottom: "20px" }}>
+            <div
+              style={{
+                position: "relative",
+                width: "120px",
+                height: "120px",
+                marginBottom: "20px",
+              }}
+            >
               <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
                 {/* Background circle */}
                 <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
@@ -2966,7 +3176,13 @@ export default function Dashboard() {
                 >
                   Catalog Monitor
                 </h2>
-                <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", margin: "4px 0 0" }}>
+                <p
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-muted)",
+                    margin: "4px 0 0",
+                  }}
+                >
                   Last 7 days compliance overview
                 </p>
               </div>
@@ -2991,7 +3207,12 @@ export default function Dashboard() {
             <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
               {/* Summary Cards */}
               <div
-                style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" }}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "12px",
+                  marginBottom: "24px",
+                }}
               >
                 <div
                   style={{
@@ -3001,10 +3222,22 @@ export default function Dashboard() {
                     textAlign: "center",
                   }}
                 >
-                  <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--color-text)" }}>
+                  <div
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                    }}
+                  >
                     {monitoring.driftsThisWeek}
                   </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-muted)", textTransform: "uppercase" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
                     Drifts This Week
                   </div>
                 </div>
@@ -3026,7 +3259,13 @@ export default function Dashboard() {
                   >
                     {monitoring.unresolvedDrifts}
                   </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-muted)", textTransform: "uppercase" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
                     Unresolved
                   </div>
                 </div>
@@ -3038,10 +3277,22 @@ export default function Dashboard() {
                     textAlign: "center",
                   }}
                 >
-                  <div style={{ fontSize: "28px", fontWeight: 600, color: "var(--color-text)" }}>
+                  <div
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                    }}
+                  >
                     {monitoring.productsAffected}
                   </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-muted)", textTransform: "uppercase" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
                     Products Affected
                   </div>
                 </div>
@@ -3050,8 +3301,22 @@ export default function Dashboard() {
               {/* Issues by Type */}
               {Object.keys(monitoring.byType).length > 0 && (
                 <div style={{ marginBottom: "24px" }}>
-                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Issues by Type</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Issues by Type
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
                     {Object.entries(monitoring.byType).map(([type, count]) => (
                       <div
                         key={type}
@@ -3064,7 +3329,12 @@ export default function Dashboard() {
                           borderRadius: "var(--radius-sm)",
                         }}
                       >
-                        <span style={{ fontSize: "13px", color: "var(--color-text)" }}>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            color: "var(--color-text)",
+                          }}
+                        >
                           {type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                         </span>
                         <span
@@ -3088,8 +3358,22 @@ export default function Dashboard() {
               {/* Recent Drifts */}
               {monitoring.recentDrifts.length > 0 && (
                 <div>
-                  <h3 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "12px" }}>Recent Issues</h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Recent Issues
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
                     {monitoring.recentDrifts.slice(0, 5).map((drift) => (
                       <button
                         key={drift.id}
@@ -3112,10 +3396,21 @@ export default function Dashboard() {
                         }}
                       >
                         <div>
-                          <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-text)" }}>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 500,
+                              color: "var(--color-text)",
+                            }}
+                          >
                             {drift.productTitle}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--color-muted)",
+                            }}
+                          >
                             {drift.driftType.replace(/_/g, " ")}
                           </div>
                         </div>
@@ -3174,7 +3469,15 @@ export default function Dashboard() {
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </div>
-                  <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "8px" }}>All Clear!</h3>
+                  <h3
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 600,
+                      marginBottom: "8px",
+                    }}
+                  >
+                    All Clear!
+                  </h3>
                   <p style={{ fontSize: "13px", color: "var(--color-muted)" }}>
                     No compliance drifts detected in the last 7 days.
                   </p>

@@ -1,46 +1,55 @@
-import { useEffect, useState, useCallback, useRef, useId } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
-import { useLoaderData, useFetcher, useNavigate, useBlocker, useRevalidator } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
-import { boundary } from "@shopify/shopify-app-react-router/server";
-import { getProductAudit, auditProduct, getNextIncompleteProduct, getIncompleteProductCount } from "../lib/services/audit.server";
-import { getShopSettings } from "../lib/services/shop.server";
-import { saveFieldVersion, getShopId } from "../lib/services/version.server";
-import { isAIAvailable } from "../lib/ai";
-import { PRODUCT_QUERY, type Product } from "../lib/checklist";
+import { useAppBridge } from "@shopify/app-bridge-react"
+import { boundary } from "@shopify/shopify-app-react-router/server"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
+import { useBlocker, useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router"
 import {
+  ProductChecklistCard,
   ProductHeader,
   ProductInfoCard,
   ProductMediaCard,
   ProductSeoCard,
-  ProductChecklistCard,
-} from "../components/product";
+} from "../components/product"
+import { isAIAvailable } from "../lib/ai"
+import { PRODUCT_QUERY, type Product } from "../lib/checklist"
+import {
+  auditProduct,
+  getIncompleteProductCount,
+  getNextIncompleteProduct,
+  getProductAudit,
+} from "../lib/services/audit.server"
+import { getShopSettings, initializeShop } from "../lib/services/shop.server"
+import { getShopId, saveFieldVersion } from "../lib/services/version.server"
+import { authenticate } from "../shopify.server"
 
 // Helper to strip HTML tags
 function stripHtml(html: string): string {
   return html
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
-    .replace(/&amp;/g, '&')  // Replace &amp; with &
-    .replace(/&lt;/g, '<')   // Replace &lt; with <
-    .replace(/&gt;/g, '>')   // Replace &gt; with >
+    .replace(/<[^>]*>/g, "") // Remove HTML tags
+    .replace(/&nbsp;/g, " ") // Replace &nbsp; with space
+    .replace(/&amp;/g, "&") // Replace &amp; with &
+    .replace(/&lt;/g, "<") // Replace &lt; with <
+    .replace(/&gt;/g, ">") // Replace &gt; with >
     .replace(/&quot;/g, '"') // Replace &quot; with "
-    .trim();
+    .trim()
 }
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  const shop = session.shop;
-  if (!params.id) {
-    throw new Error("Product ID is required");
+  const { admin, session } = await authenticate.admin(request)
+  const shop = session.shop
+
+  // Ensure shop is properly initialized before any operations
+  const shopRecord = await initializeShop(shop)
+  if (!shopRecord) {
+    console.error(`Failed to initialize shop: ${shop}`)
+    throw new Error("Shop initialization failed")
   }
-  const rawId = decodeURIComponent(params.id);
-  const productId = rawId.startsWith('gid://') ? rawId : `gid://shopify/Product/${rawId}`;
+
+  if (!params.id) {
+    throw new Error("Product ID is required")
+  }
+  const rawId = decodeURIComponent(params.id)
+  const productId = rawId.startsWith("gid://") ? rawId : `gid://shopify/Product/${rawId}`
 
   // Fetch product with media info
   const response = await admin.graphql(
@@ -79,34 +88,34 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       }
     }`,
     { variables: { id: productId } }
-  );
-  const json = await response.json();
-  const shopifyProduct = json.data?.product;
+  )
+  const json = await response.json()
+  const shopifyProduct = json.data?.product
 
   if (!shopifyProduct) {
-    throw new Response("Product not found", { status: 404 });
+    throw new Response("Product not found", { status: 404 })
   }
 
   // Fetch for audit
   const auditResponse = await admin.graphql(PRODUCT_QUERY, {
     variables: { id: productId },
-  });
-  const auditJson = await auditResponse.json();
-  const product = auditJson.data?.product as Product | null;
+  })
+  const auditJson = await auditResponse.json()
+  const product = auditJson.data?.product as Product | null
 
-  let audit = await getProductAudit(shop, productId);
+  let audit = await getProductAudit(shop, productId)
   if (!audit && product) {
-    await auditProduct(shop, productId, admin);
-    audit = await getProductAudit(shop, productId);
+    await auditProduct(shop, productId, admin)
+    audit = await getProductAudit(shop, productId)
   }
 
   // Get navigation info for incomplete products
-  const nextProduct = await getNextIncompleteProduct(shop, productId);
-  const incompleteCount = await getIncompleteProductCount(shop);
+  const nextProduct = await getNextIncompleteProduct(shop, productId)
+  const incompleteCount = await getIncompleteProductCount(shop)
 
   // Get shop settings for default collection
-  const shopSettings = await getShopSettings(shop);
-  const defaultCollectionId = shopSettings?.defaultCollectionId || null;
+  const shopSettings = await getShopSettings(shop)
+  const defaultCollectionId = shopSettings?.defaultCollectionId || null
 
   // Fetch existing vendors and product types for autocomplete
   const autocompleteResponse = await admin.graphql(`#graphql
@@ -118,22 +127,20 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
         }
       }
     }
-  `);
-  const autocompleteJson = await autocompleteResponse.json();
-  const allProducts = autocompleteJson.data?.products?.nodes || [];
-  
+  `)
+  const autocompleteJson = await autocompleteResponse.json()
+  const allProducts = autocompleteJson.data?.products?.nodes || []
+
   // Extract unique vendors and product types
-  const vendors = [...new Set(
-    allProducts
-      .map((p: { vendor: string }) => p.vendor)
-      .filter((v: string) => v && v.trim() !== "")
-  )].sort() as string[];
-  
-  const productTypes = [...new Set(
-    allProducts
-      .map((p: { productType: string }) => p.productType)
-      .filter((t: string) => t && t.trim() !== "")
-  )].sort() as string[];
+  const vendors = [
+    ...new Set(allProducts.map((p: { vendor: string }) => p.vendor).filter((v: string) => v && v.trim() !== "")),
+  ].sort() as string[]
+
+  const productTypes = [
+    ...new Set(
+      allProducts.map((p: { productType: string }) => p.productType).filter((t: string) => t && t.trim() !== "")
+    ),
+  ].sort() as string[]
 
   // Fetch collections for the picker
   const collectionsResponse = await admin.graphql(`#graphql
@@ -148,13 +155,15 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
         }
       }
     }
-  `);
-  const collectionsJson = await collectionsResponse.json();
-  const collections = (collectionsJson.data?.collections?.nodes || []).map((c: { id: string; title: string; productsCount?: { count: number } }) => ({
-    id: c.id,
-    title: c.title,
-    productsCount: c.productsCount?.count || 0,
-  }));
+  `)
+  const collectionsJson = await collectionsResponse.json()
+  const collections = (collectionsJson.data?.collections?.nodes || []).map(
+    (c: { id: string; title: string; productsCount?: { count: number } }) => ({
+      id: c.id,
+      title: c.title,
+      productsCount: c.productsCount?.count || 0,
+    })
+  )
 
   return {
     shop,
@@ -169,42 +178,45 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       seoDescription: shopifyProduct.seo?.description || "",
       featuredImage: shopifyProduct.featuredMedia?.preview?.image?.url || null,
       featuredImageId: shopifyProduct.featuredMedia?.id || null,
-      images: shopifyProduct.media?.nodes?.map((node: any) => ({
-        id: node.id,
-        url: node.image?.url || "",
-        altText: node.alt || null,
-      })) || [],
+      images:
+        shopifyProduct.media?.nodes?.map((node: any) => ({
+          id: node.id,
+          url: node.image?.url || "",
+          altText: node.alt || null,
+        })) || [],
     },
     tourCompleted: !!shopSettings?.tourCompletedAt,
-    audit: audit ? {
-      status: audit.status,
-      passedCount: audit.passedCount,
-      failedCount: audit.failedCount,
-      totalCount: audit.totalCount,
-      items: audit.items
-        .map(item => ({
-          key: item.item.key,
-          label: item.item.label,
-          status: item.status,
-          details: item.details,
-        }))
-        .sort((a, b) => {
-          // Order items to match visual layout on page
-          const order: Record<string, number> = {
-            min_title_length: 1,
-            has_vendor: 2,
-            has_product_type: 3,
-            min_description_length: 4,
-            has_tags: 5,
-            min_images: 6,
-            images_have_alt_text: 7,
-            seo_title: 8,
-            seo_description: 9,
-            has_collections: 10,
-          };
-          return (order[a.key] ?? 99) - (order[b.key] ?? 99);
-        }),
-    } : null,
+    audit: audit
+      ? {
+          status: audit.status,
+          passedCount: audit.passedCount,
+          failedCount: audit.failedCount,
+          totalCount: audit.totalCount,
+          items: audit.items
+            .map((item) => ({
+              key: item.item.key,
+              label: item.item.label,
+              status: item.status,
+              details: item.details,
+            }))
+            .sort((a, b) => {
+              // Order items to match visual layout on page
+              const order: Record<string, number> = {
+                min_title_length: 1,
+                has_vendor: 2,
+                has_product_type: 3,
+                min_description_length: 4,
+                has_tags: 5,
+                min_images: 6,
+                images_have_alt_text: 7,
+                seo_title: 8,
+                seo_description: 9,
+                has_collections: 10,
+              }
+              return (order[a.key] ?? 99) - (order[b.key] ?? 99)
+            }),
+        }
+      : null,
     aiAvailable: isAIAvailable(),
     navigation: {
       nextProduct,
@@ -216,29 +228,31 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
       vendors,
       productTypes,
     },
-  };
-};
+  }
+}
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  const shop = session.shop;
-  const productId = decodeURIComponent(params.id!);
-  const formData = await request.formData();
-  const intent = formData.get("intent");
+  const { admin, session } = await authenticate.admin(request)
+  const shop = session.shop
+  const rawId = decodeURIComponent(params.id!)
+  const productId = rawId.startsWith("gid://") ? rawId : `gid://shopify/Product/${rawId}`
+  const formData = await request.formData()
+  const intent = formData.get("intent")
 
   if (intent === "save") {
-    const title = formData.get("title") as string;
-    const descriptionHtml = formData.get("descriptionHtml") as string;
-    const vendor = formData.get("vendor") as string;
-    const productType = formData.get("productType") as string;
-    const tags = formData.get("tags") as string;
-    const seoTitle = formData.get("seoTitle") as string;
-    const seoDescription = formData.get("seoDescription") as string;
+    const title = formData.get("title") as string
+    const descriptionHtml = formData.get("descriptionHtml") as string
+    const vendor = formData.get("vendor") as string
+    const productType = formData.get("productType") as string
+    const tags = formData.get("tags") as string
+    const seoTitle = formData.get("seoTitle") as string
+    const seoDescription = formData.get("seoDescription") as string
 
     // Get current product values for version history
-    const shopId = await getShopId(shop);
+    const shopId = await getShopId(shop)
     if (shopId) {
-      const currentProductRes = await admin.graphql(`#graphql
+      const currentProductRes = await admin.graphql(
+        `#graphql
         query GetProductForVersionHistory($id: ID!) {
           product(id: $id) {
             title
@@ -247,31 +261,39 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
             seo { title description }
           }
         }
-      `, { variables: { id: productId } });
-      const currentProduct = (await currentProductRes.json()).data?.product;
+      `,
+        { variables: { id: productId } }
+      )
+      const currentProduct = (await currentProductRes.json()).data?.product
 
       if (currentProduct) {
         // Save versions for changed fields
-        const versionPromises: Promise<void>[] = [];
-        
+        const versionPromises: Promise<void>[] = []
+
         if (currentProduct.title !== title) {
-          versionPromises.push(saveFieldVersion(shopId, productId, "title", currentProduct.title || "", "manual_edit"));
+          versionPromises.push(saveFieldVersion(shopId, productId, "title", currentProduct.title || "", "manual_edit"))
         }
         if (currentProduct.descriptionHtml !== descriptionHtml) {
-          versionPromises.push(saveFieldVersion(shopId, productId, "description", currentProduct.descriptionHtml || "", "manual_edit"));
+          versionPromises.push(
+            saveFieldVersion(shopId, productId, "description", currentProduct.descriptionHtml || "", "manual_edit")
+          )
         }
         if ((currentProduct.seo?.title || "") !== seoTitle) {
-          versionPromises.push(saveFieldVersion(shopId, productId, "seo_title", currentProduct.seo?.title || "", "manual_edit"));
+          versionPromises.push(
+            saveFieldVersion(shopId, productId, "seo_title", currentProduct.seo?.title || "", "manual_edit")
+          )
         }
         if ((currentProduct.seo?.description || "") !== seoDescription) {
-          versionPromises.push(saveFieldVersion(shopId, productId, "seo_description", currentProduct.seo?.description || "", "manual_edit"));
+          versionPromises.push(
+            saveFieldVersion(shopId, productId, "seo_description", currentProduct.seo?.description || "", "manual_edit")
+          )
         }
-        const currentTags = currentProduct.tags?.join(",") || "";
+        const currentTags = currentProduct.tags?.join(",") || ""
         if (currentTags !== tags) {
-          versionPromises.push(saveFieldVersion(shopId, productId, "tags", currentProduct.tags || [], "manual_edit"));
+          versionPromises.push(saveFieldVersion(shopId, productId, "tags", currentProduct.tags || [], "manual_edit"))
         }
 
-        await Promise.all(versionPromises);
+        await Promise.all(versionPromises)
       }
     }
 
@@ -299,20 +321,20 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
           },
         },
       }
-    );
+    )
 
-    const json = await response.json();
-    const errors = json.data?.productUpdate?.userErrors;
+    const json = await response.json()
+    const errors = json.data?.productUpdate?.userErrors
 
     if (errors?.length > 0) {
-      return { success: false, error: errors[0].message };
+      return { success: false, error: errors[0].message }
     }
 
     // Handle alt text updates
-    const altTextUpdates = formData.getAll("altTextUpdates");
+    const altTextUpdates = formData.getAll("altTextUpdates")
     if (altTextUpdates.length > 0) {
       for (const updateStr of altTextUpdates) {
-        const { imageId, altText } = JSON.parse(updateStr as string);
+        const { imageId, altText } = JSON.parse(updateStr as string)
 
         const response = await admin.graphql(
           `#graphql
@@ -333,93 +355,101 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
           {
             variables: {
               productId,
-              media: [{
-                id: imageId,
-                alt: altText,
-              }],
+              media: [
+                {
+                  id: imageId,
+                  alt: altText,
+                },
+              ],
             },
           }
-        );
+        )
 
-        const json = await response.json();
-        const errors = json.data?.productUpdateMedia?.mediaUserErrors;
+        const json = await response.json()
+        const errors = json.data?.productUpdateMedia?.mediaUserErrors
         if (errors?.length > 0) {
-          console.error(`Failed to update alt text for image ${imageId}:`, errors[0].message);
+          console.error(`Failed to update alt text for image ${imageId}:`, errors[0].message)
         }
       }
     }
 
-    await auditProduct(shop, productId, admin);
-    return { success: true, message: "Product saved!" };
+    await auditProduct(shop, productId, admin)
+    return { success: true, message: "Product saved!" }
   }
 
   if (intent === "open_product") {
-    return { openProduct: productId };
+    return { openProduct: productId }
   }
 
   if (intent === "add_to_collection") {
-    const collectionId = formData.get("collectionId") as string;
+    const collectionId = formData.get("collectionId") as string
     if (!collectionId) {
-      return { success: false, error: "No default collection configured" };
+      return { success: false, error: "No default collection configured" }
     }
 
     try {
-      const response = await admin.graphql(`#graphql
+      const response = await admin.graphql(
+        `#graphql
         mutation AddProductToCollection($id: ID!, $productIds: [ID!]!) {
           collectionAddProducts(id: $id, productIds: $productIds) {
             collection { id }
             userErrors { field message }
           }
         }
-      `, {
-        variables: {
-          id: collectionId,
-          productIds: [productId],
-        },
-      });
-      const data = await response.json();
+      `,
+        {
+          variables: {
+            id: collectionId,
+            productIds: [productId],
+          },
+        }
+      )
+      const data = await response.json()
 
       if (data.data?.collectionAddProducts?.userErrors?.length > 0) {
-        return { success: false, error: data.data.collectionAddProducts.userErrors[0].message };
+        return {
+          success: false,
+          error: data.data.collectionAddProducts.userErrors[0].message,
+        }
       }
 
       // Re-audit the product after adding to collection
-      await auditProduct(shop, productId, admin);
-      return { success: true, message: "Added to collection!" };
+      await auditProduct(shop, productId, admin)
+      return { success: true, message: "Added to collection!" }
     } catch (error) {
-      console.error("Error adding to collection:", error);
-      return { success: false, error: "Failed to add to collection" };
+      console.error("Error adding to collection:", error)
+      return { success: false, error: "Failed to add to collection" }
     }
   }
 
   if (intent === "set_default_collection") {
-    const collectionId = formData.get("collectionId") as string;
+    const collectionId = formData.get("collectionId") as string
     if (!collectionId) {
-      return { success: false, error: "No collection selected" };
+      return { success: false, error: "No collection selected" }
     }
 
     try {
-      const { updateShopSettings } = await import("../lib/services/shop.server");
-      await updateShopSettings(shop, { defaultCollectionId: collectionId });
-      return { success: true, defaultCollectionId: collectionId };
+      const { updateShopSettings } = await import("../lib/services/shop.server")
+      await updateShopSettings(shop, { defaultCollectionId: collectionId })
+      return { success: true, defaultCollectionId: collectionId }
     } catch (error) {
-      console.error("Error setting default collection:", error);
-      return { success: false, error: "Failed to set default collection" };
+      console.error("Error setting default collection:", error)
+      return { success: false, error: "Failed to set default collection" }
     }
   }
 
   if (intent === "rescan") {
     try {
-      await auditProduct(shop, productId, admin);
-      return { success: true, message: "Product rescanned!" };
+      await auditProduct(shop, productId, admin)
+      return { success: true, message: "Product rescanned!" }
     } catch (error) {
-      console.error("Error rescanning product:", error);
-      return { success: false, error: "Failed to rescan product" };
+      console.error("Error rescanning product:", error)
+      return { success: false, error: "Failed to rescan product" }
     }
   }
 
-  return { success: false };
-};
+  return { success: false }
+}
 
 // ============================================
 // Image Actions Dropdown Component
@@ -437,47 +467,47 @@ function ImageActionsDropdown({
   onGenerateAlt,
   onDelete,
 }: {
-  imageId: string;
-  isFeatured: boolean;
-  aiAvailable: boolean;
-  isGeneratingAlt: boolean;
-  isGeneratingBulkAlt?: boolean;
-  isDeleting: boolean;
-  onSetFeatured: () => void;
-  onEdit: () => void;
-  onGenerateAlt: () => void;
-  onDelete: () => void;
+  imageId: string
+  isFeatured: boolean
+  aiAvailable: boolean
+  isGeneratingAlt: boolean
+  isGeneratingBulkAlt?: boolean
+  isDeleting: boolean
+  onSetFeatured: () => void
+  onEdit: () => void
+  onGenerateAlt: () => void
+  onDelete: () => void
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        setIsOpen(false)
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const handleSelect = (action: "featured" | "edit" | "ai" | "delete") => {
-    setIsOpen(false);
+    setIsOpen(false)
     switch (action) {
       case "featured":
-        onSetFeatured();
-        break;
+        onSetFeatured()
+        break
       case "edit":
-        onEdit();
-        break;
+        onEdit()
+        break
       case "ai":
-        onGenerateAlt();
-        break;
+        onGenerateAlt()
+        break
       case "delete":
-        onDelete();
-        break;
+        onDelete()
+        break
     }
-  };
+  }
 
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
@@ -499,10 +529,18 @@ function ImageActionsDropdown({
         }}
         title="Image actions"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="1"/>
-          <circle cx="12" cy="5" r="1"/>
-          <circle cx="12" cy="19" r="1"/>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="12" cy="5" r="1" />
+          <circle cx="12" cy="19" r="1" />
         </svg>
       </button>
 
@@ -537,8 +575,12 @@ function ImageActionsDropdown({
                 textAlign: "left",
                 transition: "background var(--transition-fast)",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-surface-strong)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent"
+              }}
             >
               Set as featured
             </button>
@@ -546,21 +588,25 @@ function ImageActionsDropdown({
           <button
             type="button"
             onClick={() => handleSelect("edit")}
-              style={{
-                width: "100%",
-                padding: "10px 14px",
-                fontSize: "var(--text-sm)",
-                fontWeight: 500,
-                border: "none",
-                borderTop: !isFeatured ? "1px solid var(--color-border-subtle)" : "none",
-                background: "transparent",
-                color: "var(--color-text)",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "background var(--transition-fast)",
-              }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            style={{
+              width: "100%",
+              padding: "10px 14px",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+              border: "none",
+              borderTop: !isFeatured ? "1px solid var(--color-border-subtle)" : "none",
+              background: "transparent",
+              color: "var(--color-text)",
+              cursor: "pointer",
+              textAlign: "left",
+              transition: "background var(--transition-fast)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-surface-strong)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent"
+            }}
           >
             Edit alt text
           </button>
@@ -577,13 +623,18 @@ function ImageActionsDropdown({
                 border: "none",
                 borderTop: "1px solid var(--color-border-subtle)",
                 background: "transparent",
-                color: (isGeneratingAlt || isGeneratingBulkAlt) ? "var(--color-subtle)" : "var(--color-primary)",
-                cursor: (isGeneratingAlt || isGeneratingBulkAlt) ? "not-allowed" : "pointer",
+                color: isGeneratingAlt || isGeneratingBulkAlt ? "var(--color-subtle)" : "var(--color-primary)",
+                cursor: isGeneratingAlt || isGeneratingBulkAlt ? "not-allowed" : "pointer",
                 textAlign: "left",
                 transition: "background var(--transition-fast)",
               }}
-              onMouseEnter={(e) => { if (!isGeneratingAlt && !isGeneratingBulkAlt) e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              onMouseEnter={(e) => {
+                if (!isGeneratingAlt && !isGeneratingBulkAlt)
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent"
+              }}
             >
               {isGeneratingAlt ? "Generating..." : isGeneratingBulkAlt ? "Bulk generating..." : "Generate alt text"}
             </button>
@@ -605,15 +656,19 @@ function ImageActionsDropdown({
               textAlign: "left",
               transition: "background var(--transition-fast)",
             }}
-            onMouseEnter={(e) => { if (!isDeleting) e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            onMouseEnter={(e) => {
+              if (!isDeleting) e.currentTarget.style.background = "var(--color-surface-strong)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent"
+            }}
           >
             {isDeleting ? "Deleting..." : "Delete"}
           </button>
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -626,32 +681,32 @@ function ImageAddDropdown({
   onGenerate,
   uploading,
 }: {
-  aiAvailable: boolean;
-  onUpload: () => void;
-  onGenerate: () => void;
-  uploading: boolean;
+  aiAvailable: boolean
+  onUpload: () => void
+  onGenerate: () => void
+  uploading: boolean
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        setIsOpen(false)
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const handleSelect = (action: "upload" | "generate") => {
-    setIsOpen(false);
+    setIsOpen(false)
     if (action === "upload") {
-      onUpload();
+      onUpload()
     } else if (action === "generate") {
-      onGenerate();
+      onGenerate()
     }
-  };
+  }
 
   return (
     <div ref={dropdownRef} style={{ position: "relative", display: "inline-block" }}>
@@ -673,13 +728,27 @@ function ImageAddDropdown({
           alignItems: "center",
           gap: "4px",
         }}
-        onMouseEnter={(e) => { if (!uploading) e.currentTarget.style.color = "var(--color-text)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = uploading ? "var(--color-subtle)" : "var(--color-muted)"; }}
+        onMouseEnter={(e) => {
+          if (!uploading) e.currentTarget.style.color = "var(--color-text)"
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = uploading ? "var(--color-subtle)" : "var(--color-muted)"
+        }}
       >
-        {uploading ? "Uploading..." : (
+        {uploading ? (
+          "Uploading..."
+        ) : (
           <>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M12 5v14M5 12h14"/>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
             </svg>
             Add
           </>
@@ -721,9 +790,11 @@ function ImageAddDropdown({
               gap: "8px",
             }}
             onMouseEnter={(e) => {
-              if (!uploading) e.currentTarget.style.background = "var(--color-surface-strong)";
+              if (!uploading) e.currentTarget.style.background = "var(--color-surface-strong)"
             }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent"
+            }}
           >
             Upload Image
           </button>
@@ -748,8 +819,12 @@ function ImageAddDropdown({
                 alignItems: "center",
                 gap: "8px",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--color-surface-strong)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent"
+              }}
             >
               Generate Image
             </button>
@@ -757,7 +832,7 @@ function ImageAddDropdown({
         </div>
       )}
     </div>
-  );
+  )
 }
 // ============================================
 // AI Upsell Modal Component
@@ -769,15 +844,15 @@ function AIUpsellModal({
   message,
   errorCode,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
-  message?: string;
-  errorCode?: string;
+  isOpen: boolean
+  onClose: () => void
+  message?: string
+  errorCode?: string
 }) {
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
-  const isPlanLimit = errorCode === "AI_FEATURE_LOCKED";
-  const isCreditLimit = errorCode === "AI_LIMIT_REACHED";
+  const isPlanLimit = errorCode === "AI_FEATURE_LOCKED"
+  const isCreditLimit = errorCode === "AI_LIMIT_REACHED"
 
   return (
     <div
@@ -798,8 +873,8 @@ function AIUpsellModal({
       onClick={onClose}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClose();
+          e.preventDefault()
+          onClose()
         }
       }}
       tabIndex={-1}
@@ -850,9 +925,7 @@ function AIUpsellModal({
                 color: "var(--color-muted)",
               }}
             >
-              {isPlanLimit
-                ? "Unlock AI-powered features"
-                : "You've reached your monthly limit"}
+              {isPlanLimit ? "Unlock AI-powered features" : "You've reached your monthly limit"}
             </p>
           </div>
           <button
@@ -917,55 +990,55 @@ function AIUpsellModal({
                 border: "1px solid var(--color-success)",
                 borderRadius: "var(--radius-lg)",
                 padding: "16px",
-              marginBottom: "20px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                alignItems: "flex-start",
+                marginBottom: "20px",
               }}
             >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--color-success)"
-                strokeWidth="2"
-                style={{ flexShrink: 0, marginTop: "2px" }}
-                aria-hidden="true"
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  alignItems: "flex-start",
+                }}
               >
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-              <div>
-                <div
-                  style={{
-                    fontWeight: 500,
-                    fontSize: "var(--text-sm)",
-                    color: "var(--color-success-strong)",
-                    marginBottom: "4px",
-                  }}
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--color-success)"
+                  strokeWidth="2"
+                  style={{ flexShrink: 0, marginTop: "2px" }}
+                  aria-hidden="true"
                 >
-                  Pro Plan Includes:
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 500,
+                      fontSize: "var(--text-sm)",
+                      color: "var(--color-success-strong)",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Pro Plan Includes:
+                  </div>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: "20px",
+                      fontSize: "var(--text-xs)",
+                      color: "var(--color-success-strong)",
+                    }}
+                  >
+                    <li>Unlimited AI generations per month</li>
+                    <li>Advanced product optimization</li>
+                    <li>Priority support</li>
+                  </ul>
                 </div>
-                <ul
-                  style={{
-                    margin: 0,
-                    paddingLeft: "20px",
-                    fontSize: "var(--text-xs)",
-                    color: "var(--color-success-strong)",
-                  }}
-                >
-                  <li>Unlimited AI generations per month</li>
-                  <li>Advanced product optimization</li>
-                  <li>Priority support</li>
-                </ul>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
 
         {/* Footer */}
@@ -1032,7 +1105,7 @@ function AIUpsellModal({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -1049,18 +1122,18 @@ function GenerateAllModal({
   fieldOptions,
   setFieldOptions,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
-  selectedFields: string[];
-  onFieldToggle: (field: string) => void;
-  onGenerate: () => void;
-  isGenerating: boolean;
-  fieldOptions: Record<string, string[]>;
-  setFieldOptions: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  isOpen: boolean
+  onClose: () => void
+  selectedFields: string[]
+  onFieldToggle: (field: string) => void
+  onGenerate: () => void
+  isGenerating: boolean
+  fieldOptions: Record<string, string[]>
+  setFieldOptions: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
 }) {
-  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({});
+  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({})
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const fields = [
     { key: "title", label: "Title" },
@@ -1074,18 +1147,17 @@ function GenerateAllModal({
       hasOptions: true,
       options: [
         { key: "image", label: "Generate Image" },
-        { key: "alt", label: "Generate Alt Text" }
-      ]
+        { key: "alt", label: "Generate Alt Text" },
+      ],
     },
-  ];
+  ]
 
   const toggleExpand = (fieldKey: string) => {
-    setExpandedFields(prev => ({
+    setExpandedFields((prev) => ({
       ...prev,
-      [fieldKey]: !prev[fieldKey]
-    }));
-  };
-
+      [fieldKey]: !prev[fieldKey],
+    }))
+  }
 
   return (
     <div
@@ -1163,7 +1235,7 @@ function GenerateAllModal({
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
+              <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -1176,16 +1248,16 @@ function GenerateAllModal({
                 type="button"
                 onClick={() => {
                   if (field.hasOptions) {
-                    toggleExpand(field.key);
+                    toggleExpand(field.key)
                     // Auto-select all options when expanding for the first time
                     if (!fieldOptions[field.key] && field.options) {
-                      setFieldOptions(prev => ({
+                      setFieldOptions((prev) => ({
                         ...prev,
-                        [field.key]: field.options?.map(opt => opt.key) || []
-                      }));
+                        [field.key]: field.options?.map((opt) => opt.key) || [],
+                      }))
                     }
                   } else {
-                    onFieldToggle(field.key);
+                    onFieldToggle(field.key)
                   }
                 }}
                 style={{
@@ -1196,40 +1268,66 @@ function GenerateAllModal({
                   padding: "16px 20px",
                   border: "none",
                   borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
-                  background: (field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)) ? "var(--color-primary-soft)" : "transparent",
+                  background: (
+                    field.hasOptions
+                      ? (fieldOptions[field.key]?.length || 0) > 0
+                      : selectedFields.includes(field.key)
+                  )
+                    ? "var(--color-primary-soft)"
+                    : "transparent",
                   cursor: "pointer",
                   transition: "all var(--transition-fast)",
                 }}
                 onMouseEnter={(e) => {
-                  const isSelected = field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key);
+                  const isSelected = field.hasOptions
+                    ? (fieldOptions[field.key]?.length || 0) > 0
+                    : selectedFields.includes(field.key)
                   if (!isSelected) {
-                    e.currentTarget.style.background = "var(--color-surface-strong)";
+                    e.currentTarget.style.background = "var(--color-surface-strong)"
                   }
                 }}
                 onMouseLeave={(e) => {
-                  const isSelected = field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key);
-                  e.currentTarget.style.background = isSelected ? "var(--color-primary-soft)" : "transparent";
+                  const isSelected = field.hasOptions
+                    ? (fieldOptions[field.key]?.length || 0) > 0
+                    : selectedFields.includes(field.key)
+                  e.currentTarget.style.background = isSelected ? "var(--color-primary-soft)" : "transparent"
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, textAlign: "left" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    flex: 1,
+                    textAlign: "left",
+                  }}
+                >
                   <input
                     type="checkbox"
-                    checked={field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)}
+                    checked={
+                      field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)
+                    }
                     onChange={(e) => {
-                      e.stopPropagation();
+                      e.stopPropagation()
                       if (field.hasOptions) {
                         // For fields with options, checkbox controls the options selection
-                        const currentOptions = fieldOptions[field.key] || [];
-                        const allOptions = field.options?.map(opt => opt.key) || [];
+                        const currentOptions = fieldOptions[field.key] || []
+                        const allOptions = field.options?.map((opt) => opt.key) || []
                         if (currentOptions.length > 0) {
                           // If any options are selected, deselect all
-                          setFieldOptions(prev => ({ ...prev, [field.key]: [] }));
+                          setFieldOptions((prev) => ({
+                            ...prev,
+                            [field.key]: [],
+                          }))
                         } else {
                           // If no options are selected, select all
-                          setFieldOptions(prev => ({ ...prev, [field.key]: allOptions }));
+                          setFieldOptions((prev) => ({
+                            ...prev,
+                            [field.key]: allOptions,
+                          }))
                         }
                       } else {
-                        onFieldToggle(field.key);
+                        onFieldToggle(field.key)
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
@@ -1240,11 +1338,13 @@ function GenerateAllModal({
                       cursor: "pointer",
                     }}
                   />
-                  <span style={{
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    color: "var(--color-text)",
-                  }}>
+                  <span
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
+                      color: "var(--color-text)",
+                    }}
+                  >
                     {field.label}
                   </span>
                 </div>
@@ -1262,7 +1362,7 @@ function GenerateAllModal({
                       color: "var(--color-muted)",
                     }}
                   >
-                    <polyline points="6 9 12 15 18 9"/>
+                    <polyline points="6 9 12 15 18 9" />
                   </svg>
                 )}
               </button>
@@ -1276,10 +1376,23 @@ function GenerateAllModal({
                     borderBottom: "1px solid var(--color-border)",
                   }}
                 >
-                  <div style={{ marginBottom: "8px", fontSize: "var(--text-xs)", fontWeight: 500, color: "var(--color-muted)" }}>
+                  <div
+                    style={{
+                      marginBottom: "8px",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 500,
+                      color: "var(--color-muted)",
+                    }}
+                  >
                     Choose what to generate:
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
                     {field.options.map((option) => (
                       <label
                         key={option.key}
@@ -1296,17 +1409,17 @@ function GenerateAllModal({
                           type="checkbox"
                           checked={fieldOptions[field.key]?.includes(option.key) || false}
                           onChange={(e) => {
-                            const currentOptions = fieldOptions[field.key] || [];
+                            const currentOptions = fieldOptions[field.key] || []
                             if (e.target.checked) {
-                              setFieldOptions(prev => ({
+                              setFieldOptions((prev) => ({
                                 ...prev,
-                                [field.key]: [...currentOptions, option.key]
-                              }));
+                                [field.key]: [...currentOptions, option.key],
+                              }))
                             } else {
-                              setFieldOptions(prev => ({
+                              setFieldOptions((prev) => ({
                                 ...prev,
-                                [field.key]: currentOptions.filter(opt => opt !== option.key)
-                              }));
+                                [field.key]: currentOptions.filter((opt) => opt !== option.key),
+                              }))
                             }
                           }}
                           style={{
@@ -1322,7 +1435,6 @@ function GenerateAllModal({
                   </div>
                 </div>
               )}
-
             </div>
           ))}
         </div>
@@ -1344,13 +1456,13 @@ function GenerateAllModal({
             type="button"
             onClick={() => {
               if (selectedFields.length === fields.length) {
-                selectedFields.forEach(key => onFieldToggle(key));
+                selectedFields.forEach((key) => onFieldToggle(key))
               } else {
-                fields.forEach(field => {
+                fields.forEach((field) => {
                   if (!selectedFields.includes(field.key)) {
-                    onFieldToggle(field.key);
+                    onFieldToggle(field.key)
                   }
-                });
+                })
               }
             }}
             style={{
@@ -1368,10 +1480,10 @@ function GenerateAllModal({
               transition: "all var(--transition-fast)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-surface-strong)";
+              e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-surface)";
+              e.currentTarget.style.backgroundColor = "var(--color-surface)"
             }}
           >
             {selectedFields.length === fields.length ? "Deselect All" : "Select All"}
@@ -1407,10 +1519,11 @@ function GenerateAllModal({
                 fontWeight: 600,
                 border: "none",
                 borderRadius: "var(--radius-md)",
-                background: (isGenerating || selectedFields.length === 0) ? "var(--color-subtle)" : "var(--gradient-primary)",
+                background:
+                  isGenerating || selectedFields.length === 0 ? "var(--color-subtle)" : "var(--gradient-primary)",
                 color: "#fff",
-                cursor: (isGenerating || selectedFields.length === 0) ? "not-allowed" : "pointer",
-                boxShadow: (isGenerating || selectedFields.length === 0) ? "none" : "var(--shadow-primary-glow)",
+                cursor: isGenerating || selectedFields.length === 0 ? "not-allowed" : "pointer",
+                boxShadow: isGenerating || selectedFields.length === 0 ? "none" : "var(--shadow-primary-glow)",
                 transition: "all var(--transition-fast)",
               }}
             >
@@ -1420,14 +1533,14 @@ function GenerateAllModal({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 // ============================================
 // AI Generate Dropdown Component
 // ============================================
 
-type AIGenerateMode = "expand" | "improve" | "replace";
+type AIGenerateMode = "expand" | "improve" | "replace"
 
 function AIGenerateDropdown({
   onGenerate,
@@ -1435,29 +1548,29 @@ function AIGenerateDropdown({
   hasContent,
   generatingMode,
 }: {
-  onGenerate: (mode: AIGenerateMode) => void;
-  isGenerating?: boolean;
-  hasContent?: boolean;
-  generatingMode?: AIGenerateMode;
+  onGenerate: (mode: AIGenerateMode) => void
+  isGenerating?: boolean
+  hasContent?: boolean
+  generatingMode?: AIGenerateMode
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        setIsOpen(false)
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const handleSelect = (mode: AIGenerateMode) => {
-    setIsOpen(false);
-    onGenerate(mode);
-  };
+    setIsOpen(false)
+    onGenerate(mode)
+  }
 
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
@@ -1479,17 +1592,23 @@ function AIGenerateDropdown({
           gap: "4px",
           transition: "all var(--transition-fast)",
         }}
-        onMouseEnter={(e) => { if (!isGenerating) e.currentTarget.style.color = "var(--color-text)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = isGenerating ? "var(--color-subtle)" : "var(--color-muted)"; }}
+        onMouseEnter={(e) => {
+          if (!isGenerating) e.currentTarget.style.color = "var(--color-text)"
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = isGenerating ? "var(--color-subtle)" : "var(--color-muted)"
+        }}
       >
         {isGenerating && generatingMode ? (
           <>
             <span className="loading-dots" style={{ transform: "scale(0.5)" }}>
-              <span/>
-              <span/>
-              <span/>
+              <span />
+              <span />
+              <span />
             </span>
-            {!hasContent ? "Generating" : (
+            {!hasContent ? (
+              "Generating"
+            ) : (
               <>
                 {generatingMode === "expand" && "Expanding"}
                 {generatingMode === "improve" && "Improving"}
@@ -1500,16 +1619,24 @@ function AIGenerateDropdown({
         ) : (
           <>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/>
+              <path d="M12 2L9.5 9.5L2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z" />
             </svg>
             Generate
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-              <path d="M6 9l6 6 6-6"/>
+            <svg
+              width="8"
+              height="8"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              aria-hidden="true"
+            >
+              <path d="M6 9l6 6 6-6" />
             </svg>
           </>
         )}
       </button>
-      
+
       {isOpen && (
         <div
           style={{
@@ -1543,8 +1670,12 @@ function AIGenerateDropdown({
                   textAlign: "left",
                   transition: "background var(--transition-fast)",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent"
+                }}
               >
                 Expand
               </button>
@@ -1564,8 +1695,12 @@ function AIGenerateDropdown({
                   textAlign: "left",
                   transition: "background var(--transition-fast)",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent"
+                }}
               >
                 Improve
               </button>
@@ -1587,15 +1722,19 @@ function AIGenerateDropdown({
               textAlign: "left",
               transition: "background var(--transition-fast)",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-surface-strong)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent"
+            }}
           >
             {hasContent ? "Replace" : "Generate"}
           </button>
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -1621,44 +1760,52 @@ function EditableField({
   canInlineRevert,
   onInlineRevert,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  onGenerateAI?: (mode: AIGenerateMode) => void;
-  isGenerating?: boolean;
-  generatingMode?: AIGenerateMode;
-  multiline?: boolean;
-  placeholder?: string;
-  maxLength?: number;
-  showAI?: boolean;
-  helpText?: string;
-  fieldVersions?: Array<{ version: number; value: string; createdAt: Date; source: string }>;
-  onRevert?: (field: string, version: number) => void;
-  field?: string;
-  productId?: string;
-  canInlineRevert?: boolean;
-  onInlineRevert?: () => void;
+  label: string
+  value: string
+  onChange: (value: string) => void
+  onGenerateAI?: (mode: AIGenerateMode) => void
+  isGenerating?: boolean
+  generatingMode?: AIGenerateMode
+  multiline?: boolean
+  placeholder?: string
+  maxLength?: number
+  showAI?: boolean
+  helpText?: string
+  fieldVersions?: Array<{
+    version: number
+    value: string
+    createdAt: Date
+    source: string
+  }>
+  onRevert?: (field: string, version: number) => void
+  field?: string
+  productId?: string
+  canInlineRevert?: boolean
+  onInlineRevert?: () => void
 }) {
-  const [isFocused, setIsFocused] = useState(false);
-  const inputId = useId();
+  const [isFocused, setIsFocused] = useState(false)
+  const inputId = useId()
 
   return (
     <div style={{ marginBottom: "20px" }}>
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "8px"
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "8px",
+        }}
+      >
         <label
           htmlFor={inputId}
           style={{
-          fontSize: "var(--text-xs)",
-          fontWeight: 500,
-          color: "var(--color-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}>
+            fontSize: "var(--text-xs)",
+            fontWeight: 500,
+            color: "var(--color-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
           {label}
         </label>
         <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -1680,13 +1827,17 @@ function EditableField({
                 alignItems: "center",
                 gap: "4px",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--color-text)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--color-muted)"
+              }}
               title="Revert to original value"
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
               </svg>
               Undo
             </button>
@@ -1701,7 +1852,7 @@ function EditableField({
           )}
         </div>
       </div>
-      
+
       <div style={{ position: "relative" }}>
         {multiline ? (
           <textarea
@@ -1727,8 +1878,12 @@ function EditableField({
               transition: "border-color var(--transition-fast)",
               outline: "none",
             }}
-            onMouseEnter={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
-            onMouseLeave={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"; }}
+            onMouseEnter={(e) => {
+              if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"
+            }}
+            onMouseLeave={(e) => {
+              if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"
+            }}
           />
         ) : (
           <input
@@ -1754,35 +1909,57 @@ function EditableField({
               transition: "border-color var(--transition-fast)",
               outline: "none",
             }}
-            onMouseEnter={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
-            onMouseLeave={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"; }}
+            onMouseEnter={(e) => {
+              if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"
+            }}
+            onMouseLeave={(e) => {
+              if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"
+            }}
           />
         )}
       </div>
-      
+
       {(helpText || maxLength) && (
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginTop: "6px",
-          gap: "12px",
-        }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: "6px",
+            gap: "12px",
+          }}
+        >
           {helpText && (
-            <span style={{
-              color: "var(--color-subtle)",
-              fontSize: "11px"
-            }}>
+            <span
+              style={{
+                color: "var(--color-subtle)",
+                fontSize: "11px",
+              }}
+            >
               {helpText}
             </span>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginLeft: "auto" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              marginLeft: "auto",
+            }}
+          >
             {maxLength && (
-              <span style={{
-                color: value.length > maxLength * 0.9 ? (value.length > maxLength ? "var(--color-error)" : "var(--color-warning)") : "var(--color-subtle)",
-                fontWeight: 400,
-                fontSize: "11px",
-              }}>
+              <span
+                style={{
+                  color:
+                    value.length > maxLength * 0.9
+                      ? value.length > maxLength
+                        ? "var(--color-error)"
+                        : "var(--color-warning)"
+                      : "var(--color-subtle)",
+                  fontWeight: 400,
+                  fontSize: "11px",
+                }}
+              >
                 {value.length}/{maxLength}
               </span>
             )}
@@ -1790,7 +1967,7 @@ function EditableField({
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -1804,79 +1981,79 @@ function AutocompleteField({
   options,
   placeholder,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  placeholder?: string;
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+  placeholder?: string
 }) {
-  const [isFocused, setIsFocused] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [inputValue, setInputValue] = useState(value);
-  const inputId = useId();
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const [inputValue, setInputValue] = useState(value)
+  const inputId = useId()
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Sync inputValue with prop value
   useEffect(() => {
-    setInputValue(value);
-  }, [value]);
+    setInputValue(value)
+  }, [value])
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        setIsOpen(false)
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   // Filter options based on input
-  const filteredOptions = options.filter(option =>
-    option.toLowerCase().includes(inputValue.toLowerCase()) &&
-    option.toLowerCase() !== inputValue.toLowerCase()
-  );
+  const filteredOptions = options.filter(
+    (option) =>
+      option.toLowerCase().includes(inputValue.toLowerCase()) && option.toLowerCase() !== inputValue.toLowerCase()
+  )
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setInputValue(newValue);
-    onChange(newValue);
-    setIsOpen(true);
-  };
+    const newValue = e.target.value
+    setInputValue(newValue)
+    onChange(newValue)
+    setIsOpen(true)
+  }
 
   const handleSelectOption = (option: string) => {
-    setInputValue(option);
-    onChange(option);
-    setIsOpen(false);
-  };
+    setInputValue(option)
+    onChange(option)
+    setIsOpen(false)
+  }
 
   const handleFocus = () => {
-    setIsFocused(true);
+    setIsFocused(true)
     if (filteredOptions.length > 0 || options.length > 0) {
-      setIsOpen(true);
+      setIsOpen(true)
     }
-  };
+  }
 
   const handleBlur = () => {
-    setIsFocused(false);
+    setIsFocused(false)
     // Delay closing to allow click on option
-    setTimeout(() => setIsOpen(false), 150);
-  };
+    setTimeout(() => setIsOpen(false), 150)
+  }
 
   // Show all options when input is empty, filtered when typing
-  const displayOptions = inputValue.trim() === "" 
-    ? options.slice(0, 10) 
-    : filteredOptions.slice(0, 10);
+  const displayOptions = inputValue.trim() === "" ? options.slice(0, 10) : filteredOptions.slice(0, 10)
 
   return (
     <div style={{ marginBottom: "20px" }} ref={dropdownRef}>
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "8px"
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "8px",
+        }}
+      >
         <label
           htmlFor={inputId}
           style={{
@@ -1913,8 +2090,12 @@ function AutocompleteField({
             transition: "border-color var(--transition-fast)",
             outline: "none",
           }}
-          onMouseEnter={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"; }}
-          onMouseLeave={(e) => { if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"; }}
+          onMouseEnter={(e) => {
+            if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border-strong)"
+          }}
+          onMouseLeave={(e) => {
+            if (!isFocused) e.currentTarget.style.borderColor = "var(--color-border)"
+          }}
         />
 
         {/* Dropdown arrow indicator */}
@@ -1929,7 +2110,7 @@ function AutocompleteField({
           }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 9l6 6 6-6"/>
+            <path d="M6 9l6 6 6-6" />
           </svg>
         </div>
 
@@ -1968,8 +2149,12 @@ function AutocompleteField({
                   textAlign: "left",
                   transition: "background var(--transition-fast)",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent"
+                }}
               >
                 {option}
               </button>
@@ -1978,7 +2163,7 @@ function AutocompleteField({
         )}
       </div>
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -1991,31 +2176,36 @@ function VersionHistoryDropdown({
   onRevert,
   productId,
 }: {
-  field: string;
-  versions: Array<{ version: number; value: string; createdAt: Date; source: string }>;
-  onRevert: (field: string, version: number) => void;
-  productId: string;
+  field: string
+  versions: Array<{
+    version: number
+    value: string
+    createdAt: Date
+    source: string
+  }>
+  onRevert: (field: string, version: number) => void
+  productId: string
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        setIsOpen(false)
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const handleVersionRevert = (version: number) => {
-    setIsOpen(false);
-    onRevert(field, version);
-  };
+    setIsOpen(false)
+    onRevert(field, version)
+  }
 
   // Only show the 2 most recent versions for reverting
-  const recentVersions = versions.slice(-2).reverse();
+  const recentVersions = versions.slice(-2).reverse()
 
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
@@ -2055,25 +2245,25 @@ function VersionHistoryDropdown({
         >
           {recentVersions.map((version) => {
             // Parse value for display (handle arrays for tags)
-            let displayValue: string;
+            let displayValue: string
             try {
-              const parsed = JSON.parse(version.value);
+              const parsed = JSON.parse(version.value)
               if (Array.isArray(parsed)) {
-                displayValue = parsed.join(", ");
+                displayValue = parsed.join(", ")
               } else {
-                displayValue = parsed;
+                displayValue = parsed
               }
             } catch {
-              displayValue = version.value;
+              displayValue = version.value
             }
 
             // Strip HTML if this is a description field
-            if (field === 'description' || field === 'descriptionHtml') {
-              displayValue = stripHtml(displayValue);
+            if (field === "description" || field === "descriptionHtml") {
+              displayValue = stripHtml(displayValue)
             }
 
             // Truncate long content for display
-            const truncatedValue = displayValue.length > 50 ? displayValue.slice(0, 50) + "..." : displayValue;
+            const truncatedValue = displayValue.length > 50 ? displayValue.slice(0, 50) + "..." : displayValue
 
             return (
               <button
@@ -2093,37 +2283,54 @@ function VersionHistoryDropdown({
                   transition: "background var(--transition-fast)",
                   borderBottom: "1px solid var(--color-border-subtle)",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--color-surface-strong)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent"
+                }}
               >
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <div style={{ fontWeight: 600 }}>
-                    Version {version.version}
-                  </div>
-                  <div style={{ color: "var(--color-text-secondary)", fontSize: "11px", fontWeight: 400 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                  }}
+                >
+                  <div style={{ fontWeight: 600 }}>Version {version.version}</div>
+                  <div
+                    style={{
+                      color: "var(--color-text-secondary)",
+                      fontSize: "11px",
+                      fontWeight: 400,
+                    }}
+                  >
                     {truncatedValue}
                   </div>
                   <div style={{ color: "var(--color-muted)", fontSize: "10px" }}>
-                    {new Date(version.createdAt).toLocaleDateString()} • {version.source.replace("ai_", "").replace("_", " ")}
+                    {new Date(version.createdAt).toLocaleDateString()} •{" "}
+                    {version.source.replace("ai_", "").replace("_", " ")}
                   </div>
                 </div>
               </button>
-            );
+            )
           })}
           {recentVersions.length === 0 && (
-            <div style={{
-              padding: "12px",
-              fontSize: "var(--text-xs)",
-              color: "var(--color-muted)",
-              textAlign: "center",
-            }}>
+            <div
+              style={{
+                padding: "12px",
+                fontSize: "var(--text-xs)",
+                color: "var(--color-muted)",
+                textAlign: "center",
+              }}
+            >
               No versions available
             </div>
           )}
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -2144,58 +2351,67 @@ function TagsInput({
   canInlineRevert,
   onInlineRevert,
 }: {
-  tags: string[];
-  onChange: (tags: string[]) => void;
-  onGenerateAI?: (mode: AIGenerateMode) => void;
-  isGenerating?: boolean;
-  generatingMode?: AIGenerateMode;
-  showAI?: boolean;
-  fieldVersions?: Array<{ version: number; value: string; createdAt: Date; source: string }>;
-  onRevert?: (field: string, version: number) => void;
-  field?: string;
-  productId?: string;
-  canInlineRevert?: boolean;
-  onInlineRevert?: () => void;
+  tags: string[]
+  onChange: (tags: string[]) => void
+  onGenerateAI?: (mode: AIGenerateMode) => void
+  isGenerating?: boolean
+  generatingMode?: AIGenerateMode
+  showAI?: boolean
+  fieldVersions?: Array<{
+    version: number
+    value: string
+    createdAt: Date
+    source: string
+  }>
+  onRevert?: (field: string, version: number) => void
+  field?: string
+  productId?: string
+  canInlineRevert?: boolean
+  onInlineRevert?: () => void
 }) {
-  const [inputValue, setInputValue] = useState("");
-  const [isAddingTag, setIsAddingTag] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState("")
+  const [isAddingTag, setIsAddingTag] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Focus input when adding tag
   useEffect(() => {
     if (isAddingTag && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus()
     }
-  }, [isAddingTag]);
+  }, [isAddingTag])
 
   const addTag = (tag: string) => {
-    const trimmed = tag.trim().toLowerCase();
+    const trimmed = tag.trim().toLowerCase()
     if (trimmed && !tags.includes(trimmed)) {
-      onChange([...tags, trimmed]);
+      onChange([...tags, trimmed])
     }
-    setInputValue("");
-    setIsAddingTag(false);
-  };
+    setInputValue("")
+    setIsAddingTag(false)
+  }
 
   const removeTag = (tagToRemove: string) => {
-    onChange(tags.filter(t => t !== tagToRemove));
-  };
+    onChange(tags.filter((t) => t !== tagToRemove))
+  }
 
   return (
     <div style={{ marginBottom: "20px" }}>
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "8px"
-      }}>
-        <label style={{
-          fontSize: "var(--text-xs)",
-          fontWeight: 500,
-          color: "var(--color-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "8px",
+        }}
+      >
+        <label
+          style={{
+            fontSize: "var(--text-xs)",
+            fontWeight: 500,
+            color: "var(--color-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
           Tags
         </label>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -2217,13 +2433,17 @@ function TagsInput({
                 alignItems: "center",
                 gap: "4px",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--color-text)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--color-muted)"
+              }}
               title="Revert to original value"
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                <path d="M3 3v5h5"/>
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
               </svg>
               Undo
             </button>
@@ -2238,16 +2458,18 @@ function TagsInput({
           )}
         </div>
       </div>
-      
+
       {/* Tags display - Minimal pills */}
-      <div style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "6px",
-        opacity: isGenerating ? 0.5 : 1,
-        transition: "opacity var(--transition-fast)",
-      }}>
-        {tags.map(tag => (
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "6px",
+          opacity: isGenerating ? 0.5 : 1,
+          transition: "opacity var(--transition-fast)",
+        }}
+      >
+        {tags.map((tag) => (
           <span
             key={tag}
             style={{
@@ -2282,11 +2504,15 @@ function TagsInput({
                 borderRadius: "50%",
                 transition: "all var(--transition-fast)",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--color-text)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--color-muted)"
+              }}
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M18 6L6 18M6 6l12 12"/>
+                <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
           </span>
@@ -2301,25 +2527,25 @@ function TagsInput({
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === ",") {
-                e.preventDefault();
-                addTag(inputValue);
-                setIsAddingTag(false);
+                e.preventDefault()
+                addTag(inputValue)
+                setIsAddingTag(false)
               }
               if (e.key === "Escape") {
-                setInputValue("");
-                setIsAddingTag(false);
+                setInputValue("")
+                setIsAddingTag(false)
               }
             }}
             onBlur={() => {
-              const trimmedValue = inputValue.trim();
+              const trimmedValue = inputValue.trim()
               if (trimmedValue) {
-                const normalizedTag = trimmedValue.toLowerCase();
+                const normalizedTag = trimmedValue.toLowerCase()
                 if (!tags.includes(normalizedTag)) {
-                  onChange([...tags, normalizedTag]);
+                  onChange([...tags, normalizedTag])
                 }
               }
-              setInputValue("");
-              setIsAddingTag(false);
+              setInputValue("")
+              setIsAddingTag(false)
             }}
             placeholder="Tag name"
             disabled={isGenerating}
@@ -2358,27 +2584,34 @@ function TagsInput({
               userSelect: "none",
               fontWeight: 400,
             }}
-            onMouseEnter={(e) => { 
+            onMouseEnter={(e) => {
               if (!isGenerating) {
-                e.currentTarget.style.borderColor = "var(--color-border-strong)";
-                e.currentTarget.style.color = "var(--color-text)";
+                e.currentTarget.style.borderColor = "var(--color-border-strong)"
+                e.currentTarget.style.color = "var(--color-text)"
               }
             }}
-            onMouseLeave={(e) => { 
-              e.currentTarget.style.borderColor = "var(--color-border)";
-              e.currentTarget.style.color = isGenerating ? "var(--color-subtle)" : "var(--color-muted)";
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-border)"
+              e.currentTarget.style.color = isGenerating ? "var(--color-subtle)" : "var(--color-muted)"
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M12 5v14M5 12h14"/>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
             </svg>
             Add
           </button>
         )}
       </div>
-
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -2398,168 +2631,172 @@ function ImageManager({
   onOpenImagePromptModal,
   onAltTextChange,
 }: {
-  images: Array<{ id: string; url: string; altText: string | null }>;
-  featuredImageId: string | null;
-  productId: string;
-  productTitle: string;
-  aiAvailable: boolean;
-  onRefresh: () => void;
-  generatingImage?: boolean;
-  generatingBulkAlt?: boolean;
-  setGeneratingBulkAlt?: (val: boolean) => void;
-  onOpenImagePromptModal: () => void;
-  onAltTextChange?: (imageId: string, altText: string) => void;
+  images: Array<{ id: string; url: string; altText: string | null }>
+  featuredImageId: string | null
+  productId: string
+  productTitle: string
+  aiAvailable: boolean
+  onRefresh: () => void
+  generatingImage?: boolean
+  generatingBulkAlt?: boolean
+  setGeneratingBulkAlt?: (val: boolean) => void
+  onOpenImagePromptModal: () => void
+  onAltTextChange?: (imageId: string, altText: string) => void
 }) {
-  const [editingAlt, setEditingAlt] = useState<string | null>(null);
-  const [altTexts, setAltTexts] = useState<Record<string, string>>({});
-  const [generatingAlt, setGeneratingAlt] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const shopify = useAppBridge();
+  const [editingAlt, setEditingAlt] = useState<string | null>(null)
+  const [altTexts, setAltTexts] = useState<Record<string, string>>({})
+  const [generatingAlt, setGeneratingAlt] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const shopify = useAppBridge()
 
   useEffect(() => {
-    const initial: Record<string, string> = {};
+    const initial: Record<string, string> = {}
     for (const img of images) {
-      initial[img.id] = img.altText || "";
+      initial[img.id] = img.altText || ""
     }
-    setAltTexts(initial);
-  }, [images]);
+    setAltTexts(initial)
+  }, [images])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    setUploading(true);
+    setUploading(true)
     try {
-      const formData = new FormData();
-      formData.append("intent", "upload");
-      formData.append("file", file);
+      const formData = new FormData()
+      formData.append("intent", "upload")
+      formData.append("file", file)
 
-      const response = await fetch(
-        `/api/products/${encodeURIComponent(productId)}/images`,
-        { method: "POST", body: formData }
-      );
-      const data = await response.json();
+      const response = await fetch(`/api/products/${encodeURIComponent(productId)}/images`, {
+        method: "POST",
+        body: formData,
+      })
+      const data = await response.json()
 
       if (data.error) {
-        shopify.toast.show(data.error);
+        shopify.toast.show(data.error)
       } else {
-        shopify.toast.show("Image uploaded!");
-        onRefresh();
+        shopify.toast.show("Image uploaded!")
+        onRefresh()
       }
     } catch {
-      shopify.toast.show("Failed to upload image");
+      shopify.toast.show("Failed to upload image")
     } finally {
-      setUploading(false);
-      e.target.value = "";
+      setUploading(false)
+      e.target.value = ""
     }
-  };
+  }
 
   const handleDeleteImage = async (imageId: string) => {
-    if (!confirm("Delete this image?")) return;
+    if (!confirm("Delete this image?")) return
 
-    setDeleting(imageId);
+    setDeleting(imageId)
     try {
-      const formData = new FormData();
-      formData.append("intent", "delete");
-      formData.append("imageId", imageId);
+      const formData = new FormData()
+      formData.append("intent", "delete")
+      formData.append("imageId", imageId)
 
-      const response = await fetch(
-        `/api/products/${encodeURIComponent(productId)}/images`,
-        { method: "POST", body: formData }
-      );
-      const data = await response.json();
+      const response = await fetch(`/api/products/${encodeURIComponent(productId)}/images`, {
+        method: "POST",
+        body: formData,
+      })
+      const data = await response.json()
 
       if (data.error) {
-        shopify.toast.show(data.error);
+        shopify.toast.show(data.error)
       } else {
-        shopify.toast.show("Image deleted");
-        onRefresh();
+        shopify.toast.show("Image deleted")
+        onRefresh()
       }
     } catch {
-      shopify.toast.show("Failed to delete image");
+      shopify.toast.show("Failed to delete image")
     } finally {
-      setDeleting(null);
+      setDeleting(null)
     }
-  };
+  }
 
   const handleSetFeatured = async (imageId: string) => {
     try {
-      const formData = new FormData();
-      formData.append("intent", "set_featured");
-      formData.append("imageId", imageId);
+      const formData = new FormData()
+      formData.append("intent", "set_featured")
+      formData.append("imageId", imageId)
 
-      const response = await fetch(
-        `/api/products/${encodeURIComponent(productId)}/images`,
-        { method: "POST", body: formData }
-      );
-      const data = await response.json();
+      const response = await fetch(`/api/products/${encodeURIComponent(productId)}/images`, {
+        method: "POST",
+        body: formData,
+      })
+      const data = await response.json()
 
       if (data.error) {
-        shopify.toast.show(data.error);
+        shopify.toast.show(data.error)
       } else {
-        shopify.toast.show("Featured image updated");
-        onRefresh();
+        shopify.toast.show("Featured image updated")
+        onRefresh()
       }
     } catch {
-      shopify.toast.show("Failed to set featured image");
+      shopify.toast.show("Failed to set featured image")
     }
-  };
+  }
 
   const handleGenerateAlt = async (imageId: string, index: number) => {
-    setGeneratingAlt(imageId);
+    setGeneratingAlt(imageId)
     try {
-      const formData = new FormData();
-      formData.append("intent", "generate_alt");
-      formData.append("imageId", imageId);
-      formData.append("imageIndex", String(index));
+      const formData = new FormData()
+      formData.append("intent", "generate_alt")
+      formData.append("imageId", imageId)
+      formData.append("imageIndex", String(index))
 
-      const response = await fetch(
-        `/api/products/${encodeURIComponent(productId)}/images`,
-        { method: "POST", body: formData }
-      );
-      const data = await response.json();
+      const response = await fetch(`/api/products/${encodeURIComponent(productId)}/images`, {
+        method: "POST",
+        body: formData,
+      })
+      const data = await response.json()
 
       if (data.error) {
-        shopify.toast.show(data.error);
+        shopify.toast.show(data.error)
       } else {
-        setAltTexts(prev => ({ ...prev, [imageId]: data.altText }));
-        onAltTextChange?.(imageId, data.altText);
-        shopify.toast.show("Alt text generated!");
+        setAltTexts((prev) => ({ ...prev, [imageId]: data.altText }))
+        onAltTextChange?.(imageId, data.altText)
+        shopify.toast.show("Alt text generated!")
       }
     } catch {
-      shopify.toast.show("Failed to generate alt text");
+      shopify.toast.show("Failed to generate alt text")
     } finally {
-      setGeneratingAlt(null);
+      setGeneratingAlt(null)
     }
-  };
+  }
 
   const handleSaveAlt = (imageId: string) => {
-    const newAltText = altTexts[imageId] || "";
-    onAltTextChange?.(imageId, newAltText);
-    setEditingAlt(null);
-    shopify.toast.show("Alt text updated");
-  };
+    const newAltText = altTexts[imageId] || ""
+    onAltTextChange?.(imageId, newAltText)
+    setEditingAlt(null)
+    shopify.toast.show("Alt text updated")
+  }
 
   const openImagePromptModal = useCallback(() => {
-    onOpenImagePromptModal();
-  }, [onOpenImagePromptModal]);
+    onOpenImagePromptModal()
+  }, [onOpenImagePromptModal])
 
   return (
     <div>
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center",
-        marginBottom: "16px" 
-      }}>
-        <label style={{ 
-          fontSize: "var(--text-xs)",
-          fontWeight: 500,
-          color: "var(--color-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-        }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+        }}
+      >
+        <label
+          style={{
+            fontSize: "var(--text-xs)",
+            fontWeight: 500,
+            color: "var(--color-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
           Images {images.length > 0 && `(${images.length})`}
         </label>
         <ImageAddDropdown
@@ -2579,18 +2816,34 @@ function ImageManager({
       </div>
 
       {images.length === 0 ? (
-        <div style={{
-          border: "1px dashed var(--color-border)",
-          borderRadius: "var(--radius-lg)",
-          padding: "40px",
-          textAlign: "center",
-        }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-subtle)" strokeWidth="1" style={{ marginBottom: "12px" }}>
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <path d="M21 15l-5-5L5 21"/>
+        <div
+          style={{
+            border: "1px dashed var(--color-border)",
+            borderRadius: "var(--radius-lg)",
+            padding: "40px",
+            textAlign: "center",
+          }}
+        >
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="var(--color-subtle)"
+            strokeWidth="1"
+            style={{ marginBottom: "12px" }}
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path d="M21 15l-5-5L5 21" />
           </svg>
-          <div style={{ color: "var(--color-muted)", fontSize: "var(--text-sm)", marginBottom: "16px" }}>
+          <div
+            style={{
+              color: "var(--color-muted)",
+              fontSize: "var(--text-sm)",
+              marginBottom: "16px",
+            }}
+          >
             No images yet
           </div>
           <label
@@ -2610,9 +2863,9 @@ function ImageManager({
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             Upload
             <input
@@ -2625,11 +2878,13 @@ function ImageManager({
           </label>
         </div>
       ) : (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-          gap: "12px",
-        }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: "12px",
+          }}
+        >
           {generatingImage && (
             <div
               style={{
@@ -2645,34 +2900,42 @@ function ImageManager({
                 <div className="absolute inset-0 p-6 flex flex-col">
                   {/* Image placeholder with shimmer */}
                   <div className="relative w-full aspect-square bg-gray-200 rounded-lg mb-4 overflow-hidden">
-                    <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent animate-shimmer" 
-                         style={{
-                           backgroundSize: '200% 100%',
-                           animation: 'shimmer 2s infinite',
-                         }} />
+                    <div
+                      className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent animate-shimmer"
+                      style={{
+                        backgroundSize: "200% 100%",
+                        animation: "shimmer 2s infinite",
+                      }}
+                    />
                   </div>
                   {/* Text lines placeholder */}
                   <div className="space-y-3 flex-1">
                     <div className="h-4 bg-gray-200 rounded w-3/4 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
-                           style={{
-                             backgroundSize: '200% 100%',
-                             animation: 'shimmer 2s infinite',
-                           }} />
+                      <div
+                        className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
+                        style={{
+                          backgroundSize: "200% 100%",
+                          animation: "shimmer 2s infinite",
+                        }}
+                      />
                     </div>
                     <div className="h-3 bg-gray-200 rounded w-1/2 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
-                           style={{
-                             backgroundSize: '200% 100%',
-                             animation: 'shimmer 2s infinite 0.2s',
-                           }} />
+                      <div
+                        className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
+                        style={{
+                          backgroundSize: "200% 100%",
+                          animation: "shimmer 2s infinite 0.2s",
+                        }}
+                      />
                     </div>
                     <div className="h-3 bg-gray-200 rounded w-2/3 relative overflow-hidden">
-                      <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
-                           style={{
-                             backgroundSize: '200% 100%',
-                             animation: 'shimmer 2s infinite 0.4s',
-                           }} />
+                      <div
+                        className="absolute inset-0 bg-linear-to-r from-transparent via-white/40 to-transparent"
+                        style={{
+                          backgroundSize: "200% 100%",
+                          animation: "shimmer 2s infinite 0.4s",
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -2699,11 +2962,13 @@ function ImageManager({
               }}
             >
               {/* Image */}
-              <div style={{
-                width: "100%",
-                paddingTop: "100%",
-                position: "relative",
-              }}>
+              <div
+                style={{
+                  width: "100%",
+                  paddingTop: "100%",
+                  position: "relative",
+                }}
+              >
                 <img
                   src={image.url}
                   alt={altTexts[image.id] || image.altText || productTitle}
@@ -2720,29 +2985,33 @@ function ImageManager({
 
               {/* Featured Badge - Minimal */}
               {featuredImageId === image.id && (
-                <div style={{
-                  position: "absolute",
-                  top: "6px",
-                  left: "6px",
-                  padding: "3px 8px",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  background: "rgba(0, 0, 0, 0.7)",
-                  color: "#fff",
-                  borderRadius: "var(--radius-md)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em",
-                }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "6px",
+                    left: "6px",
+                    padding: "3px 8px",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    background: "rgba(0, 0, 0, 0.7)",
+                    color: "#fff",
+                    borderRadius: "var(--radius-md)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.03em",
+                  }}
+                >
                   Featured
                 </div>
               )}
 
               {/* Actions */}
-              <div style={{
-                position: "absolute",
-                top: "6px",
-                right: "6px",
-              }}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "6px",
+                  right: "6px",
+                }}
+              >
                 <ImageActionsDropdown
                   imageId={image.id}
                   isFeatured={featuredImageId === image.id}
@@ -2758,19 +3027,23 @@ function ImageManager({
               </div>
 
               {/* Alt Text Editor - Minimal */}
-              <div style={{
-                padding: "10px",
-                backgroundColor: "var(--color-surface)",
-              }}>
+              <div
+                style={{
+                  padding: "10px",
+                  backgroundColor: "var(--color-surface)",
+                }}
+              >
                 {editingAlt === image.id ? (
                   <div>
                     <input
                       type="text"
                       value={altTexts[image.id] || ""}
-                      onChange={(e) => setAltTexts(prev => ({ 
-                        ...prev, 
-                        [image.id]: e.target.value 
-                      }))}
+                      onChange={(e) =>
+                        setAltTexts((prev) => ({
+                          ...prev,
+                          [image.id]: e.target.value,
+                        }))
+                      }
                       placeholder="Alt text..."
                       style={{
                         width: "100%",
@@ -2782,8 +3055,8 @@ function ImageManager({
                         outline: "none",
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveAlt(image.id);
-                        if (e.key === "Escape") setEditingAlt(null);
+                        if (e.key === "Enter") handleSaveAlt(image.id)
+                        if (e.key === "Escape") setEditingAlt(null)
                       }}
                     />
                     <div style={{ display: "flex", gap: "4px" }}>
@@ -2823,7 +3096,7 @@ function ImageManager({
                       </button>
                     </div>
                   </div>
-                ) : (generatingAlt === image.id || generatingBulkAlt) ? (
+                ) : generatingAlt === image.id || generatingBulkAlt ? (
                   <div
                     style={{
                       fontSize: "11px",
@@ -2843,20 +3116,8 @@ function ImageManager({
                         animation: "spin 1s linear infinite",
                       }}
                     >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        fill="none"
-                      />
-                      <path
-                        d="M12 2a10 10 0 0 1 10 10"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                     {generatingBulkAlt ? "Generating alt text..." : "Generating..."}
                   </div>
@@ -2864,7 +3125,7 @@ function ImageManager({
                   <div
                     style={{
                       fontSize: "11px",
-                      color: (altTexts[image.id] || image.altText) ? "var(--color-muted)" : "var(--color-subtle)",
+                      color: altTexts[image.id] || image.altText ? "var(--color-muted)" : "var(--color-subtle)",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -2880,7 +3141,7 @@ function ImageManager({
         </div>
       )}
     </div>
-  );
+  )
 }
 
 // ============================================
@@ -2900,23 +3161,23 @@ const CHECKLIST_KEY_TO_SECTION: Record<string, string | null> = {
   has_product_type: "field-product-type",
   has_vendor: "field-vendor",
   has_tags: "field-tags",
-};
+}
 
 // Order checklist items to match visual layout on page
 const CHECKLIST_KEY_ORDER: Record<string, number> = {
-  min_title_length: 1,      // Title (top of Product Info)
-  has_vendor: 2,            // Vendor (Product Info)
-  has_product_type: 3,      // Product Type (Product Info)
+  min_title_length: 1, // Title (top of Product Info)
+  has_vendor: 2, // Vendor (Product Info)
+  has_product_type: 3, // Product Type (Product Info)
   min_description_length: 4, // Description
-  has_tags: 5,              // Tags
-  min_images: 6,            // Images
-  images_have_alt_text: 7,  // Images alt text
-  seo_title: 8,             // SEO Title
-  seo_description: 9,       // SEO Description
-  has_collections: 10,      // Collections (not directly editable)
-};
+  has_tags: 5, // Tags
+  min_images: 6, // Images
+  images_have_alt_text: 7, // Images alt text
+  seo_title: 8, // SEO Title
+  seo_description: 9, // SEO Description
+  has_collections: 10, // Collections (not directly editable)
+}
 
-function ChecklistSidebar({ 
+function ChecklistSidebar({
   audit,
   onRescan,
   isRescanning,
@@ -2924,86 +3185,96 @@ function ChecklistSidebar({
   onAutoFixCollection,
   canAutoFixCollection,
   onChooseCollection,
-}: { 
+}: {
   audit: {
-    status: string;
-    passedCount: number;
-    failedCount: number;
-    totalCount: number;
+    status: string
+    passedCount: number
+    failedCount: number
+    totalCount: number
     items: Array<{
-      key: string;
-      label: string;
-      status: string;
-      details: string | null;
-    }>;
-  } | null;
-  onRescan?: () => void;
-  isRescanning?: boolean;
-  onItemClick?: (key: string) => void;
-  onAutoFixCollection?: () => void;
-  canAutoFixCollection?: boolean;
-  onChooseCollection?: () => void;
+      key: string
+      label: string
+      status: string
+      details: string | null
+    }>
+  } | null
+  onRescan?: () => void
+  isRescanning?: boolean
+  onItemClick?: (key: string) => void
+  onAutoFixCollection?: () => void
+  canAutoFixCollection?: boolean
+  onChooseCollection?: () => void
 }) {
-  if (!audit) return null;
+  if (!audit) return null
 
-  const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100);
+  const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
 
   return (
     <div>
       {/* Progress - Minimal */}
       <div style={{ marginBottom: "20px" }}>
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: "8px",
-        }}>
-          <span style={{ 
-            fontSize: "var(--text-sm)", 
-            fontWeight: 600,
-            color: "var(--color-text)",
-          }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: "8px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "var(--text-sm)",
+              fontWeight: 600,
+              color: "var(--color-text)",
+            }}
+          >
             Checklist
           </span>
-          <span style={{ 
-            fontSize: "var(--text-xs)", 
-            color: "var(--color-muted)",
-          }}>
+          <span
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-muted)",
+            }}
+          >
             {audit.passedCount}/{audit.totalCount}
           </span>
         </div>
-        <div style={{
-          height: "4px",
-          backgroundColor: "var(--color-surface-strong)",
-          borderRadius: "var(--radius-full)",
-          overflow: "hidden",
-        }}>
-          <div style={{
-            height: "100%",
-            width: `${progressPercent}%`,
-            background: audit.status === "ready" 
-              ? "var(--color-success)"
-              : "var(--color-text)",
-            transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+        <div
+          style={{
+            height: "4px",
+            backgroundColor: "var(--color-surface-strong)",
             borderRadius: "var(--radius-full)",
-          }} />
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              height: "100%",
+              width: `${progressPercent}%`,
+              background: audit.status === "ready" ? "var(--color-success)" : "var(--color-text)",
+              transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+              borderRadius: "var(--radius-full)",
+            }}
+          />
         </div>
         {audit.status !== "ready" && (
-          <p style={{
-            margin: "8px 0 0",
-            fontSize: "var(--text-xs)",
-            color: "var(--color-muted)",
-          }}>
-            {audit.failedCount} item{audit.failedCount !== 1 ? 's' : ''} to complete
+          <p
+            style={{
+              margin: "8px 0 0",
+              fontSize: "var(--text-xs)",
+              color: "var(--color-muted)",
+            }}
+          >
+            {audit.failedCount} item{audit.failedCount !== 1 ? "s" : ""} to complete
           </p>
         )}
       </div>
-      
+
       {/* Items - Minimal list */}
       <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
         {audit.items.map((item, index) => {
-          const isExternalOnly = item.key === "has_collections";
-          
+          const isExternalOnly = item.key === "has_collections"
+
           return (
             <div
               key={item.key}
@@ -3023,50 +3294,54 @@ function ChecklistSidebar({
               onClick={() => !isExternalOnly && onItemClick?.(item.key)}
               onMouseEnter={(e) => {
                 if (!isExternalOnly) {
-                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.background = "transparent"
               }}
             >
-              <span style={{
-                width: "16px",
-                height: "16px",
-                borderRadius: "50%",
-                border: item.status === "passed" ? "none" : "1.5px solid var(--color-border-strong)",
-                background: item.status === "passed" ? "var(--color-success)" : "transparent",
-                color: item.status === "passed" ? "#fff" : "var(--color-muted)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}>
+              <span
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  borderRadius: "50%",
+                  border: item.status === "passed" ? "none" : "1.5px solid var(--color-border-strong)",
+                  background: item.status === "passed" ? "var(--color-success)" : "transparent",
+                  color: item.status === "passed" ? "#fff" : "var(--color-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
                 {item.status === "passed" && (
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="M20 6L9 17l-5-5"/>
+                    <path d="M20 6L9 17l-5-5" />
                   </svg>
                 )}
               </span>
-              <span style={{ 
-                color: item.status === "passed" ? "var(--color-muted)" : "var(--color-text)",
-                lineHeight: "1.4",
-                fontWeight: 400,
-                flex: 1,
-                textDecoration: item.status === "passed" ? "line-through" : "none",
-                opacity: item.status === "passed" ? 0.7 : 1,
-              }}>
+              <span
+                style={{
+                  color: item.status === "passed" ? "var(--color-muted)" : "var(--color-text)",
+                  lineHeight: "1.4",
+                  fontWeight: 400,
+                  flex: 1,
+                  textDecoration: item.status === "passed" ? "line-through" : "none",
+                  opacity: item.status === "passed" ? 0.7 : 1,
+                }}
+              >
                 {item.label}
               </span>
               {isExternalOnly && item.status === "failed" && (
                 <button
                   type="button"
                   onClick={(e) => {
-                    e.stopPropagation();
+                    e.stopPropagation()
                     if (canAutoFixCollection) {
-                      onAutoFixCollection?.();
+                      onAutoFixCollection?.()
                     } else {
-                      onChooseCollection?.();
+                      onChooseCollection?.()
                     }
                   }}
                   style={{
@@ -3081,14 +3356,18 @@ function ChecklistSidebar({
                     transition: "opacity var(--transition-fast)",
                     whiteSpace: "nowrap",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.8"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = "0.8"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "1"
+                  }}
                 >
                   {canAutoFixCollection ? "Fix" : "Choose"}
                 </button>
               )}
             </div>
-          );
+          )
         })}
       </div>
 
@@ -3115,27 +3394,27 @@ function ChecklistSidebar({
             gap: "6px",
             transition: "all var(--transition-fast)",
           }}
-          onMouseEnter={(e) => { 
-            if (!isRescanning) e.currentTarget.style.color = "var(--color-text)"; 
+          onMouseEnter={(e) => {
+            if (!isRescanning) e.currentTarget.style.color = "var(--color-text)"
           }}
-          onMouseLeave={(e) => { 
-            e.currentTarget.style.color = isRescanning ? "var(--color-subtle)" : "var(--color-muted)"; 
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = isRescanning ? "var(--color-subtle)" : "var(--color-muted)"
           }}
         >
           {isRescanning ? (
             <>
               <span className="loading-dots" style={{ transform: "scale(0.6)" }}>
-                <span/>
-                <span/>
-                <span/>
+                <span />
+                <span />
+                <span />
               </span>
               Rescanning
             </>
           ) : (
             <>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M1 4v6h6M23 20v-6h-6"/>
-                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                <path d="M1 4v6h6M23 20v-6h-6" />
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
               </svg>
               Rescan
             </>
@@ -3143,7 +3422,7 @@ function ChecklistSidebar({
         </button>
       )}
     </div>
-  );
+  )
 }
 
 // Unused old code removed - new minimal design implemented above
@@ -3153,12 +3432,13 @@ function ChecklistSidebar({
 // ============================================
 
 export default function ProductEditor() {
-  const { product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete, tourCompleted } = useLoaderData<typeof loader>();
-  const [currentDefaultCollectionId, setCurrentDefaultCollectionId] = useState(defaultCollectionId);
-  const fetcher = useFetcher<typeof action>();
-  const navigate = useNavigate();
-  const shopify = useAppBridge();
-  const revalidator = useRevalidator();
+  const { product, audit, aiAvailable, navigation, defaultCollectionId, collections, autocomplete, tourCompleted } =
+    useLoaderData<typeof loader>()
+  const [currentDefaultCollectionId, setCurrentDefaultCollectionId] = useState(defaultCollectionId)
+  const fetcher = useFetcher<typeof action>()
+  const navigate = useNavigate()
+  const shopify = useAppBridge()
+  const revalidator = useRevalidator()
 
   const [form, setForm] = useState({
     title: product.title,
@@ -3168,61 +3448,63 @@ export default function ProductEditor() {
     tags: product.tags,
     seoTitle: product.seoTitle,
     seoDescription: product.seoDescription,
-  });
+  })
 
-  const [generating, setGenerating] = useState<Set<string>>(new Set());
-  const [generatingModes, setGeneratingModes] = useState<Record<string, AIGenerateMode>>({});
-  const [fieldVersions, setFieldVersions] = useState<Record<string, Array<{ version: number; value: string; createdAt: Date; source: string }>>>({});
-  const [hasChanges, setHasChanges] = useState(false);
-  const [altTextChanges, setAltTextChanges] = useState<Record<string, string>>({});
-  const [generatingAll, setGeneratingAll] = useState(false);
+  const [generating, setGenerating] = useState<Set<string>>(new Set())
+  const [generatingModes, setGeneratingModes] = useState<Record<string, AIGenerateMode>>({})
+  const [fieldVersions, setFieldVersions] = useState<
+    Record<string, Array<{ version: number; value: string; createdAt: Date; source: string }>>
+  >({})
+  const [hasChanges, setHasChanges] = useState(false)
+  const [altTextChanges, setAltTextChanges] = useState<Record<string, string>>({})
+  const [generatingAll, setGeneratingAll] = useState(false)
 
   // Track pre-generation values for inline revert (before save)
-  const [preGenerationValues, setPreGenerationValues] = useState<Record<string, string | string[]>>({});
+  const [preGenerationValues, setPreGenerationValues] = useState<Record<string, string | string[]>>({})
   // Track which fields have been AI-generated since last save
-  const [aiGeneratedFields, setAiGeneratedFields] = useState<Set<string>>(new Set());
+  const [aiGeneratedFields, setAiGeneratedFields] = useState<Set<string>>(new Set())
 
-  const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+  const [highlightedSection, setHighlightedSection] = useState<string | null>(null)
 
   const [upsellState, setUpsellState] = useState<{
-    isOpen: boolean;
-    errorCode?: string;
-    message?: string;
+    isOpen: boolean
+    errorCode?: string
+    message?: string
   }>({
     isOpen: false,
-  });
+  })
 
   const [imagePromptModal, setImagePromptModal] = useState<{
-    isOpen: boolean;
-    customPrompt: string;
-    generateAlt: boolean;
+    isOpen: boolean
+    customPrompt: string
+    generateAlt: boolean
   }>({
     isOpen: false,
     customPrompt: "",
     generateAlt: true,
-  });
+  })
 
   const openImagePromptModal = useCallback(() => {
-    setImagePromptModal(prev => ({ ...prev, isOpen: true }));
-  }, []);
+    setImagePromptModal((prev) => ({ ...prev, isOpen: true }))
+  }, [])
 
   const [generateAllModal, setGenerateAllModal] = useState<{
-    isOpen: boolean;
-    selectedFields: string[];
+    isOpen: boolean
+    selectedFields: string[]
   }>({
     isOpen: false,
     selectedFields: [],
-  });
+  })
 
-  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({});
+  const [fieldOptions, setFieldOptions] = useState<Record<string, string[]>>({})
 
-  const [generatingImage, setGeneratingImage] = useState(false);
-  const [generatingBulkAlt, setGeneratingBulkAlt] = useState(false);
-  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false)
+  const [generatingBulkAlt, setGeneratingBulkAlt] = useState(false)
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false)
 
   // Detect changes
   useEffect(() => {
-    const originalDesc = product.descriptionHtml.replace(/<[^>]*>/g, "");
+    const originalDesc = product.descriptionHtml.replace(/<[^>]*>/g, "")
     const formChanged =
       form.title !== product.title ||
       form.description !== originalDesc ||
@@ -3230,294 +3512,313 @@ export default function ProductEditor() {
       form.productType !== product.productType ||
       form.tags.join(",") !== product.tags.join(",") ||
       form.seoTitle !== product.seoTitle ||
-      form.seoDescription !== product.seoDescription;
+      form.seoDescription !== product.seoDescription
 
-    const altTextChanged = Object.keys(altTextChanges).some(imageId => {
-      const originalAlt = product.images?.find((img: { id: string; altText: string | null }) => img.id === imageId)?.altText || "";
-      return altTextChanges[imageId] !== originalAlt;
-    });
+    const altTextChanged = Object.keys(altTextChanges).some((imageId) => {
+      const originalAlt =
+        product.images?.find((img: { id: string; altText: string | null }) => img.id === imageId)?.altText || ""
+      return altTextChanges[imageId] !== originalAlt
+    })
 
-    setHasChanges(formChanged || altTextChanged);
-  }, [form, product, altTextChanges]);
+    setHasChanges(formChanged || altTextChanged)
+  }, [form, product, altTextChanges])
 
   // Warn user before leaving page with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasChanges) {
-        e.preventDefault();
-        e.returnValue = "You have unsaved changes. Are you sure you want to leave?";
-        return e.returnValue;
+        e.preventDefault()
+        e.returnValue = "You have unsaved changes. Are you sure you want to leave?"
+        return e.returnValue
       }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasChanges]);
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [hasChanges])
 
   // Block in-app navigation when there are unsaved changes
-  const blocker = useBlocker(hasChanges);
-  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [showRescanConfirmDialog, setShowRescanConfirmDialog] = useState(false);
+  const blocker = useBlocker(hasChanges)
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+  const [showRescanConfirmDialog, setShowRescanConfirmDialog] = useState(false)
 
   useEffect(() => {
     if (blocker.state === "blocked") {
-      setShowUnsavedDialog(true);
+      setShowUnsavedDialog(true)
     }
-  }, [blocker.state]);
+  }, [blocker.state])
 
   useEffect(() => {
     if (fetcher.data?.message) {
-      shopify.toast.show(fetcher.data.message);
-      setPreGenerationValues({});
-      setAiGeneratedFields(new Set());
-      setAltTextChanges({}); // Clear alt text changes after successful save
+      shopify.toast.show(fetcher.data.message)
+      setPreGenerationValues({})
+      setAiGeneratedFields(new Set())
+      setAltTextChanges({}) // Clear alt text changes after successful save
     }
     if (fetcher.data?.error) {
-      shopify.toast.show(fetcher.data.error);
+      shopify.toast.show(fetcher.data.error)
     }
     if (fetcher.data?.openProduct) {
       shopify.intents.invoke?.("edit:shopify/Product", {
         value: fetcher.data.openProduct,
-      });
+      })
     }
-  }, [fetcher.data, shopify]);
+  }, [fetcher.data, shopify])
 
   // Load field versions on mount
   useEffect(() => {
     const loadVersions = async () => {
       try {
-        const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/versions`);
+        const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/versions`)
         if (response.ok) {
-          const data = await response.json();
-          setFieldVersions(data.versions || {});
+          const data = await response.json()
+          setFieldVersions(data.versions || {})
         }
       } catch (error) {
-        console.error("Failed to load field versions:", error);
+        console.error("Failed to load field versions:", error)
       }
-    };
-    loadVersions();
-  }, [product.id]);
+    }
+    loadVersions()
+  }, [product.id])
 
   const updateField = useCallback((field: string, value: string | string[]) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-  }, []);
+    setForm((prev) => ({ ...prev, [field]: value }))
+  }, [])
 
-  const generateAIContent = useCallback((
-    type: string,
-    field: string,
-    mode: AIGenerateMode
-  ) => {
-    const currentValue = form[field as keyof typeof form];
-    if (currentValue && !preGenerationValues[field]) {
-      setPreGenerationValues(prev => ({ ...prev, [field]: currentValue }));
-    }
+  const generateAIContent = useCallback(
+    (type: string, field: string, mode: AIGenerateMode) => {
+      const currentValue = form[field as keyof typeof form]
+      if (currentValue && !preGenerationValues[field]) {
+        setPreGenerationValues((prev) => ({ ...prev, [field]: currentValue }))
+      }
 
-    setGenerating(prev => new Set([...prev, field]));
-    setGeneratingModes(prev => ({ ...prev, [field]: mode }));
+      setGenerating((prev) => new Set([...prev, field]))
+      setGeneratingModes((prev) => ({ ...prev, [field]: mode }))
 
-    const formData = new FormData();
-    formData.append("type", type);
-    formData.append("mode", mode);
+      const formData = new FormData()
+      formData.append("type", type)
+      formData.append("mode", mode)
 
-    fetch(`/api/products/${encodeURIComponent(product.id)}/suggest`, {
-      method: "POST",
-      body: formData
-    })
-      .then(response => response.json())
-      .then(data => {
-        setGenerating(currentGenerating => {
-          const next = new Set(currentGenerating);
-          next.delete(field);
-          return next;
-        });
-        setGeneratingModes(prev => {
-          const next = { ...prev };
-          delete next[field];
-          return next;
-        });
+      fetch(`/api/products/${encodeURIComponent(product.id)}/suggest`, {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          setGenerating((currentGenerating) => {
+            const next = new Set(currentGenerating)
+            next.delete(field)
+            return next
+          })
+          setGeneratingModes((prev) => {
+            const next = { ...prev }
+            delete next[field]
+            return next
+          })
 
-        if (data.error) {
+          if (data.error) {
+            setUpsellState({
+              isOpen: true,
+              errorCode: data.errorCode,
+              message: data.error,
+            })
+          } else {
+            if (type === "tags") {
+              const tags = Array.isArray(data.suggestion)
+                ? data.suggestion
+                : data.suggestion
+                    .split(",")
+                    .map((t: string) => t.trim().toLowerCase())
+                    .filter(Boolean)
+              updateField(field, tags)
+            } else {
+              updateField(field, data.suggestion)
+            }
+            setAiGeneratedFields((prev) => new Set([...prev, field]))
+            shopify.toast.show("Applied!")
+          }
+        })
+        .catch(() => {
+          setGenerating((currentGenerating) => {
+            const next = new Set(currentGenerating)
+            next.delete(field)
+            return next
+          })
+          setGeneratingModes((prev) => {
+            const next = { ...prev }
+            delete next[field]
+            return next
+          })
           setUpsellState({
             isOpen: true,
-            errorCode: data.errorCode,
-            message: data.error,
-          });
-        } else {
-          if (type === "tags") {
-            const tags = Array.isArray(data.suggestion)
-              ? data.suggestion
-              : data.suggestion.split(",").map((t: string) => t.trim().toLowerCase()).filter(Boolean);
-            updateField(field, tags);
-          } else {
-            updateField(field, data.suggestion);
-          }
-          setAiGeneratedFields(prev => new Set([...prev, field]));
-          shopify.toast.show("Applied!");
-        }
-      })
-      .catch(() => {
-        setGenerating(currentGenerating => {
-          const next = new Set(currentGenerating);
-          next.delete(field);
-          return next;
-        });
-        setGeneratingModes(prev => {
-          const next = { ...prev };
-          delete next[field];
-          return next;
-        });
-        setUpsellState({
-          isOpen: true,
-          message: "Failed to generate",
-        });
-      });
-  }, [product.id, updateField, shopify, form, preGenerationValues]);
+            message: "Failed to generate",
+          })
+        })
+    },
+    [product.id, updateField, shopify, form, preGenerationValues]
+  )
 
-  const revertToPreGeneration = useCallback((field: string) => {
-    const originalValue = preGenerationValues[field];
-    if (originalValue !== undefined) {
-      updateField(field, originalValue);
-      setAiGeneratedFields(prev => {
-        const next = new Set(prev);
-        next.delete(field);
-        return next;
-      });
-      setPreGenerationValues(prev => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
-      shopify.toast.show("Reverted");
-    }
-  }, [preGenerationValues, updateField, shopify]);
+  const revertToPreGeneration = useCallback(
+    (field: string) => {
+      const originalValue = preGenerationValues[field]
+      if (originalValue !== undefined) {
+        updateField(field, originalValue)
+        setAiGeneratedFields((prev) => {
+          const next = new Set(prev)
+          next.delete(field)
+          return next
+        })
+        setPreGenerationValues((prev) => {
+          const next = { ...prev }
+          delete next[field]
+          return next
+        })
+        shopify.toast.show("Reverted")
+      }
+    },
+    [preGenerationValues, updateField, shopify]
+  )
 
   // Handle checklist item click - scroll to and highlight section
-  const handleChecklistItemClick = useCallback((key: string) => {
-    const sectionId = CHECKLIST_KEY_TO_SECTION[key];
-    
-    // Handle items that aren't editable on this page - open in Shopify admin
-    if (sectionId === null) {
-      if (key === "has_collections") {
-        // Use Intents API to open the product in Shopify admin
-        shopify.intents.invoke?.("edit:shopify/Product", {
-          value: product.id,
-        });
-      }
-      return;
-    }
-    
-    if (!sectionId) return;
+  const handleChecklistItemClick = useCallback(
+    (key: string) => {
+      const sectionId = CHECKLIST_KEY_TO_SECTION[key]
 
-    const element = document.getElementById(sectionId);
-    if (element) {
-      // Scroll to element with offset for header
-      element.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [shopify, product.id]);
+      // Handle items that aren't editable on this page - open in Shopify admin
+      if (sectionId === null) {
+        if (key === "has_collections") {
+          // Use Intents API to open the product in Shopify admin
+          shopify.intents.invoke?.("edit:shopify/Product", {
+            value: product.id,
+          })
+        }
+        return
+      }
+
+      if (!sectionId) return
+
+      const element = document.getElementById(sectionId)
+      if (element) {
+        // Scroll to element with offset for header
+        element.scrollIntoView({ behavior: "smooth", block: "center" })
+      }
+    },
+    [shopify, product.id]
+  )
 
   const closeImagePromptModal = useCallback(() => {
     setImagePromptModal({
       isOpen: false,
       customPrompt: "",
       generateAlt: true,
-    });
-  }, []);
+    })
+  }, [])
 
   const handleGenerateImages = useCallback(async () => {
-    setGeneratingImage(true);
+    setGeneratingImage(true)
     // Clear any unsaved changes flag temporarily to prevent blocking
-    setHasChanges(false);
+    setHasChanges(false)
     try {
-      const formData = new FormData();
-      formData.append("intent", "generate_image");
+      const formData = new FormData()
+      formData.append("intent", "generate_image")
       if (imagePromptModal.customPrompt.trim()) {
-        formData.append("customPrompt", imagePromptModal.customPrompt.trim());
+        formData.append("customPrompt", imagePromptModal.customPrompt.trim())
       }
       if (imagePromptModal.generateAlt) {
-        formData.append("generateAlt", "true");
+        formData.append("generateAlt", "true")
       }
 
-      const response = await fetch(
-        `/api/products/${encodeURIComponent(product.id)}/images`,
-        { method: "POST", body: formData }
-      );
+      const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/images`, {
+        method: "POST",
+        body: formData,
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (data.error) {
-        shopify.toast.show(data.error);
+        shopify.toast.show(data.error)
       } else {
-        shopify.toast.show(imagePromptModal.generateAlt ? "Image and alt text generated successfully!" : "Image generated successfully!");
-        closeImagePromptModal();
+        shopify.toast.show(
+          imagePromptModal.generateAlt ? "Image and alt text generated successfully!" : "Image generated successfully!"
+        )
+        closeImagePromptModal()
         // Reset the custom prompt for next time
-        setImagePromptModal(prev => ({ ...prev, customPrompt: "" }));
+        setImagePromptModal((prev) => ({ ...prev, customPrompt: "" }))
         // Revalidate to refresh product data
-        revalidator.revalidate();
+        revalidator.revalidate()
       }
     } catch (error) {
-      console.error("Image generation failed:", error);
-      shopify.toast.show("Failed to generate image");
+      console.error("Image generation failed:", error)
+      shopify.toast.show("Failed to generate image")
     } finally {
-      setGeneratingImage(false);
+      setGeneratingImage(false)
     }
-  }, [imagePromptModal.customPrompt, imagePromptModal.generateAlt, shopify, closeImagePromptModal, product.id, revalidator]);
+  }, [
+    imagePromptModal.customPrompt,
+    imagePromptModal.generateAlt,
+    shopify,
+    closeImagePromptModal,
+    product.id,
+    revalidator,
+  ])
 
   // Load field versions
   const loadFieldVersions = useCallback(async () => {
     try {
-      const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/versions`);
+      const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/versions`)
       if (response.ok) {
-        const data = await response.json();
-        setFieldVersions(data.versions || {});
+        const data = await response.json()
+        setFieldVersions(data.versions || {})
       }
     } catch (error) {
-      console.error("Failed to load field versions:", error);
+      console.error("Failed to load field versions:", error)
     }
-  }, [product.id]);
+  }, [product.id])
 
   // Handle reverting to a previous version
-  const handleRevert = useCallback(async (field: string, version: number) => {
-    try {
-      const formData = new FormData();
-      formData.append("field", field);
-      formData.append("version", version.toString());
+  const handleRevert = useCallback(
+    async (field: string, version: number) => {
+      try {
+        const formData = new FormData()
+        formData.append("field", field)
+        formData.append("version", version.toString())
 
-      const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/revert`, {
-        method: "POST",
-        body: formData,
-      });
+        const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/revert`, {
+          method: "POST",
+          body: formData,
+        })
 
-      const data = await response.json();
-      if (data.error) {
-        shopify.toast.show(`Failed to revert: ${data.error}`);
-        return;
+        const data = await response.json()
+        if (data.error) {
+          shopify.toast.show(`Failed to revert: ${data.error}`)
+          return
+        }
+
+        // Update the field value
+        if (field === "tags") {
+          updateField("tags", Array.isArray(data.value) ? data.value : [])
+        } else {
+          updateField(field, data.value)
+        }
+
+        shopify.toast.show(`Reverted to version ${version}`)
+      } catch (error) {
+        console.error("Revert error:", error)
+        shopify.toast.show("Failed to revert field version")
       }
-
-      // Update the field value
-      if (field === "tags") {
-        updateField("tags", Array.isArray(data.value) ? data.value : []);
-      } else {
-        updateField(field, data.value);
-      }
-
-      shopify.toast.show(`Reverted to version ${version}`);
-    } catch (error) {
-      console.error("Revert error:", error);
-      shopify.toast.show("Failed to revert field version");
-    }
-  }, [product.id, shopify, updateField]);
-
-
+    },
+    [product.id, shopify, updateField]
+  )
 
   const handleGenerateSelected = useCallback(async () => {
-    const selectedFieldKeys = Object.keys(fieldOptions).filter(key => (fieldOptions[key]?.length || 0) > 0);
-    const regularFields = generateAllModal.selectedFields.filter(field => !selectedFieldKeys.includes(field));
+    const selectedFieldKeys = Object.keys(fieldOptions).filter((key) => (fieldOptions[key]?.length || 0) > 0)
+    const regularFields = generateAllModal.selectedFields.filter((field) => !selectedFieldKeys.includes(field))
 
-    if (selectedFieldKeys.length === 0 && regularFields.length === 0) return;
+    if (selectedFieldKeys.length === 0 && regularFields.length === 0) return
 
-    setGeneratingAll(true);
+    setGeneratingAll(true)
     // Clear any unsaved changes flag temporarily to prevent blocking
-    setHasChanges(false);
-    setGenerateAllModal(prev => ({ ...prev, isOpen: false }));
+    setHasChanges(false)
+    setGenerateAllModal((prev) => ({ ...prev, isOpen: false }))
 
     const fieldMappings = {
       title: { type: "title", field: "title" },
@@ -3525,172 +3826,178 @@ export default function ProductEditor() {
       tags: { type: "tags", field: "tags" },
       seoTitle: { type: "seo_title", field: "seoTitle" },
       seoDescription: { type: "seo_description", field: "seoDescription" },
-    };
+    }
 
     // Handle regular fields
-    const regularFieldPromises = regularFields.map(key => fieldMappings[key as keyof typeof fieldMappings]).filter(Boolean).map(async (fieldInfo) => {
-      if (!fieldInfo) return;
-      const { type, field } = fieldInfo;
-      try {
-        setGenerating(prev => new Set([...prev, field]));
+    const regularFieldPromises = regularFields
+      .map((key) => fieldMappings[key as keyof typeof fieldMappings])
+      .filter(Boolean)
+      .map(async (fieldInfo) => {
+        if (!fieldInfo) return
+        const { type, field } = fieldInfo
+        try {
+          setGenerating((prev) => new Set([...prev, field]))
 
-        const formData = new FormData();
-        formData.append("type", type);
+          const formData = new FormData()
+          formData.append("type", type)
 
-        const response = await fetch(
-          `/api/products/${encodeURIComponent(product.id)}/suggest`,
-          { method: "POST", body: formData }
-        );
-        const data = await response.json();
+          const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/suggest`, {
+            method: "POST",
+            body: formData,
+          })
+          const data = await response.json()
 
-        if (!data.error) {
-          let value = data.suggestion;
+          if (!data.error) {
+            let value = data.suggestion
 
-          // Handle tags field: convert string to array if needed
-          if (field === "tags" && typeof value === "string") {
-            value = value.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+            // Handle tags field: convert string to array if needed
+            if (field === "tags" && typeof value === "string") {
+              value = value
+                .split(",")
+                .map((t) => t.trim().toLowerCase())
+                .filter(Boolean)
+            }
+
+            updateField(field, value)
           }
-
-          updateField(field, value);
+        } finally {
+          setGenerating((prev) => {
+            const next = new Set(prev)
+            next.delete(field)
+            return next
+          })
         }
-      } finally {
-        setGenerating(prev => {
-          const next = new Set(prev);
-          next.delete(field);
-          return next;
-        });
-      }
-    });
+      })
 
     // Handle fields with options (currently just images)
     const optionFieldPromises = selectedFieldKeys.map(async (fieldKey) => {
-      const options = fieldOptions[fieldKey] || [];
+      const options = fieldOptions[fieldKey] || []
       if (fieldKey === "images") {
         // Handle image generation options
-        const shouldGenerateImage = options.includes("image");
-        const shouldGenerateAlt = options.includes("alt");
+        const shouldGenerateImage = options.includes("image")
+        const shouldGenerateAlt = options.includes("alt")
 
         if (shouldGenerateImage) {
           try {
-            setGeneratingImage(true);
-            const formData = new FormData();
-            formData.append("intent", "generate_image");
+            setGeneratingImage(true)
+            const formData = new FormData()
+            formData.append("intent", "generate_image")
             if (shouldGenerateAlt) {
-              formData.append("generateAlt", "true");
+              formData.append("generateAlt", "true")
             }
 
-            const response = await fetch(
-              `/api/products/${encodeURIComponent(product.id)}/images`,
-              { method: "POST", body: formData }
-            );
+            const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/images`, {
+              method: "POST",
+              body: formData,
+            })
 
-            const data = await response.json();
+            const data = await response.json()
 
             if (data.error) {
-              console.error("Failed to generate image:", data.error);
+              console.error("Failed to generate image:", data.error)
             }
           } finally {
-            setGeneratingImage(false);
+            setGeneratingImage(false)
           }
         } else if (shouldGenerateAlt) {
           // Only generate alt text for existing images
           try {
-            setGeneratingBulkAlt(true);
-            const formData = new FormData();
-            formData.append("intent", "generate_alt_batch");
+            setGeneratingBulkAlt(true)
+            const formData = new FormData()
+            formData.append("intent", "generate_alt_batch")
 
-            const response = await fetch(
-              `/api/products/${encodeURIComponent(product.id)}/images`,
-              { method: "POST", body: formData }
-            );
+            const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/images`, {
+              method: "POST",
+              body: formData,
+            })
 
-            const data = await response.json();
+            const data = await response.json()
 
             if (data.error) {
-              console.error("Failed to generate alt text:", data.error);
+              console.error("Failed to generate alt text:", data.error)
             }
           } catch (error) {
-            console.error("Alt text generation failed:", error);
+            console.error("Alt text generation failed:", error)
           } finally {
-            setGeneratingBulkAlt(false);
+            setGeneratingBulkAlt(false)
           }
         }
       }
-    });
+    })
 
     try {
-      await Promise.all([...regularFieldPromises, ...optionFieldPromises]);
+      await Promise.all([...regularFieldPromises, ...optionFieldPromises])
 
-      const totalGenerated = regularFields.length + selectedFieldKeys.length;
-      shopify.toast.show(`${totalGenerated} item${totalGenerated !== 1 ? 's' : ''} generated!`);
+      const totalGenerated = regularFields.length + selectedFieldKeys.length
+      shopify.toast.show(`${totalGenerated} item${totalGenerated !== 1 ? "s" : ""} generated!`)
 
       // Revalidate if images were generated
       if (selectedFieldKeys.includes("images")) {
-        revalidator.revalidate();
+        revalidator.revalidate()
       }
     } catch {
-      shopify.toast.show("Some items failed to generate");
+      shopify.toast.show("Some items failed to generate")
     } finally {
-      setGeneratingAll(false);
-      setGenerateAllModal(prev => ({ ...prev, selectedFields: [] }));
-      setFieldOptions({});
+      setGeneratingAll(false)
+      setGenerateAllModal((prev) => ({ ...prev, selectedFields: [] }))
+      setFieldOptions({})
     }
-  }, [product.id, shopify, updateField, generateAllModal.selectedFields, fieldOptions, revalidator]);
+  }, [product.id, shopify, updateField, generateAllModal.selectedFields, fieldOptions, revalidator])
 
   const handleSave = () => {
-    const formData = new FormData();
-    formData.append("intent", "save");
-    formData.append("title", form.title);
-    formData.append("descriptionHtml", form.description);
-    formData.append("vendor", form.vendor);
-    formData.append("productType", form.productType);
-    formData.append("tags", form.tags.join(","));
-    formData.append("seoTitle", form.seoTitle);
-    formData.append("seoDescription", form.seoDescription);
+    const formData = new FormData()
+    formData.append("intent", "save")
+    formData.append("title", form.title)
+    formData.append("descriptionHtml", form.description)
+    formData.append("vendor", form.vendor)
+    formData.append("productType", form.productType)
+    formData.append("tags", form.tags.join(","))
+    formData.append("seoTitle", form.seoTitle)
+    formData.append("seoDescription", form.seoDescription)
 
     // Add alt text changes
     Object.entries(altTextChanges).forEach(([imageId, altText]) => {
-      formData.append("altTextUpdates", JSON.stringify({ imageId, altText }));
-    });
+      formData.append("altTextUpdates", JSON.stringify({ imageId, altText }))
+    })
 
-    fetcher.submit(formData, { method: "POST" });
-  };
+    fetcher.submit(formData, { method: "POST" })
+  }
 
   const handleAltTextChange = (imageId: string, altText: string) => {
-    setAltTextChanges(prev => ({ ...prev, [imageId]: altText }));
-  };
+    setAltTextChanges((prev) => ({ ...prev, [imageId]: altText }))
+  }
 
   const handleRescan = () => {
     if (hasChanges) {
-      setShowRescanConfirmDialog(true);
+      setShowRescanConfirmDialog(true)
     } else {
-      fetcher.submit({ intent: "rescan" }, { method: "POST" });
+      fetcher.submit({ intent: "rescan" }, { method: "POST" })
     }
-  };
+  }
 
-  const isSaving = fetcher.state !== "idle";
-  const isRescanning = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan";
+  const isSaving = fetcher.state !== "idle"
+  const isRescanning = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"
 
   return (
-    <div style={{ 
-      minHeight: "100vh",
-      background: "#fafbfc",
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#fafbfc",
+      }}
+    >
       {/* Page Header */}
-      <ProductHeader
-        title={product.title}
-        audit={audit as { status: string } | null}
-        productId={product.id}
-      />
+      <ProductHeader title={product.title} audit={audit as { status: string } | null} productId={product.id} />
 
       {/* Bento Grid Dashboard */}
       <div style={{ padding: "20px 40px", maxWidth: "1400px", margin: "0 auto" }}>
-        <div style={{ 
-          display: "grid", 
-          gridTemplateColumns: "1fr 320px", 
-          gap: "20px",
-          alignItems: "start"
-        }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 320px",
+            gap: "20px",
+            alignItems: "start",
+          }}
+        >
           {/* Left Column: Content Cards */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {/* Product Info Card */}
@@ -3749,7 +4056,15 @@ export default function ProductEditor() {
           </div>
 
           {/* Right Column: Sticky Sidebar */}
-          <div style={{ position: "sticky", top: "90px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div
+            style={{
+              position: "sticky",
+              top: "90px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
             {/* Checklist */}
             <ProductChecklistCard
               audit={audit as any}
@@ -3760,15 +4075,18 @@ export default function ProductEditor() {
               isRescanning={fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"}
               canAutoFixCollection={!!currentDefaultCollectionId}
               onSave={handleSave}
-              onGenerateAll={() => setGenerateAllModal(prev => ({ ...prev, isOpen: true }))}
+              onGenerateAll={() => setGenerateAllModal((prev) => ({ ...prev, isOpen: true }))}
               onRescan={handleRescan}
               onItemClick={handleChecklistItemClick}
               onAutoFixCollection={() => {
                 if (currentDefaultCollectionId) {
                   fetcher.submit(
-                    { intent: "add_to_collection", collectionId: currentDefaultCollectionId },
+                    {
+                      intent: "add_to_collection",
+                      collectionId: currentDefaultCollectionId,
+                    },
                     { method: "POST" }
-                  );
+                  )
                 }
               }}
               onChooseCollection={() => setCollectionPickerOpen(true)}
@@ -3810,50 +4128,65 @@ export default function ProductEditor() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ padding: "24px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                <div style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
+              <div
+                style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                }}>
+                  gap: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <span style={{ fontSize: "14px", color: "#d97706" }}>⚠️</span>
                 </div>
                 <div>
-                  <h3 style={{
-                    fontSize: "var(--text-lg)",
-                    fontWeight: 600,
-                    color: "var(--color-text)",
-                    margin: "0 0 4px",
-                  }}>
+                  <h3
+                    style={{
+                      fontSize: "var(--text-lg)",
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                      margin: "0 0 4px",
+                    }}
+                  >
                     Unsaved changes
                   </h3>
-                  <p style={{
-                    margin: 0,
-                    fontSize: "var(--text-sm)",
-                    color: "var(--color-muted)",
-                    lineHeight: 1.5,
-                  }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "var(--text-sm)",
+                      color: "var(--color-muted)",
+                      lineHeight: 1.5,
+                    }}
+                  >
                     You have unsaved changes that will be lost if you leave this page.
                   </p>
                 </div>
               </div>
 
-              <div style={{
-                display: "flex",
-                gap: "10px",
-                justifyContent: "flex-end",
-                marginTop: "20px",
-              }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "flex-end",
+                  marginTop: "20px",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => {
-                    setShowUnsavedDialog(false);
-                    blocker.reset?.();
+                    setShowUnsavedDialog(false)
+                    blocker.reset?.()
                   }}
                   style={{
                     padding: "8px 18px",
@@ -3872,8 +4205,8 @@ export default function ProductEditor() {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowUnsavedDialog(false);
-                    blocker.proceed?.();
+                    setShowUnsavedDialog(false)
+                    blocker.proceed?.()
                   }}
                   style={{
                     padding: "8px 18px",
@@ -3927,45 +4260,60 @@ export default function ProductEditor() {
             }}
           >
             <div style={{ padding: "24px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                <div style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
+              <div
+                style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                }}>
+                  gap: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <span style={{ fontSize: "14px", color: "#d97706" }}>⚠️</span>
                 </div>
                 <div>
-                  <h3 style={{
-                    fontSize: "var(--text-lg)",
-                    fontWeight: 600,
-                    color: "var(--color-text)",
-                    margin: "0 0 4px",
-                  }}>
+                  <h3
+                    style={{
+                      fontSize: "var(--text-lg)",
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                      margin: "0 0 4px",
+                    }}
+                  >
                     Unsaved changes
                   </h3>
-                  <p style={{
-                    margin: 0,
-                    fontSize: "var(--text-sm)",
-                    color: "var(--color-muted)",
-                    lineHeight: 1.5,
-                  }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "var(--text-sm)",
+                      color: "var(--color-muted)",
+                      lineHeight: 1.5,
+                    }}
+                  >
                     You have unsaved changes that will be lost when rescanning.
                   </p>
                 </div>
               </div>
 
-              <div style={{
-                display: "flex",
-                gap: "10px",
-                justifyContent: "flex-end",
-                marginTop: "20px",
-              }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "flex-end",
+                  marginTop: "20px",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setShowRescanConfirmDialog(false)}
@@ -3986,8 +4334,8 @@ export default function ProductEditor() {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowRescanConfirmDialog(false);
-                    fetcher.submit({ intent: "rescan" }, { method: "POST" });
+                    setShowRescanConfirmDialog(false)
+                    fetcher.submit({ intent: "rescan" }, { method: "POST" })
                   }}
                   style={{
                     padding: "8px 18px",
@@ -4037,13 +4385,13 @@ export default function ProductEditor() {
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              closeImagePromptModal();
+              closeImagePromptModal()
             }
           }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
-              e.preventDefault();
-              closeImagePromptModal();
+              e.preventDefault()
+              closeImagePromptModal()
             }
           }}
           tabIndex={-1}
@@ -4087,88 +4435,91 @@ export default function ProductEditor() {
 
             {/* Content */}
             <div style={{ padding: "24px" }}>
+              <p
+                style={{
+                  margin: "0 0 20px 0",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-muted)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Describe your desired style, or leave blank for defaults.
+              </p>
 
-            <p
-              style={{
-                margin: "0 0 20px 0",
-                fontSize: "var(--text-sm)",
-                color: "var(--color-muted)",
-                lineHeight: 1.5,
-              }}
-            >
-Describe your desired style, or leave blank for defaults.
-            </p>
-
-            <textarea
-              value={imagePromptModal.customPrompt}
-              onChange={(e) =>
-                setImagePromptModal((prev) => ({
-                  ...prev,
-                  customPrompt: e.target.value,
-                }))
-              }
-              placeholder="Optional: e.g., vibrant colors, minimalist style, dramatic lighting, warm tones, etc."
-              style={{
-                width: "100%",
-                minHeight: "100px",
-                padding: "12px",
-                fontSize: "var(--text-sm)",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                backgroundColor: "var(--color-surface)",
-                color: "var(--color-text)",
-                resize: "vertical",
-                fontFamily: "inherit",
-                marginBottom: "16px",
-              }}
-            />
-
-            {/* Generate Alt Text Checkbox */}
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                cursor: "pointer",
-                padding: "12px",
-                borderRadius: "var(--radius-md)",
-                backgroundColor: "var(--color-surface-strong)",
-                border: "1px solid var(--color-border)",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={imagePromptModal.generateAlt}
+              <textarea
+                value={imagePromptModal.customPrompt}
                 onChange={(e) =>
                   setImagePromptModal((prev) => ({
                     ...prev,
-                    generateAlt: e.target.checked,
+                    customPrompt: e.target.value,
                   }))
                 }
+                placeholder="Optional: e.g., vibrant colors, minimalist style, dramatic lighting, warm tones, etc."
                 style={{
-                  width: "18px",
-                  height: "18px",
-                  accentColor: "var(--color-primary)",
-                  cursor: "pointer",
+                  width: "100%",
+                  minHeight: "100px",
+                  padding: "12px",
+                  fontSize: "var(--text-sm)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  marginBottom: "16px",
                 }}
               />
-              <div style={{ flex: 1 }}>
-                <div style={{
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  color: "var(--color-text)",
-                  marginBottom: "2px",
-                }}>
-                  Generate alt text with image
+
+              {/* Generate Alt Text Checkbox */}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  cursor: "pointer",
+                  padding: "12px",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: "var(--color-surface-strong)",
+                  border: "1px solid var(--color-border)",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={imagePromptModal.generateAlt}
+                  onChange={(e) =>
+                    setImagePromptModal((prev) => ({
+                      ...prev,
+                      generateAlt: e.target.checked,
+                    }))
+                  }
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    accentColor: "var(--color-primary)",
+                    cursor: "pointer",
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
+                      color: "var(--color-text)",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    Generate alt text with image
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-xs)",
+                      color: "var(--color-muted)",
+                    }}
+                  >
+                    Improves SEO and accessibility
+                  </div>
                 </div>
-                <div style={{
-                  fontSize: "var(--text-xs)",
-                  color: "var(--color-muted)",
-                }}>
-                  Improves SEO and accessibility
-                </div>
-              </div>
-            </label>
+              </label>
             </div>
 
             {/* Footer */}
@@ -4203,9 +4554,12 @@ Describe your desired style, or leave blank for defaults.
                 <button
                   type="button"
                   onClick={() => {
-                    setImagePromptModal(prev => ({ ...prev, customPrompt: "" }));
-                    closeImagePromptModal();
-                    handleGenerateImages();
+                    setImagePromptModal((prev) => ({
+                      ...prev,
+                      customPrompt: "",
+                    }))
+                    closeImagePromptModal()
+                    handleGenerateImages()
                   }}
                   disabled={generatingImage}
                   style={{
@@ -4225,8 +4579,8 @@ Describe your desired style, or leave blank for defaults.
                 <button
                   type="button"
                   onClick={() => {
-                    closeImagePromptModal();
-                    handleGenerateImages();
+                    closeImagePromptModal()
+                    handleGenerateImages()
                   }}
                   disabled={generatingImage}
                   style={{
@@ -4254,20 +4608,20 @@ Describe your desired style, or leave blank for defaults.
       <GenerateAllModal
         isOpen={generateAllModal.isOpen}
         onClose={() => {
-          setGenerateAllModal({ isOpen: false, selectedFields: [] });
-          setFieldOptions({});
+          setGenerateAllModal({ isOpen: false, selectedFields: [] })
+          setFieldOptions({})
         }}
         selectedFields={[
           ...generateAllModal.selectedFields,
-          ...Object.keys(fieldOptions).filter(key => (fieldOptions[key]?.length || 0) > 0)
+          ...Object.keys(fieldOptions).filter((key) => (fieldOptions[key]?.length || 0) > 0),
         ]}
         onFieldToggle={(field) => {
-          setGenerateAllModal(prev => ({
+          setGenerateAllModal((prev) => ({
             ...prev,
             selectedFields: prev.selectedFields.includes(field)
-              ? prev.selectedFields.filter(f => f !== field)
-              : [...prev.selectedFields, field]
-          }));
+              ? prev.selectedFields.filter((f) => f !== field)
+              : [...prev.selectedFields, field],
+          }))
         }}
         onGenerate={handleGenerateSelected}
         isGenerating={generatingAll}
@@ -4348,14 +4702,14 @@ Describe your desired style, or leave blank for defaults.
                 type="button"
                 onClick={async () => {
                   try {
-                    const activity = await shopify.intents?.invoke?.("create:shopify/Collection");
-                    const response = await activity?.complete;
+                    const activity = await shopify.intents?.invoke?.("create:shopify/Collection")
+                    const response = await activity?.complete
                     if (response?.code === "ok") {
-                      shopify.toast.show("Collection created! Refresh to see it.");
-                      revalidator.revalidate();
+                      shopify.toast.show("Collection created! Refresh to see it.")
+                      revalidator.revalidate()
                     }
                   } catch (error) {
-                    console.error("Failed to create collection:", error);
+                    console.error("Failed to create collection:", error)
                   }
                 }}
                 style={{
@@ -4371,78 +4725,108 @@ Describe your desired style, or leave blank for defaults.
                   borderBottom: "1px solid var(--color-border-subtle)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--color-surface-strong)";
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.background = "transparent"
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--color-primary)"
+                  strokeWidth="2"
+                >
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span style={{
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  color: "var(--color-primary)",
-                }}>
+                <span
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    color: "var(--color-primary)",
+                  }}
+                >
                   Create New Collection
                 </span>
               </button>
 
               {collections.length === 0 ? (
-                <div style={{ padding: "24px", textAlign: "center", color: "var(--color-muted)" }}>
+                <div
+                  style={{
+                    padding: "24px",
+                    textAlign: "center",
+                    color: "var(--color-muted)",
+                  }}
+                >
                   No collections found.
                 </div>
               ) : (
-                collections.map((collection: { id: string; title: string; productsCount: number }) => (
-                  <button
-                    key={collection.id}
-                    type="button"
-                    onClick={() => {
-                      setCurrentDefaultCollectionId(collection.id);
-                      fetcher.submit(
-                        { intent: "set_default_collection", collectionId: collection.id },
-                        { method: "POST" }
-                      );
-                      setCollectionPickerOpen(false);
-                      shopify.toast.show(`Default collection set to "${collection.title}"`);
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "14px 24px",
-                      border: "none",
-                      background: currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      transition: "background var(--transition-fast)",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (currentDefaultCollectionId !== collection.id) {
-                        e.currentTarget.style.background = "var(--color-surface-strong)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent";
-                    }}
-                  >
-                    <span style={{
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 500,
-                      color: "var(--color-text)",
-                    }}>
-                      {collection.title}
-                    </span>
-                    <span style={{
-                      fontSize: "var(--text-xs)",
-                      color: "var(--color-muted)",
-                    }}>
-                      {collection.productsCount} products
-                    </span>
-                  </button>
-                ))
+                collections.map(
+                  (collection: {
+                    id: string
+                    title: string
+                    productsCount: number
+                  }) => (
+                    <button
+                      key={collection.id}
+                      type="button"
+                      onClick={() => {
+                        setCurrentDefaultCollectionId(collection.id)
+                        fetcher.submit(
+                          {
+                            intent: "set_default_collection",
+                            collectionId: collection.id,
+                          },
+                          { method: "POST" }
+                        )
+                        setCollectionPickerOpen(false)
+                        shopify.toast.show(`Default collection set to "${collection.title}"`)
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "14px 24px",
+                        border: "none",
+                        background:
+                          currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        transition: "background var(--transition-fast)",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentDefaultCollectionId !== collection.id) {
+                          e.currentTarget.style.background = "var(--color-surface-strong)"
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background =
+                          currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent"
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "var(--text-sm)",
+                          fontWeight: 500,
+                          color: "var(--color-text)",
+                        }}
+                      >
+                        {collection.title}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          color: "var(--color-muted)",
+                        }}
+                      >
+                        {collection.productsCount} products
+                      </span>
+                    </button>
+                  )
+                )
               )}
             </div>
 
@@ -4477,11 +4861,10 @@ Describe your desired style, or leave blank for defaults.
           </div>
         </div>
       )}
-
     </div>
-  );
+  )
 }
 
 export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
-};
+  return boundary.headers(headersArgs)
+}

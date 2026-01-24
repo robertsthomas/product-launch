@@ -248,9 +248,20 @@ function Extension() {
   }
 
   const handleOpenInApp = () => {
-    // Navigate to app dashboard using Shopify's navigation
+    if (!product?.id) {
+      // Fallback to dashboard if no product ID
+      close()
+      shopify.navigate("/apps/product-launch")
+      return
+    }
+
+    // Extract numeric product ID from GID for navigation
+    // Shopify product GIDs are in format: "gid://shopify/Product/123456789"
+    const numericId = product.id.includes("gid://") ? product.id.split("/").pop() : product.id
+
+    // Navigate directly to product page in app
     close()
-    shopify.navigate("/apps/product-launch")
+    shopify.navigate(`/apps/product-launch/products/${numericId}`)
   }
 
   // Loading state

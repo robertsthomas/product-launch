@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2"
-import { and, count, desc, eq, sum } from "drizzle-orm"
+import { and, count, desc, eq, sql, sum } from "drizzle-orm"
 import { db, productAuditItems, productAudits, shops } from "../../db"
 import { PRODUCT_QUERY, type Product, runChecklist } from "../checklist"
 import { getOrCreateShop } from "./shop.server"
@@ -16,11 +16,14 @@ export async function auditProduct(
   },
   skipMetafieldUpdate = false
 ) {
+  console.log(`Starting audit for shop: ${shopDomain}, product: ${productId}`)
+
   // Get shop and default template
   const shop = await getOrCreateShop(shopDomain)
   const template = shop.checklistTemplates[0]
 
   if (!template) {
+    console.error(`No checklist template found for shop: ${shopDomain}`)
     throw new Error("No checklist template found for shop")
   }
 
@@ -185,6 +188,7 @@ export async function getShopAudits(
   })
 
   if (!shop) {
+    console.warn(`Shop not found for domain: ${shopDomain} - returning empty audit results`)
     return { audits: [], total: 0 }
   }
 
@@ -225,6 +229,7 @@ export async function getProductAudit(shopDomain: string, productId: string) {
   })
 
   if (!shop) {
+    console.warn(`Shop not found for domain: ${shopDomain} - cannot retrieve product audit for ${productId}`)
     return null
   }
 
@@ -401,4 +406,98 @@ export async function getIncompleteProductCount(shopDomain: string): Promise<num
     .where(and(eq(productAudits.shopId, shop.id), eq(productAudits.status, "incomplete")))
 
   return result?.count ?? 0
+}
+
+/**
+ * Verify audit persistence for a shop
+ * Returns diagnostic info about audit data integrity
+ */
+export async function verifyAuditPersistence(shopDomain: string): Promise<{
+  shopExists: boolean
+  totalAudits: number
+  auditsByStatus: Record<string, number>
+  recentAudits: number
+  sampleAuditIds: string[]
+  diagnostics: string[]
+}> {
+  const diagnostics: string[] = []
+
+  // Check if shop exists
+  const shop = await db.query.shops.findFirst({
+    where: eq(shops.shopDomain, shopDomain),
+  })
+
+  if (!shop) {
+    diagnostics.push(`Shop not found for domain: ${shopDomain}`)
+    return {
+      shopExists: false,
+      totalAudits: 0,
+      auditsByStatus: {},
+      recentAudits: 0,
+      sampleAuditIds: [],
+      diagnostics,
+    }
+  }
+
+  diagnostics.push(`Shop found: ${shop.id} for domain: ${shopDomain}`)
+
+  // Get total audit count
+  const [totalResult] = await db.select({ count: count() }).from(productAudits).where(eq(productAudits.shopId, shop.id))
+
+  const totalAudits = totalResult?.count ?? 0
+  diagnostics.push(`Total audits: ${totalAudits}`)
+
+  // Get audits by status
+  const readyCount = await db
+    .select({ count: count() })
+    .from(productAudits)
+    .where(and(eq(productAudits.shopId, shop.id), eq(productAudits.status, "ready")))
+
+  const incompleteCount = await db
+    .select({ count: count() })
+    .from(productAudits)
+    .where(and(eq(productAudits.shopId, shop.id), eq(productAudits.status, "incomplete")))
+
+  const auditsByStatus = {
+    ready: readyCount[0]?.count ?? 0,
+    incomplete: incompleteCount[0]?.count ?? 0,
+  }
+  diagnostics.push(`Audits by status - Ready: ${auditsByStatus.ready}, Incomplete: ${auditsByStatus.incomplete}`)
+
+  // Get recent audits (last 7 days)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+  const [recentResult] = await db
+    .select({ count: count() })
+    .from(productAudits)
+    .where(
+      and(
+        eq(productAudits.shopId, shop.id),
+        // SQLite timestamp comparison
+        sql`${productAudits.updatedAt} >= ${sevenDaysAgo.getTime()}`
+      )
+    )
+
+  const recentAudits = recentResult?.count ?? 0
+  diagnostics.push(`Recent audits (7 days): ${recentAudits}`)
+
+  // Get sample audit IDs
+  const sampleAudits = await db.query.productAudits.findMany({
+    where: eq(productAudits.shopId, shop.id),
+    limit: 5,
+    columns: { id: true, productId: true, updatedAt: true },
+  })
+
+  const sampleAuditIds = sampleAudits.map((a) => a.id)
+  diagnostics.push(`Sample audit IDs: ${sampleAuditIds.join(", ")}`)
+
+  return {
+    shopExists: true,
+    totalAudits,
+    auditsByStatus,
+    recentAudits,
+    sampleAuditIds,
+    diagnostics,
+  }
 }

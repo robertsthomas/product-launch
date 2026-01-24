@@ -8,6 +8,8 @@ import { DEFAULT_CHECKLIST_ITEMS } from "../checklist/types"
  * Called after OAuth completes
  */
 export async function initializeShop(shopDomain: string) {
+  console.log(`Initializing shop: ${shopDomain}`)
+
   // Check if shop already exists
   const existingShop = await db.query.shops.findFirst({
     where: eq(shops.shopDomain, shopDomain),
@@ -17,6 +19,7 @@ export async function initializeShop(shopDomain: string) {
   })
 
   if (existingShop && existingShop.checklistTemplates.length > 0) {
+    console.log(`Shop ${shopDomain} already exists with ${existingShop.checklistTemplates.length} templates`)
     return existingShop
   }
 
@@ -32,6 +35,9 @@ export async function initializeShop(shopDomain: string) {
     })
     shop = await db.query.shops.findFirst({
       where: eq(shops.id, shopId),
+      with: {
+        checklistTemplates: true,
+      },
     })
   }
 
@@ -128,7 +134,7 @@ export async function updateShopSettings(
     defaultTags?: string // JSON string array
     defaultMetafields?: string // JSON string array
     versionHistoryEnabled?: boolean
-    brandVoicePreset?: string | null
+    brandVoicePreset?: "minimal" | "premium" | "fun" | "technical" | "bold" | null
     brandVoiceNotes?: string | null
     activeTemplateId?: string | null
     openaiApiKey?: string | null
