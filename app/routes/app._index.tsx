@@ -232,6 +232,385 @@ function _CircularProgress({
 }
 
 // ============================================
+// Bulk Generate All Modal Component
+// ============================================
+
+function BulkGenerateAllModal({
+  isOpen,
+  onClose,
+  selectedFields,
+  onFieldToggle,
+  onGenerate,
+  isGenerating,
+  fieldOptions,
+  setFieldOptions,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  selectedFields: string[]
+  onFieldToggle: (field: string) => void
+  onGenerate: () => void
+  isGenerating: boolean
+  fieldOptions: Record<string, string[]>
+  setFieldOptions: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
+}) {
+  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({})
+
+  if (!isOpen) return null
+
+  const fields = [
+    { key: "title", label: "Title" },
+    { key: "description", label: "Description" },
+    { key: "tags", label: "Tags" },
+    { key: "seoTitle", label: "SEO Title" },
+    { key: "seoDescription", label: "Meta Description" },
+    {
+      key: "images",
+      label: "Images",
+      hasOptions: true,
+      options: [
+        { key: "image", label: "Generate Image" },
+        { key: "alt", label: "Generate Alt Text" },
+      ],
+    },
+  ]
+
+  const toggleExpand = (fieldKey: string) => {
+    setExpandedFields((prev) => ({
+      ...prev,
+      [fieldKey]: !prev[fieldKey],
+    }))
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(45, 42, 38, 0.4)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: "20px",
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onClose}
+      tabIndex={-1}
+      role="presentation"
+    >
+      <div
+        className="animate-scale-in"
+        style={{
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "var(--radius-xl)",
+          width: "100%",
+          maxWidth: "500px",
+          maxHeight: "70vh",
+          boxShadow: "var(--shadow-elevated)",
+          border: "1px solid var(--color-border)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "24px",
+            borderBottom: "1px solid var(--color-border-subtle)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "transparent",
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: "var(--font-heading)",
+              fontSize: "var(--text-xl)",
+              fontWeight: 600,
+              color: "var(--color-text)",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Generate All Fields
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "8px",
+              borderRadius: "var(--radius-md)",
+              color: "var(--color-muted)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all var(--transition-fast)",
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content - Scrollable list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0" }}>
+          {fields.map((field, idx) => (
+            <div key={field.key}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (field.hasOptions) {
+                    toggleExpand(field.key)
+                    // Auto-select all options when expanding for the first time
+                    if (!fieldOptions[field.key] && field.options) {
+                      setFieldOptions((prev) => ({
+                        ...prev,
+                        [field.key]: field.options?.map((opt) => opt.key) || [],
+                      }))
+                    }
+                  } else {
+                    onFieldToggle(field.key)
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  padding: "12px 24px",
+                  border: "none",
+                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
+                  background: "transparent",
+                  color: "var(--color-text)",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  transition: "background 0.15s ease",
+                  textAlign: "left",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--color-surface-elevated)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedFields.includes(field.key)}
+                    onChange={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      cursor: "pointer",
+                      accentColor: "var(--color-primary)",
+                    }}
+                  />
+                  <span>{field.label}</span>
+                </div>
+                {field.hasOptions && (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{
+                      transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0)",
+                      transition: "transform 0.15s ease",
+                    }}
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Options (for images) */}
+              {field.hasOptions && expandedFields[field.key] && field.options && (
+                <div
+                  style={{
+                    background: "var(--color-surface-subtle)",
+                    padding: "0",
+                  }}
+                >
+                  {field.options.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        const currentOptions = fieldOptions[field.key] || []
+                        if (currentOptions.includes(option.key)) {
+                          setFieldOptions((prev) => ({
+                            ...prev,
+                            [field.key]: currentOptions.filter((o) => o !== option.key),
+                          }))
+                        } else {
+                          setFieldOptions((prev) => ({
+                            ...prev,
+                            [field.key]: [...currentOptions, option.key],
+                          }))
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "8px 24px 8px 48px",
+                        border: "none",
+                        background: "transparent",
+                        color: "var(--color-text-secondary)",
+                        fontSize: "13px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        cursor: "pointer",
+                        transition: "background 0.15s ease",
+                        textAlign: "left",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "var(--color-surface-strong)"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(fieldOptions[field.key] || []).includes(option.key)}
+                        onChange={() => {}}
+                        style={{
+                          cursor: "pointer",
+                          accentColor: "var(--color-primary)",
+                        }}
+                      />
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            padding: "16px 24px",
+            borderTop: "1px solid var(--color-border-subtle)",
+            background: "transparent",
+            justifyContent: "flex-end",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isGenerating}
+            style={{
+              padding: "10px 16px",
+              border: "1px solid var(--color-border)",
+              borderRadius: "6px",
+              background: "transparent",
+              color: "var(--color-text)",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: isGenerating ? "not-allowed" : "pointer",
+              transition: "all 0.15s ease",
+              opacity: isGenerating ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!isGenerating) {
+                e.currentTarget.style.background = "var(--color-surface-elevated)"
+                e.currentTarget.style.borderColor = "var(--color-border-strong)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent"
+              e.currentTarget.style.borderColor = "var(--color-border)"
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onGenerate()
+            }}
+            disabled={isGenerating || selectedFields.length === 0}
+            style={{
+              padding: "10px 16px",
+              border: "none",
+              borderRadius: "6px",
+              background: selectedFields.length === 0 ? "var(--color-surface-strong)" : "var(--color-primary)",
+              color: selectedFields.length === 0 ? "var(--color-muted)" : "#fff",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: isGenerating || selectedFields.length === 0 ? "not-allowed" : "pointer",
+              transition: "all 0.15s ease",
+              opacity: isGenerating ? 0.7 : 1,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+            onMouseEnter={(e) => {
+              if (!isGenerating && selectedFields.length > 0) {
+                e.currentTarget.style.background = "var(--color-primary-hover)"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (selectedFields.length > 0) {
+                e.currentTarget.style.background = "var(--color-primary)"
+              }
+            }}
+          >
+            {isGenerating ? (
+              <>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{ animation: "spin 1s linear infinite" }}
+                >
+                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                </svg>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Generate
+              </>
+            )}
+          </button>
+        </div>
+
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // Stat Card Component
 // ============================================
 
@@ -1198,6 +1577,12 @@ export default function Dashboard() {
     current: number
     total: number
   } | null>(null)
+
+  // Bulk AI generation state
+  const [showGenerateAllModal, setShowGenerateAllModal] = useState(false)
+  const [selectedBulkFields, setSelectedBulkFields] = useState<string[]>([])
+  const [bulkFieldOptions, setBulkFieldOptions] = useState<Record<string, string[]>>({})
+  const [isGeneratingBulk, setIsGeneratingBulk] = useState(false)
 
   // Monitoring modal state (Pro only)
   const [showMonitoringModal, setShowMonitoringModal] = useState(false)
@@ -3171,6 +3556,37 @@ export default function Dashboard() {
                     Add to Collection
                   </button>
 
+                  {/* Generate All */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowGenerateAllModal(true)
+                      setShowBulkDropdown(false)
+                    }}
+                    disabled={bulkFetcher.state !== "idle"}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      color: "#252F2C",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                      textAlign: "left",
+                      transition: "background 0.15s",
+                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                    }}
+                  >
+                    Generate All
+                  </button>
+
                   {/* Divider + Clear */}
                   <div style={{ borderTop: "1px solid #e4e4e7", marginTop: "4px" }}>
                     <button
@@ -3656,6 +4072,25 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Bulk Generate All Modal */}
+      <BulkGenerateAllModal
+        isOpen={showGenerateAllModal}
+        onClose={() => setShowGenerateAllModal(false)}
+        selectedFields={selectedBulkFields}
+        onFieldToggle={(field) => {
+          setSelectedBulkFields((prev) => (prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]))
+        }}
+        onGenerate={() => {
+          if (selectedBulkFields.length === 0) return
+          setIsGeneratingBulk(true)
+          executeBulkAction("generate_all")
+          setShowGenerateAllModal(false)
+        }}
+        isGenerating={isGeneratingBulk}
+        fieldOptions={bulkFieldOptions}
+        setFieldOptions={setBulkFieldOptions}
+      />
 
       {/* Dashboard Tour */}
       <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
