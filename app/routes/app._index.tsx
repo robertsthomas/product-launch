@@ -1,7 +1,7 @@
 import { useAppBridge } from "@shopify/app-bridge-react"
+import { boundary } from "@shopify/shopify-app-react-router/server"
 import { useEffect, useMemo, useState } from "react"
-import type { ActionFunctionArgs } from "react-router"
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router"
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { useFetcher, useLoaderData, useNavigate } from "react-router"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist"
@@ -290,13 +290,15 @@ function BulkGenerateAllModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 9999,
         padding: "20px",
-        pointerEvents: "auto",
+        boxSizing: "border-box",
       }}
       onClick={onClose}
       tabIndex={-1}
@@ -305,17 +307,16 @@ function BulkGenerateAllModal({
       <div
         className="animate-scale-in"
         style={{
-          backgroundColor: "var(--color-surface)",
-          borderRadius: "var(--radius-xl)",
+          backgroundColor: "#ffffff",
+          borderRadius: "12px",
           width: "100%",
           maxWidth: "500px",
           maxHeight: "70vh",
-          boxShadow: "var(--shadow-elevated)",
-          border: "1px solid var(--color-border)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          border: "1px solid #e5e7eb",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          pointerEvents: "auto",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -4108,8 +4109,6 @@ export default function Dashboard() {
   )
 }
 
-export const headers: HeadersFunction = () => {
-  return {
-    "Content-Security-Policy": "frame-ancestors 'none'; frame-src 'none';",
-  }
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs)
 }
