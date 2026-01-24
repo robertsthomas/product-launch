@@ -1,6 +1,7 @@
 import { useAppBridge } from "@shopify/app-bridge-react"
 import { useEffect, useMemo, useState } from "react"
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router"
+import type { ActionFunctionArgs } from "react-router"
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { useFetcher, useLoaderData, useNavigate } from "react-router"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist"
@@ -4107,6 +4108,8 @@ export default function Dashboard() {
   )
 }
 
-export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs)
+export const headers: HeadersFunction = () => {
+  return {
+    "Content-Security-Policy": "frame-ancestors 'none'; frame-src 'none';",
+  }
 }
