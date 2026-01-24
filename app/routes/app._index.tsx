@@ -2244,44 +2244,55 @@ export default function Dashboard() {
                                   <>
                                     {audit.items
                                       .filter((i: any) => i.status === "failed")
-                                      .slice(0, 5)
+                                      .slice(0, 4)
                                       .map((item: any) => (
                                         <div
                                           key={item.id}
                                           style={{
-                                            padding: "12px",
+                                            padding: "8px 10px",
                                             background: "#fef2f2",
-                                            border: "1px solid #fecaca",
-                                            borderRadius: "6px",
+                                            border: "1px solid #fed7d7",
+                                            borderRadius: "5px",
                                             display: "flex",
-                                            alignItems: "flex-start",
-                                            gap: "12px",
-                                            transition: "transform 0.1s",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                            transition: "all 0.15s ease",
                                             cursor: "default",
                                           }}
-                                          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateX(2px)")}
-                                          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateX(0)")}
+                                          onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = "#fecaca"
+                                            e.currentTarget.style.borderColor = "#fca5a5"
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = "#fef2f2"
+                                            e.currentTarget.style.borderColor = "#fed7d7"
+                                          }}
                                           title={item.details}
                                         >
-                                          <div style={{ flex: 1 }}>
+                                          <svg
+                                            width="12"
+                                            height="12"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="#dc2626"
+                                            strokeWidth="2.5"
+                                            style={{ flexShrink: 0 }}
+                                          >
+                                            <circle cx="12" cy="12" r="10" />
+                                            <path d="M12 8v4m0 4v.01" />
+                                          </svg>
+                                          <div style={{ flex: 1, minWidth: 0 }}>
                                             <div
                                               style={{
-                                                fontSize: "var(--text-sm)",
+                                                fontSize: "11px",
                                                 fontWeight: 600,
-                                                color: "#991b1b",
+                                                color: "#7f1d1d",
+                                                whiteSpace: "nowrap",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
                                               }}
                                             >
                                               {item.label}
-                                            </div>
-                                            <div
-                                              style={{
-                                                fontSize: "var(--text-sm)",
-                                                color: "#b91c1c",
-                                                marginTop: "2px",
-                                                lineHeight: 1.4,
-                                              }}
-                                            >
-                                              {item.details || "Check failed"}
                                             </div>
                                           </div>
                                           {item.canAutoFix && (
@@ -2289,49 +2300,48 @@ export default function Dashboard() {
                                               style={{
                                                 display: "flex",
                                                 alignItems: "center",
-                                                gap: "4px",
-                                                background: "#fff",
-                                                padding: "4px 8px",
-                                                borderRadius: "12px",
-                                                border: "1px solid #fca5a5",
+                                                gap: "3px",
+                                                background: "#fca5a5",
+                                                padding: "2px 6px",
+                                                borderRadius: "10px",
                                                 flexShrink: 0,
                                               }}
                                             >
                                               <svg
-                                                width="10"
-                                                height="10"
+                                                width="8"
+                                                height="8"
                                                 viewBox="0 0 24 24"
                                                 fill="none"
-                                                stroke="#B53D3D"
-                                                strokeWidth="2.5"
+                                                stroke="#7f1d1d"
+                                                strokeWidth="3"
                                               >
                                                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                                               </svg>
                                               <span
                                                 style={{
-                                                  fontSize: "10px",
+                                                  fontSize: "8px",
                                                   fontWeight: 700,
-                                                  color: "#B53D3D",
+                                                  color: "#7f1d1d",
+                                                  letterSpacing: "0.5px",
                                                 }}
                                               >
-                                                AUTO
+                                                FIX
                                               </span>
                                             </div>
                                           )}
                                         </div>
                                       ))}
-                                    {audit.items.filter((i: any) => i.status === "failed").length > 5 && (
+                                    {audit.items.filter((i: any) => i.status === "failed").length > 4 && (
                                       <div
                                         style={{
-                                          padding: "8px 12px",
+                                          padding: "6px 0",
                                           textAlign: "center",
-                                          fontSize: "12px",
-                                          color: "#71717a",
-                                          borderTop: "1px solid #e4e4e7",
-                                          marginTop: "4px",
+                                          fontSize: "11px",
+                                          color: "#a1a1aa",
+                                          fontWeight: 500,
                                         }}
                                       >
-                                        +{audit.items.filter((i: any) => i.status === "failed").length - 5} more issues
+                                        +{audit.items.filter((i: any) => i.status === "failed").length - 4} more
                                       </div>
                                     )}
                                   </>
@@ -2365,50 +2375,48 @@ export default function Dashboard() {
                                   <details
                                     style={{
                                       cursor: "pointer",
-                                      marginTop: "12px",
+                                      marginTop: "8px",
                                     }}
                                   >
                                     <summary
                                       style={{
-                                        fontSize: "var(--text-sm)",
-                                        color: "#71717a",
+                                        fontSize: "11px",
+                                        color: "#a1a1aa",
                                         fontWeight: 500,
                                         userSelect: "none",
                                         display: "flex",
                                         alignItems: "center",
-                                        gap: "6px",
-                                        padding: "8px 0",
+                                        gap: "5px",
+                                        padding: "4px 0",
                                         transition: "color 0.15s ease",
                                       }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.color = "#252F2C")}
-                                      onMouseLeave={(e) => (e.currentTarget.style.color = "#71717a")}
+                                      onMouseEnter={(e) => (e.currentTarget.style.color = "#71717a")}
+                                      onMouseLeave={(e) => (e.currentTarget.style.color = "#a1a1aa")}
                                     >
                                       <svg
-                                        width="12"
-                                        height="12"
+                                        width="10"
+                                        height="10"
                                         viewBox="0 0 24 24"
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="3"
                                         style={{
                                           transition: "transform 0.3s ease",
+                                          flexShrink: 0,
                                         }}
                                       >
                                         <polyline points="6 9 12 15 18 9" />
                                       </svg>
-                                      <span>
-                                        View {audit.items.filter((i: any) => i.status === "passed").length} passed
-                                        checks
-                                      </span>
+                                      <span>{audit.items.filter((i: any) => i.status === "passed").length} passed</span>
                                     </summary>
                                     <div
                                       style={{
                                         display: "grid",
                                         gridTemplateColumns: "1fr 1fr",
-                                        gap: "8px",
-                                        padding: "12px",
-                                        background: "#f4f4f5",
-                                        borderRadius: "6px",
+                                        gap: "6px",
+                                        padding: "8px",
+                                        background: "#fafafa",
+                                        borderRadius: "5px",
                                         animation: "slideDown 0.3s ease",
                                       }}
                                     >
@@ -2420,15 +2428,20 @@ export default function Dashboard() {
                                             style={{
                                               display: "flex",
                                               alignItems: "center",
-                                              gap: "8px",
-                                              fontSize: "var(--text-sm)",
+                                              gap: "5px",
+                                              fontSize: "10px",
                                               color: "#52525b",
                                             }}
                                           >
-                                            <div style={{ color: "#059669" }}>
+                                            <div
+                                              style={{
+                                                color: "#059669",
+                                                flexShrink: 0,
+                                              }}
+                                            >
                                               <svg
-                                                width="12"
-                                                height="12"
+                                                width="10"
+                                                height="10"
                                                 viewBox="0 0 24 24"
                                                 fill="none"
                                                 stroke="currentColor"
