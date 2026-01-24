@@ -28,6 +28,14 @@ function stripHtml(html: string): string {
     .replace(/<[^>]*>/g, "") // Remove HTML tags
     .replace(/&nbsp;/g, " ") // Replace &nbsp; with space
     .replace(/&amp;/g, "&") // Replace &amp; with &
+}
+
+// Convert ProductImage GID to MediaImage GID for productUpdateMedia mutation
+function toMediaImageId(imageId: string): string {
+  if (imageId.includes("ProductImage")) {
+    return imageId.replace("ProductImage", "MediaImage")
+  }
+  return imageId
     .replace(/&lt;/g, "<") // Replace &lt; with <
     .replace(/&gt;/g, ">") // Replace &gt; with >
     .replace(/&quot;/g, '"') // Replace &quot; with "
@@ -335,6 +343,8 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     if (altTextUpdates.length > 0) {
       for (const updateStr of altTextUpdates) {
         const { imageId, altText } = JSON.parse(updateStr as string)
+        // Convert ProductImage ID to MediaImage ID if needed
+        const mediaId = toMediaImageId(imageId)
 
         const response = await admin.graphql(
           `#graphql
@@ -357,7 +367,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
               productId,
               media: [
                 {
-                  id: imageId,
+                  id: mediaId,
                   alt: altText,
                 },
               ],
@@ -1540,7 +1550,7 @@ function GenerateAllModal({
 // AI Generate Dropdown Component
 // ============================================
 
-type AIGenerateMode = "expand" | "improve" | "replace"
+type AIGenerateMode = "generate" | "enhance" | "rewrite"
 
 function AIGenerateDropdown({
   onGenerate,
@@ -1610,9 +1620,9 @@ function AIGenerateDropdown({
               "Generating"
             ) : (
               <>
-                {generatingMode === "expand" && "Expanding"}
-                {generatingMode === "improve" && "Improving"}
-                {generatingMode === "replace" && "Replacing"}
+                {generatingMode === "enhance" && "Enhancing"}
+                {generatingMode === "rewrite" && "Rewriting"}
+                {generatingMode === "generate" && "Generating"}
               </>
             )}
           </>
@@ -1657,7 +1667,7 @@ function AIGenerateDropdown({
             <>
               <button
                 type="button"
-                onClick={() => handleSelect("expand")}
+                onClick={() => handleSelect("enhance")}
                 style={{
                   width: "100%",
                   padding: "10px 14px",
@@ -1677,11 +1687,11 @@ function AIGenerateDropdown({
                   e.currentTarget.style.background = "transparent"
                 }}
               >
-                Expand
+                Enhance
               </button>
               <button
                 type="button"
-                onClick={() => handleSelect("improve")}
+                onClick={() => handleSelect("rewrite")}
                 style={{
                   width: "100%",
                   padding: "10px 14px",
@@ -1702,13 +1712,13 @@ function AIGenerateDropdown({
                   e.currentTarget.style.background = "transparent"
                 }}
               >
-                Improve
+                Rewrite
               </button>
             </>
           )}
           <button
             type="button"
-            onClick={() => handleSelect("replace")}
+            onClick={() => handleSelect("generate")}
             style={{
               width: "100%",
               padding: "10px 14px",

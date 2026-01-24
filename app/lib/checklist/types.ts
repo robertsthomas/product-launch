@@ -14,6 +14,18 @@ export type Product = {
       height?: number
     }>
   }
+  media?: {
+    nodes: Array<{
+      id: string
+      alt: string | null
+      mediaContentType: string
+      preview?: {
+        image?: {
+          url: string
+        }
+      }
+    }>
+  }
   seo: {
     title: string | null
     description: string | null

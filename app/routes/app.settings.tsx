@@ -521,10 +521,12 @@ export default function Settings() {
         <div
           style={{
             display: "flex",
-            gap: "0",
-            borderBottom: "1px solid var(--color-border)",
+            gap: "4px",
+            padding: "4px",
+            background: "#f4f4f5",
+            borderRadius: "10px",
             marginBottom: "32px",
-            width: "100%",
+            width: "fit-content",
           }}
         >
           {TABS.map((tab) => (
@@ -535,20 +537,32 @@ export default function Settings() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
-                padding: "12px 20px",
-                fontSize: "var(--text-sm)",
+                gap: "6px",
+                padding: "8px 16px",
+                fontSize: "13px",
                 fontWeight: 500,
-                color: activeTab === tab.key ? "var(--color-text)" : "var(--color-muted)",
-                background: "transparent",
+                color: activeTab === tab.key ? "#18181b" : "#71717a",
+                background: activeTab === tab.key ? "#fff" : "transparent",
                 border: "none",
-                borderBottom: activeTab === tab.key ? "2px solid var(--color-text)" : "2px solid transparent",
+                borderRadius: "6px",
                 cursor: "pointer",
-                transition: "all var(--transition-fast)",
-                marginBottom: "-1px",
+                transition: "all 0.15s ease",
+                boxShadow: activeTab === tab.key ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.key) {
+                  e.currentTarget.style.color = "#18181b";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.5)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.key) {
+                  e.currentTarget.style.color = "#71717a";
+                  e.currentTarget.style.background = "transparent";
+                }
               }}
             >
-              <span style={{ color: activeTab === tab.key ? "var(--color-text)" : "var(--color-muted)" }}>
+              <span style={{ color: activeTab === tab.key ? "#18181b" : "#a1a1aa", transition: "color 0.15s ease" }}>
                 {tab.icon}
               </span>
               {tab.label}

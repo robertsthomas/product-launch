@@ -15,6 +15,14 @@ async function getProduct(productId: string, admin: any): Promise<Product | null
   return productJson.data?.product as Product | null
 }
 
+// Convert ProductImage GID to MediaImage GID for productUpdateMedia mutation
+function toMediaImageId(imageId: string): string {
+  if (imageId.includes("ProductImage")) {
+    return imageId.replace("ProductImage", "MediaImage")
+  }
+  return imageId
+}
+
 export const action = async ({ params, request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request)
   const shop = session.shop
@@ -131,6 +139,8 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
   if (intent === "update_alt") {
     const imageId = formData.get("imageId") as string
     const altText = formData.get("altText") as string
+    // Convert ProductImage ID to MediaImage ID if needed
+    const mediaId = toMediaImageId(imageId)
 
     const response = await admin.graphql(
       `#graphql
@@ -153,7 +163,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
           productId,
           media: [
             {
-              id: imageId,
+              id: mediaId,
               alt: altText,
             },
           ],
@@ -246,26 +256,29 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       imageModel: openaiConfig.imageModel || undefined,
     }
 
-    // Generate alt text for all images
+    // Generate alt text for all images - use media nodes for MediaImage IDs
     const results: Array<{ id: string; altText: string; success: boolean }> = []
+    const mediaNodes = product.media?.nodes || []
 
     const altTextPromises =
-      product.images?.nodes?.map(async (image: { id: string; altText: string | null; url: string }, index: number) => {
-        try {
-          const result = await generateImageAltText(
-            {
-              title: product.title,
-              productType: product.productType,
-              vendor: product.vendor,
-            },
-            index,
-            image.url,
-            genOptions
-          )
+      mediaNodes
+        .filter((m) => m.mediaContentType === "IMAGE")
+        .map(async (media, index: number) => {
+          try {
+            const result = await generateImageAltText(
+              {
+                title: product.title,
+                productType: product.productType,
+                vendor: product.vendor,
+              },
+              index,
+              media.preview?.image?.url,
+              genOptions
+            )
 
-          // Update the alt text using productUpdateMedia
-          await admin.graphql(
-            `#graphql
+            // Update the alt text using productUpdateMedia with MediaImage ID
+            await admin.graphql(
+              `#graphql
           mutation productUpdateMedia($productId: ID!, $media: [UpdateMediaInput!]!) {
             productUpdateMedia(productId: $productId, media: $media) {
               media {
@@ -280,26 +293,26 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
               }
             }
           }`,
-            {
-              variables: {
-                productId,
-                media: [
-                  {
-                    id: image.id,
-                    alt: result.altText,
-                  },
-                ],
-              },
-            }
-          )
+              {
+                variables: {
+                  productId,
+                  media: [
+                    {
+                      id: media.id,
+                      alt: result.altText,
+                    },
+                  ],
+                },
+              }
+            )
 
-          results.push({ id: image.id, altText: result.altText, success: true })
-          return { id: image.id, altText: result.altText }
-        } catch (error) {
-          console.error(`Failed to generate alt text for image ${image.id}:`, error)
-          return { id: image.id, error: true }
-        }
-      }) || []
+            results.push({ id: media.id, altText: result.altText, success: true })
+            return { id: media.id, altText: result.altText }
+          } catch (error) {
+            console.error(`Failed to generate alt text for media ${media.id}:`, error)
+            return { id: media.id, error: true }
+          }
+        }) || []
 
     await Promise.all(altTextPromises)
 

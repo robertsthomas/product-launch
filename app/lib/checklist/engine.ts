@@ -131,6 +131,18 @@ export const PRODUCT_QUERY = `#graphql
           url
         }
       }
+      media(first: 50) {
+        nodes {
+          id
+          alt
+          mediaContentType
+          preview {
+            image {
+              url
+            }
+          }
+        }
+      }
       seo {
         title
         description
@@ -178,6 +190,18 @@ export const PRODUCTS_LIST_QUERY = `#graphql
             id
             altText
             url
+          }
+        }
+        media(first: 50) {
+          nodes {
+            id
+            alt
+            mediaContentType
+            preview {
+              image {
+                url
+              }
+            }
           }
         }
         seo {

@@ -2,7 +2,13 @@ import { useAppBridge } from "@shopify/app-bridge-react"
 import { boundary } from "@shopify/shopify-app-react-router/server"
 import { useEffect, useMemo, useState } from "react"
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
-import { useFetcher, useLoaderData, useNavigate } from "react-router"
+import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router"
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist"
 import { auditProduct, getDashboardStats, getShopAudits } from "../lib/services"
@@ -199,34 +205,6 @@ function _CircularProgress({
           />
         </>
       )}
-
-      <style>{`
-        @keyframes pulse-ring {
-          0% {
-            transform: scale(1);
-            opacity: 0.5;
-          }
-          50% {
-            transform: scale(1.08);
-            opacity: 0.2;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 0.5;
-          }
-        }
-
-        @keyframes pulse-glow {
-          0%, 100% {
-            opacity: 0.15;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.25;
-            transform: scale(1.05);
-          }
-        }
-      `}</style>
     </div>
   )
 }
@@ -282,6 +260,11 @@ function BulkGenerateAllModal({
     }))
   }
 
+  // Check if any fields are selected (either in selectedFields or fieldOptions)
+  const hasSelectedFields = selectedFields.length > 0
+  const hasFieldOptions = Object.values(fieldOptions).some((options) => options.length > 0)
+  const canGenerate = hasSelectedFields || hasFieldOptions
+
   return (
     <div
       style={{
@@ -290,7 +273,7 @@ function BulkGenerateAllModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(45, 42, 38, 0.4)",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -305,13 +288,13 @@ function BulkGenerateAllModal({
       <div
         className="animate-scale-in"
         style={{
-          backgroundColor: "var(--color-surface)",
-          borderRadius: "var(--radius-xl)",
+          backgroundColor: "#ffffff",
+          borderRadius: "16px",
           width: "100%",
           maxWidth: "500px",
           maxHeight: "70vh",
-          boxShadow: "var(--shadow-elevated)",
-          border: "1px solid var(--color-border)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          border: "1px solid #e5e7eb",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -322,20 +305,20 @@ function BulkGenerateAllModal({
         <div
           style={{
             padding: "24px",
-            borderBottom: "1px solid var(--color-border-subtle)",
+            borderBottom: "1px solid #f3f4f6",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "transparent",
+            backgroundColor: "#ffffff",
           }}
         >
           <h2
             style={{
               margin: 0,
-              fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)",
+              fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+              fontSize: "18px",
               fontWeight: 600,
-              color: "var(--color-text)",
+              color: "#111827",
               letterSpacing: "-0.01em",
             }}
           >
@@ -349,12 +332,12 @@ function BulkGenerateAllModal({
               border: "none",
               cursor: "pointer",
               padding: "8px",
-              borderRadius: "var(--radius-md)",
-              color: "var(--color-muted)",
+              borderRadius: "8px",
+              color: "#6b7280",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all var(--transition-fast)",
+              transition: "all 0.15s ease",
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -364,7 +347,14 @@ function BulkGenerateAllModal({
         </div>
 
         {/* Content - Scrollable list */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0" }}>
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "0",
+            backgroundColor: "#ffffff",
+          }}
+        >
           {fields.map((field, idx) => (
             <div key={field.key}>
               <button
@@ -372,7 +362,6 @@ function BulkGenerateAllModal({
                 onClick={() => {
                   if (field.hasOptions) {
                     toggleExpand(field.key)
-                    // Auto-select all options when expanding for the first time
                     if (!fieldOptions[field.key] && field.options) {
                       setFieldOptions((prev) => ({
                         ...prev,
@@ -390,30 +379,30 @@ function BulkGenerateAllModal({
                   justifyContent: "space-between",
                   padding: "16px 20px",
                   border: "none",
-                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
+                  borderBottom: idx < fields.length - 1 ? "1px solid #e5e7eb" : "none",
                   background: (
                     field.hasOptions
                       ? (fieldOptions[field.key]?.length || 0) > 0
                       : selectedFields.includes(field.key)
                   )
-                    ? "var(--color-primary-soft)"
-                    : "transparent",
+                    ? "rgba(31, 79, 216, 0.08)"
+                    : "#ffffff",
                   cursor: "pointer",
-                  transition: "all var(--transition-fast)",
+                  transition: "all 0.15s ease",
                 }}
                 onMouseEnter={(e) => {
                   const isSelected = field.hasOptions
                     ? (fieldOptions[field.key]?.length || 0) > 0
                     : selectedFields.includes(field.key)
                   if (!isSelected) {
-                    e.currentTarget.style.background = "var(--color-surface-strong)"
+                    e.currentTarget.style.background = "#f9fafb"
                   }
                 }}
                 onMouseLeave={(e) => {
                   const isSelected = field.hasOptions
                     ? (fieldOptions[field.key]?.length || 0) > 0
                     : selectedFields.includes(field.key)
-                  e.currentTarget.style.background = isSelected ? "var(--color-primary-soft)" : "transparent"
+                  e.currentTarget.style.background = isSelected ? "rgba(31, 79, 216, 0.08)" : "#ffffff"
                 }}
               >
                 <div
@@ -433,17 +422,14 @@ function BulkGenerateAllModal({
                     onChange={(e) => {
                       e.stopPropagation()
                       if (field.hasOptions) {
-                        // For fields with options, checkbox controls the options selection
                         const currentOptions = fieldOptions[field.key] || []
                         const allOptions = field.options?.map((opt) => opt.key) || []
                         if (currentOptions.length > 0) {
-                          // If any options are selected, deselect all
                           setFieldOptions((prev) => ({
                             ...prev,
                             [field.key]: [],
                           }))
                         } else {
-                          // If no options are selected, select all
                           setFieldOptions((prev) => ({
                             ...prev,
                             [field.key]: allOptions,
@@ -457,15 +443,15 @@ function BulkGenerateAllModal({
                     style={{
                       width: "16px",
                       height: "16px",
-                      accentColor: "var(--color-primary)",
+                      accentColor: "#1f4fd8",
                       cursor: "pointer",
                     }}
                   />
                   <span
                     style={{
-                      fontSize: "var(--text-sm)",
+                      fontSize: "14px",
                       fontWeight: 500,
-                      color: "var(--color-text)",
+                      color: "#111827",
                     }}
                   >
                     {field.label}
@@ -481,8 +467,8 @@ function BulkGenerateAllModal({
                     strokeWidth="2"
                     style={{
                       transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform var(--transition-fast)",
-                      color: "var(--color-muted)",
+                      transition: "transform 0.15s ease",
+                      color: "#6b7280",
                     }}
                   >
                     <polyline points="6 9 12 15 18 9" />
@@ -495,16 +481,16 @@ function BulkGenerateAllModal({
                 <div
                   style={{
                     padding: "12px 20px 16px 48px",
-                    backgroundColor: "var(--color-surface-strong)",
-                    borderBottom: "1px solid var(--color-border)",
+                    backgroundColor: "#f9fafb",
+                    borderBottom: "1px solid #e5e7eb",
                   }}
                 >
                   <div
                     style={{
                       marginBottom: "8px",
-                      fontSize: "var(--text-xs)",
+                      fontSize: "12px",
                       fontWeight: 500,
-                      color: "var(--color-muted)",
+                      color: "#6b7280",
                     }}
                   >
                     Choose what to generate:
@@ -524,8 +510,8 @@ function BulkGenerateAllModal({
                           alignItems: "center",
                           gap: "8px",
                           cursor: "pointer",
-                          fontSize: "var(--text-sm)",
-                          color: "var(--color-text)",
+                          fontSize: "14px",
+                          color: "#111827",
                         }}
                       >
                         <input
@@ -548,7 +534,7 @@ function BulkGenerateAllModal({
                           style={{
                             width: "14px",
                             height: "14px",
-                            accentColor: "var(--color-primary)",
+                            accentColor: "#1f4fd8",
                             cursor: "pointer",
                           }}
                         />
@@ -566,12 +552,12 @@ function BulkGenerateAllModal({
         <div
           style={{
             padding: "20px 24px",
-            borderTop: "1px solid var(--color-border-subtle)",
+            borderTop: "1px solid #f3f4f6",
             display: "flex",
             gap: "12px",
             justifyContent: "space-between",
             alignItems: "center",
-            background: "transparent",
+            backgroundColor: "#ffffff",
           }}
         >
           {/* Select All / Deselect All */}
@@ -593,20 +579,20 @@ function BulkGenerateAllModal({
               alignItems: "center",
               gap: "8px",
               padding: "10px 16px",
-              fontSize: "var(--text-sm)",
+              fontSize: "14px",
               fontWeight: 500,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text)",
+              border: "1px solid #e5e7eb",
+              borderRadius: "8px",
+              backgroundColor: "#ffffff",
+              color: "#111827",
               cursor: "pointer",
-              transition: "all var(--transition-fast)",
+              transition: "all 0.15s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"
+              e.currentTarget.style.backgroundColor = "#f9fafb"
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-surface)"
+              e.currentTarget.style.backgroundColor = "#ffffff"
             }}
           >
             {selectedFields.length === fields.length ? "Deselect All" : "Select All"}
@@ -619,15 +605,15 @@ function BulkGenerateAllModal({
               disabled={isGenerating}
               style={{
                 padding: "10px 20px",
-                fontSize: "var(--text-sm)",
+                fontSize: "14px",
                 fontWeight: 500,
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                backgroundColor: "var(--color-surface)",
-                color: "var(--color-text)",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                backgroundColor: "#ffffff",
+                color: "#111827",
                 cursor: isGenerating ? "not-allowed" : "pointer",
                 opacity: isGenerating ? 0.5 : 1,
-                transition: "all var(--transition-fast)",
+                transition: "all 0.15s ease",
               }}
             >
               Cancel
@@ -635,31 +621,30 @@ function BulkGenerateAllModal({
             <button
               type="button"
               onClick={onGenerate}
-              disabled={isGenerating || selectedFields.length === 0}
+              disabled={isGenerating || !canGenerate}
               style={{
                 padding: "10px 20px",
-                fontSize: "var(--text-sm)",
+                fontSize: "14px",
                 fontWeight: 500,
                 border: "none",
-                borderRadius: "var(--radius-md)",
-                backgroundColor:
-                  isGenerating || selectedFields.length === 0 ? "var(--color-surface-strong)" : "var(--color-primary)",
-                color: isGenerating || selectedFields.length === 0 ? "var(--color-muted)" : "#fff",
-                cursor: isGenerating || selectedFields.length === 0 ? "not-allowed" : "pointer",
+                borderRadius: "8px",
+                backgroundColor: isGenerating || !canGenerate ? "#f3f4f6" : "#1f4fd8",
+                color: isGenerating || !canGenerate ? "#9ca3af" : "#ffffff",
+                cursor: isGenerating || !canGenerate ? "not-allowed" : "pointer",
                 opacity: isGenerating ? 0.7 : 1,
-                transition: "all var(--transition-fast)",
+                transition: "all 0.15s ease",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
               }}
               onMouseEnter={(e) => {
-                if (!isGenerating && selectedFields.length > 0) {
-                  e.currentTarget.style.backgroundColor = "var(--color-primary-hover)"
+                if (!isGenerating && canGenerate) {
+                  e.currentTarget.style.backgroundColor = "#1a43b8"
                 }
               }}
               onMouseLeave={(e) => {
-                if (selectedFields.length > 0 && !isGenerating) {
-                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                if (canGenerate && !isGenerating) {
+                  e.currentTarget.style.backgroundColor = "#1f4fd8"
                 }
               }}
             >
@@ -684,12 +669,6 @@ function BulkGenerateAllModal({
             </button>
           </div>
         </div>
-
-        <style>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     </div>
   )
@@ -797,6 +776,7 @@ function _ProductRow({
   delay = 0,
   isSelected = false,
   onToggleSelect,
+  isGenerating = false,
 }: {
   audit: {
     id: string
@@ -812,6 +792,7 @@ function _ProductRow({
   delay?: number
   isSelected?: boolean
   onToggleSelect?: () => void
+  isGenerating?: boolean
 }) {
   const [isHovered, setIsHovered] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -950,20 +931,49 @@ function _ProductRow({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontWeight: 500,
-              fontSize: "14px",
-              color: "var(--color-text)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
               marginBottom: "4px",
             }}
           >
-            {audit.productTitle}
+            <div
+              style={{
+                fontWeight: 500,
+                fontSize: "14px",
+                color: "var(--color-text)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {audit.productTitle}
+            </div>
+            {isGenerating && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    border: "2px solid #1f4fd8",
+                    borderRightColor: "transparent",
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite",
+                  }}
+                />
+              </div>
+            )}
           </div>
           {/* Mini progress bar */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <div
+              className="hide-on-mobile"
               style={{
                 width: "80px",
                 height: "3px",
@@ -983,6 +993,7 @@ function _ProductRow({
               />
             </div>
             <span
+              className="hide-on-mobile"
               style={{
                 fontSize: "12px",
                 color: "var(--color-muted)",
@@ -996,6 +1007,7 @@ function _ProductRow({
 
         {/* Status Badge */}
         <div
+          className="hide-on-tablet"
           style={{
             padding: "5px 10px",
             borderRadius: "6px",
@@ -1024,10 +1036,10 @@ function _ProductRow({
               >
                 <path d="M20 6L9 17l-5-5" />
               </svg>
-              Ready
+              <span className="hide-on-mobile">Ready</span>
             </>
           ) : (
-            <>{audit.failedCount} to fix</>
+            <><span className="hide-on-mobile">{audit.failedCount} to fix</span><span className="show-on-mobile-only">{audit.failedCount}</span></>
           )}
         </div>
 
@@ -1612,26 +1624,23 @@ function DashboardTour({
           />
         )}
       </div>
-
-      <style>{`
-        @keyframes tooltipFadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        [data-tour-active] {
-          position: relative;
-          z-index: 999;
-        }
-      `}</style>
     </>
   )
+}
+
+// ============================================
+// TanStack Table Column Definitions
+// ============================================
+
+type AuditRow = {
+  id: string
+  productId: string
+  productTitle: string
+  productImage: string | null
+  status: string
+  passedCount: number
+  failedCount: number
+  totalCount: number
 }
 
 // ============================================
@@ -1641,11 +1650,14 @@ function DashboardTour({
 export default function Dashboard() {
   const { stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>()
   const fetcher = useFetcher<typeof action>()
-  const bulkFetcher = useFetcher()
+  const autofixFetcher = useFetcher()
   const navigate = useNavigate()
+  const revalidator = useRevalidator()
   const shopify = useAppBridge()
   const [filter, _setFilter] = useState<"all" | "ready" | "incomplete">("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 20
   const [isScanning, setIsScanning] = useState(false)
   const [sortBy, setSortBy] = useState<"most-fixes" | "least-fixes" | "highest-score" | "lowest-score">("most-fixes")
   const [showSortDropdown, setShowSortDropdown] = useState(false)
@@ -1668,6 +1680,12 @@ export default function Dashboard() {
   const [selectedBulkFields, setSelectedBulkFields] = useState<string[]>([])
   const [bulkFieldOptions, setBulkFieldOptions] = useState<Record<string, string[]>>({})
   const [isGeneratingBulk, setIsGeneratingBulk] = useState(false)
+  const [generatingProductIds, setGeneratingProductIds] = useState<Set<string>>(new Set())
+  const [currentlyProcessingId, setCurrentlyProcessingId] = useState<string | null>(null)
+  const [completedProductIds, setCompletedProductIds] = useState<Set<string>>(new Set())
+
+  // Autofix state
+  const [fixingProductId, setFixingProductId] = useState<string | null>(null)
 
   // Monitoring modal state (Pro only)
   const [showMonitoringModal, setShowMonitoringModal] = useState(false)
@@ -1714,22 +1732,6 @@ export default function Dashboard() {
     }
   }, [fetcher.data, shopify])
 
-  // Handle bulk action response
-  useEffect(() => {
-    if (bulkFetcher.state === "idle" && bulkFetcher.data) {
-      const data = bulkFetcher.data as {
-        success?: boolean
-        successCount?: number
-        errorCount?: number
-      }
-      if (data.success) {
-        shopify.toast.show(`Bulk fix complete: ${data.successCount} succeeded, ${data.errorCount} failed`)
-        setSelectedProducts(new Set())
-        setShowBulkModal(false)
-        setBulkProgress(null)
-      }
-    }
-  }, [bulkFetcher.state, bulkFetcher.data, shopify])
 
   // Animated progress for catalog health
   const [animatedPercent, setAnimatedPercent] = useState(0)
@@ -1750,6 +1752,21 @@ export default function Dashboard() {
     requestAnimationFrame(animate)
   }, [stats.readyCount, stats.totalAudited])
 
+  // Handle autofix completion
+  useEffect(() => {
+    if (autofixFetcher.state === "idle" && autofixFetcher.data && fixingProductId) {
+      setFixingProductId(null)
+      revalidator.revalidate()
+      
+      const data = autofixFetcher.data as { success: boolean; message: string }
+      if (data.success) {
+        shopify.toast.show(data.message || "Fixes applied")
+      } else {
+        shopify.toast.show(data.message || "No fixes available", { isError: true })
+      }
+    }
+  }, [autofixFetcher.state, autofixFetcher.data, fixingProductId, revalidator, shopify])
+
   // Selection handlers
   const toggleProductSelection = (productId: string) => {
     setSelectedProducts((prev) => {
@@ -1764,7 +1781,7 @@ export default function Dashboard() {
   }
 
   const selectAllVisible = () => {
-    const visibleIds = filteredAudits.map((a) => a.productId)
+    const visibleIds = paginatedAudits.map((a) => a.productId)
     setSelectedProducts(new Set(visibleIds))
   }
 
@@ -1772,19 +1789,75 @@ export default function Dashboard() {
     setSelectedProducts(new Set())
   }
 
-  const executeBulkAction = (action: string) => {
+  const executeBulkAction = async (action: string, options?: Record<string, any>) => {
     if (selectedProducts.size === 0) return
 
     setBulkAction(action)
     setBulkProgress({ current: 0, total: selectedProducts.size })
+    setGeneratingProductIds(new Set(selectedProducts))
+    setShowBulkDropdown(false)
+    setIsGeneratingBulk(true)
 
-    bulkFetcher.submit(
-      {
-        intent: action,
-        productIds: JSON.stringify(Array.from(selectedProducts)),
-      },
-      { method: "POST", action: "/api/bulk-fix" }
-    )
+    const formData = new FormData()
+    formData.append("intent", action)
+    formData.append("productIds", JSON.stringify(Array.from(selectedProducts)))
+    if (options?.selectedFields) {
+      formData.append("selectedFields", JSON.stringify(options.selectedFields))
+    }
+    if (options?.fieldOptions) {
+      formData.append("fieldOptions", JSON.stringify(options.fieldOptions))
+    }
+
+    try {
+      const response = await fetch("/api/bulk-fix", { method: "POST", body: formData })
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error("No response stream")
+
+      const decoder = new TextDecoder()
+      let buffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n\n")
+        buffer = lines.pop() || ""
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          const data = JSON.parse(line.slice(6))
+
+          if (data.type === "processing") {
+            setCurrentlyProcessingId(data.productId)
+          } else if (data.type === "progress") {
+            setBulkProgress({ current: data.processed, total: data.total })
+            setCompletedProductIds((prev) => new Set([...prev, data.productId]))
+            setCurrentlyProcessingId(null)
+          } else if (data.type === "complete") {
+            shopify.toast.show(`Bulk fix complete: ${data.successCount} succeeded, ${data.errorCount} failed`)
+            setSelectedProducts(new Set())
+            setShowBulkModal(false)
+            setBulkProgress(null)
+            setIsGeneratingBulk(false)
+            setSelectedBulkFields([])
+            setBulkFieldOptions({})
+            setGeneratingProductIds(new Set())
+            setCurrentlyProcessingId(null)
+            setCompletedProductIds(new Set())
+            revalidator.revalidate()
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Bulk action error:", e)
+      shopify.toast.show("Bulk action failed")
+      setBulkProgress(null)
+      setIsGeneratingBulk(false)
+      setGeneratingProductIds(new Set())
+      setCurrentlyProcessingId(null)
+      setCompletedProductIds(new Set())
+    }
   }
 
   const filteredAudits = useMemo(() => {
@@ -1820,19 +1893,33 @@ export default function Dashboard() {
     })
   }, [audits, filter, searchQuery, sortBy])
 
+  // Pagination
+  const totalPages = Math.ceil(filteredAudits.length / ITEMS_PER_PAGE)
+  const paginatedAudits = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredAudits.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredAudits, currentPage, ITEMS_PER_PAGE])
+
+  // Reset to page 1 when filter/search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter, searchQuery, sortBy])
+
   const _completionPercent = stats.totalAudited > 0 ? Math.round((stats.readyCount / stats.totalAudited) * 100) : 0
 
   return (
     <>
       <div
-        className="dashboard-no-scroll"
+        className="dashboard-scroll"
         style={{
           flex: 1,
           background: "#fafbfc",
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden",
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif",
+          height: "calc(100vh - 60px)",
+          maxHeight: "calc(100vh - 60px)",
+          overflow: "hidden",
         }}
       >
         {/* Main Content - 2 Column Layout */}
@@ -1840,87 +1927,27 @@ export default function Dashboard() {
           className="dashboard-grid"
           style={{
             display: "grid",
+            gridTemplateColumns: "1fr 340px",
+            gridTemplateRows: "1fr",
             gap: "24px",
+            padding: "24px 32px 32px",
             flex: 1,
             minHeight: 0,
-            padding: "24px 32px",
+            overflow: "hidden",
           }}
         >
-          <style>{`
-          .dashboard-grid {
-            grid-template-columns: 2fr 1fr;
-            grid-template-rows: 1fr;
-            height: 100%;
-            overflow: hidden;
-          }
-          .products-table-header,
-          .products-table-row {
-            grid-template-columns: 28px 28px 1fr 90px 160px 120px;
-          }
-          @media (max-width: 900px) {
-            .dashboard-no-scroll {
-              flex: none !important;
-              overflow: auto !important;
-              min-height: 100%;
-            }
-            .dashboard-grid {
-              grid-template-columns: 1fr;
-              grid-template-rows: auto;
-              height: auto;
-              overflow: visible;
-              padding: 16px !important;
-              flex: none;
-            }
-            .dashboard-grid > div:last-child {
-              order: -1;
-            }
-            .dashboard-grid > div:first-child {
-              min-height: auto;
-              overflow: visible;
-            }
-            .products-scroll-container {
-              overflow: visible !important;
-              height: auto !important;
-              flex: none !important;
-            }
-          }
-          @media (max-width: 768px) {
-            .products-table-header,
-            .products-table-row {
-              grid-template-columns: 28px 28px 1fr 70px 100px;
-            }
-            .products-table-header > div:nth-child(5),
-            .products-table-row > div:nth-child(5) {
-              display: none;
-            }
-          }
-          @media (max-width: 600px) {
-            .products-table-header,
-            .products-table-row {
-              grid-template-columns: 28px 1fr 70px;
-            }
-            .products-table-header > div:nth-child(2),
-            .products-table-row > div:nth-child(2),
-            .products-table-header > div:nth-child(6),
-            .products-table-row > div:nth-child(6) {
-              display: none;
-            }
-          }
-        `}</style>
-
           {/* Left: Products Table */}
           <div
             data-tour-products-table
             style={{
               background: "#fff",
               border: "1px solid #e4e4e7",
-              borderRadius: "10px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              borderRadius: "12px",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
               display: "flex",
               flexDirection: "column",
-              minHeight: 0,
-              height: "100%",
               overflow: "hidden",
+              minHeight: 0,
             }}
           >
             {/* Card Header with Title, Search, Sync */}
@@ -2153,8 +2180,8 @@ export default function Dashboard() {
                 flexShrink: 0,
               }}
             >
-              <div />
-              <div style={{ display: "flex", alignItems: "center" }}>
+              <div className="col-expand" />
+              <div className="col-checkbox" style={{ display: "flex", alignItems: "center" }}>
                 <input
                   type="checkbox"
                   checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
@@ -2174,6 +2201,7 @@ export default function Dashboard() {
                 />
               </div>
               <div
+                className="col-product"
                 style={{
                   fontSize: "11px",
                   fontWeight: 500,
@@ -2185,6 +2213,7 @@ export default function Dashboard() {
                 Product
               </div>
               <div
+                className="col-status"
                 style={{
                   fontSize: "11px",
                   fontWeight: 500,
@@ -2196,6 +2225,7 @@ export default function Dashboard() {
                 Status
               </div>
               <div
+                className="col-score"
                 style={{
                   fontSize: "11px",
                   fontWeight: 500,
@@ -2207,6 +2237,7 @@ export default function Dashboard() {
                 Score
               </div>
               <div
+                className="col-issues"
                 style={{
                   fontSize: "11px",
                   fontWeight: 500,
@@ -2221,8 +2252,14 @@ export default function Dashboard() {
             </div>
 
             {/* Table Rows */}
-            <div className="products-scroll-container" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-              {filteredAudits.length === 0 ? (
+            <div className="products-list-container" style={{ 
+              flex: 1, 
+              overflow: "auto",
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}>
+              {paginatedAudits.length === 0 ? (
                 <div style={{ padding: "80px 20px", textAlign: "center" }}>
                   <div style={{ marginBottom: "12px" }}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" strokeWidth="1.5">
@@ -2241,16 +2278,20 @@ export default function Dashboard() {
                   </p>
                 </div>
               ) : (
-                filteredAudits.map((audit, idx) => {
+                <div>
+                {paginatedAudits.map((audit, idx) => {
                   const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
                   const isSelected = selectedProducts.has(audit.productId)
                   const isExpanded = expandedRows.has(audit.id)
+                  const isQueued = generatingProductIds.has(audit.productId)
+                  const isProcessing = currentlyProcessingId === audit.productId
+                  const isCompleted = completedProductIds.has(audit.productId)
 
                   return (
                     <div
                       key={audit.id}
                       style={{
-                        borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none",
+                        borderBottom: idx < paginatedAudits.length - 1 ? "1px solid #f4f4f5" : "none",
                       }}
                     >
                       {/* Main Row */}
@@ -2283,6 +2324,7 @@ export default function Dashboard() {
                       >
                         {/* Expand Arrow */}
                         <div
+                          className="col-expand"
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -2306,7 +2348,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Checkbox */}
-                        <div style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="col-checkbox" style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -2322,14 +2364,17 @@ export default function Dashboard() {
 
                         {/* Product */}
                         <div
+                          className="col-product"
                           style={{
                             display: "flex",
                             alignItems: "center",
                             gap: "12px",
                             minWidth: 0,
+                            overflow: "hidden",
                           }}
                         >
                           <div
+                            className="hide-on-tablet"
                             style={{
                               width: "36px",
                               height: "36px",
@@ -2374,24 +2419,60 @@ export default function Dashboard() {
                               </div>
                             )}
                           </div>
-                          <span
+                          <div
                             style={{
-                              fontSize: "13px",
-                              fontWeight: 500,
-                              color: "#252F2C",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              minWidth: 0,
                               overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              fontFamily: "inherit",
+                              flex: 1,
                             }}
                           >
-                            {audit.productTitle}
-                          </span>
+                            <span
+                              className="product-title-text"
+                              style={{
+                                fontSize: "13px",
+                                fontWeight: 500,
+                                color: "#252F2C",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                fontFamily: "inherit",
+                                flex: 1,
+                                minWidth: 0,
+                              }}
+                            >
+                              {audit.productTitle}
+                            </span>
+                            {isProcessing && (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                                <div
+                                  style={{
+                                    width: "14px",
+                                    height: "14px",
+                                    border: "2px solid #1f4fd8",
+                                    borderRightColor: "transparent",
+                                    borderRadius: "50%",
+                                    animation: "spin 1s linear infinite",
+                                  }}
+                                />
+                                <span style={{ fontSize: "11px", color: "#1f4fd8", fontWeight: 500 }}>Processing</span>
+                              </div>
+                            )}
+                            {isQueued && !isProcessing && !isCompleted && (
+                              <span style={{ fontSize: "11px", color: "#71717a", fontWeight: 500, flexShrink: 0 }}>Queued</span>
+                            )}
+                            {isCompleted && isQueued && (
+                              <span style={{ fontSize: "11px", color: "#059669", fontWeight: 500, flexShrink: 0 }}>Done</span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Status */}
-                        <div data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
+                        <div className="col-status" data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
                           <span
+                            className="status-badge"
                             style={{
                               padding: "3px 8px",
                               borderRadius: "4px",
@@ -2400,6 +2481,7 @@ export default function Dashboard() {
                               background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
                               color: audit.status === "ready" ? "#059669" : "#8B7500",
                               border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
+                              whiteSpace: "nowrap",
                             }}
                           >
                             {audit.status === "ready" ? "Ready" : "Pending"}
@@ -2408,6 +2490,7 @@ export default function Dashboard() {
 
                         {/* Score */}
                         <div
+                          className="col-score"
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -2415,6 +2498,7 @@ export default function Dashboard() {
                           }}
                         >
                           <div
+                            className="hide-on-mobile"
                             style={{
                               flex: 1,
                               height: "6px",
@@ -2449,6 +2533,7 @@ export default function Dashboard() {
 
                         {/* Issues + View Details */}
                         <div
+                          className="col-issues"
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -2474,6 +2559,7 @@ export default function Dashboard() {
                               e.stopPropagation()
                               navigate(`/app/products/${audit.productId.split("/").pop()}`)
                             }}
+                            className="view-details-btn"
                             style={{
                               padding: "4px 8px",
                               fontSize: "11px",
@@ -2485,6 +2571,9 @@ export default function Dashboard() {
                               cursor: "pointer",
                               transition: "all 0.15s",
                               whiteSpace: "nowrap",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#f4f4f5"
@@ -2495,7 +2584,10 @@ export default function Dashboard() {
                               e.currentTarget.style.borderColor = "#e4e4e7"
                             }}
                           >
-                            View Details
+                            <span className="hide-tablet">View</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M9 18l6-6-6-6" />
+                            </svg>
                           </button>
                         </div>
                       </div>
@@ -2935,46 +3027,6 @@ export default function Dashboard() {
                                             </div>
                                           ))}
                                       </div>
-                                      <style>{`
-                                  details {
-                                    overflow: hidden;
-                                  }
-                                  details[open] summary svg {
-                                    transform: rotate(180deg);
-                                  }
-                                  details > div {
-                                    animation: slideDown 0.3s ease forwards;
-                                    margin-top: 8px;
-                                  }
-                                  details:not([open]) > div {
-                                    animation: slideUp 0.3s ease forwards;
-                                    margin-top: 0;
-                                  }
-                                  @keyframes slideDown {
-                                    from {
-                                      opacity: 0;
-                                      transform: translateY(-8px);
-                                      max-height: 0;
-                                    }
-                                    to {
-                                      opacity: 1;
-                                      transform: translateY(0);
-                                      max-height: 500px;
-                                    }
-                                  }
-                                  @keyframes slideUp {
-                                    from {
-                                      opacity: 1;
-                                      transform: translateY(0);
-                                      max-height: 500px;
-                                    }
-                                    to {
-                                      opacity: 0;
-                                      transform: translateY(-8px);
-                                      max-height: 0;
-                                    }
-                                  }
-                                `}</style>
                                     </details>
                                   )}
                                 </div>
@@ -3019,8 +3071,14 @@ export default function Dashboard() {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          navigate(`/app/products/${audit.productId.split("/").pop()}?autoFix=true`)
+                                          const productIdShort = audit.productId.split("/").pop()
+                                          setFixingProductId(audit.productId)
+                                          autofixFetcher.submit(
+                                            { intent: "fix_all" },
+                                            { method: "POST", action: `/api/products/${productIdShort}/autofix` }
+                                          )
                                         }}
+                                        disabled={fixingProductId === audit.productId}
                                         style={{
                                           width: "100%",
                                           padding: "10px",
@@ -3030,31 +3088,45 @@ export default function Dashboard() {
                                           borderRadius: "6px",
                                           fontSize: "var(--text-sm)",
                                           fontWeight: 500,
-                                          cursor: "pointer",
+                                          cursor: fixingProductId === audit.productId ? "not-allowed" : "pointer",
                                           display: "flex",
                                           alignItems: "center",
                                           justifyContent: "center",
                                           gap: "6px",
                                           transition: "all 0.15s",
+                                          opacity: fixingProductId === audit.productId ? 0.6 : 1,
                                         }}
                                         onMouseEnter={(e) => {
-                                          e.currentTarget.style.background = "#fef2f2"
+                                          if (fixingProductId !== audit.productId) e.currentTarget.style.background = "#fef2f2"
                                         }}
                                         onMouseLeave={(e) => {
                                           e.currentTarget.style.background = "#fff"
                                         }}
                                       >
-                                        <svg
-                                          width="14"
-                                          height="14"
-                                          viewBox="0 0 24 24"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          strokeWidth="2"
-                                        >
-                                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                                        </svg>
-                                        Fix
+                                        {fixingProductId === audit.productId ? (
+                                          <div
+                                            style={{
+                                              width: "14px",
+                                              height: "14px",
+                                              border: "2px solid #B53D3D",
+                                              borderRightColor: "transparent",
+                                              borderRadius: "50%",
+                                              animation: "spin 1s linear infinite",
+                                            }}
+                                          />
+                                        ) : (
+                                          <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                          >
+                                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                          </svg>
+                                        )}
+                                        {fixingProductId === audit.productId ? "Fixing..." : "Fix"}
                                       </button>
                                     ) : (
                                       <div
@@ -3149,8 +3221,65 @@ export default function Dashboard() {
                     </div>
                   )
                 })
+                }
+                </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 20px",
+                  borderTop: "1px solid #e4e4e7",
+                  background: "#fafafa",
+                  flexShrink: 0,
+                }}
+              >
+                <span style={{ fontSize: "13px", color: "#71717a" }}>
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAudits.length)} of {filteredAudits.length}
+                </span>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      background: "#fff",
+                      color: currentPage === 1 ? "#a1a1aa" : "#252F2C",
+                      cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      background: "#fff",
+                      color: currentPage === totalPages ? "#a1a1aa" : "#252F2C",
+                      cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right: Catalog Score Card */}
@@ -3159,12 +3288,24 @@ export default function Dashboard() {
               display: "flex",
               flexDirection: "column",
               gap: "24px",
-              overflow: "hidden",
+              alignSelf: "start",
+              position: "sticky",
+              top: "24px",
             }}
           >
+            <div
+              style={{
+                position: "sticky",
+                top: "24px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "24px",
+              }}
+            >
             {/* Overall Score Card */}
             <div
               style={{
+                position: "relative",
                 background: "#fff",
                 border: "1px solid #e4e4e7",
                 borderRadius: "12px",
@@ -3180,8 +3321,8 @@ export default function Dashboard() {
                   fontSize: "var(--text-xs)",
                   fontWeight: 500,
                   color: "#71717a",
-                  textTransform: "uppercase",
                   letterSpacing: "0.05em",
+                  textTransform: "uppercase",
                   marginBottom: "20px",
                 }}
               >
@@ -3198,9 +3339,7 @@ export default function Dashboard() {
                 }}
               >
                 <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
-                  {/* Background circle */}
                   <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
-                  {/* Progress circle */}
                   <circle
                     cx="60"
                     cy="60"
@@ -3212,7 +3351,7 @@ export default function Dashboard() {
                     strokeLinecap="round"
                   />
                 </svg>
-                {/* Center text */}
+
                 <div
                   style={{
                     position: "absolute",
@@ -3242,6 +3381,79 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              <div
+                style={{
+                  fontSize: "var(--text-sm)",
+                  color: "#71717a",
+                  textAlign: "center",
+                  marginBottom: "16px",
+                }}
+              >
+                {stats.totalAudited > 0
+                  ? `${stats.readyCount} of ${stats.totalAudited} products`
+                  : "No products synced yet"}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  width: "100%",
+                  justifyContent: "space-between",
+                  paddingTop: "16px",
+                  borderTop: "1px solid #f4f4f5",
+                }}
+              >
+                {[
+                  {
+                    label: "Ready",
+                    value: stats.readyCount,
+                    color: "#059669",
+                  },
+                  {
+                    label: "Needs attention",
+                    value: stats.incompleteCount,
+                    color: "#f97316",
+                  },
+                  {
+                    label: "Avg",
+                    value: `${stats.avgCompletion}%`,
+                    color: "#465A54",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "2px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "var(--text-xs)",
+                        color: "#94a3b8",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: 600,
+                        color: item.color,
+                      }}
+                    >
+                      {item.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
             </div>
           </div>
         </div>
@@ -3310,16 +3522,16 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => executeBulkAction("generate_tags")}
-                disabled={bulkFetcher.state !== "idle"}
+                disabled={isGeneratingBulk}
                 style={{
                   padding: "8px 16px",
-                  background: bulkFetcher.state !== "idle" ? "#f4f4f5" : "#465A54",
+                  background: isGeneratingBulk ? "#f4f4f5" : "#465A54",
                   border: "none",
                   borderRadius: "6px",
                   fontSize: "13px",
                   fontWeight: 500,
-                  color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#fff",
-                  cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                  color: isGeneratingBulk ? "#a1a1aa" : "#fff",
+                  cursor: isGeneratingBulk ? "not-allowed" : "pointer",
                   transition: "all 0.15s ease",
                   whiteSpace: "nowrap",
                   display: "flex",
@@ -3327,12 +3539,12 @@ export default function Dashboard() {
                   gap: "6px",
                 }}
                 onMouseEnter={(e) => {
-                  if (bulkFetcher.state === "idle") {
+                  if (!isGeneratingBulk) {
                     e.currentTarget.style.background = "#3d4e49"
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (bulkFetcher.state === "idle") {
+                  if (!isGeneratingBulk) {
                     e.currentTarget.style.background = "#465A54"
                   }
                 }}
@@ -3347,7 +3559,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => executeBulkAction("generate_seo_desc")}
-                disabled={bulkFetcher.state !== "idle"}
+                disabled={isGeneratingBulk}
                 style={{
                   padding: "8px 16px",
                   background: "transparent",
@@ -3355,8 +3567,8 @@ export default function Dashboard() {
                   borderRadius: "6px",
                   fontSize: "13px",
                   fontWeight: 500,
-                  color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#252F2C",
-                  cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                  color: isGeneratingBulk ? "#a1a1aa" : "#252F2C",
+                  cursor: isGeneratingBulk ? "not-allowed" : "pointer",
                   transition: "all 0.15s ease",
                   whiteSpace: "nowrap",
                   display: "flex",
@@ -3364,7 +3576,7 @@ export default function Dashboard() {
                   gap: "6px",
                 }}
                 onMouseEnter={(e) => {
-                  if (bulkFetcher.state === "idle") {
+                  if (!isGeneratingBulk) {
                     e.currentTarget.style.background = "#f4f4f5"
                     e.currentTarget.style.borderColor = "#d4d4d8"
                   }
@@ -3381,41 +3593,6 @@ export default function Dashboard() {
                 SEO
               </button>
 
-              <button
-                type="button"
-                onClick={() => executeBulkAction("generate_alt_text")}
-                disabled={bulkFetcher.state !== "idle"}
-                style={{
-                  padding: "8px 16px",
-                  background: "transparent",
-                  border: "none",
-                  borderRadius: "10px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: bulkFetcher.state !== "idle" ? "var(--color-muted)" : "var(--color-text)",
-                  cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                  transition: "all 0.15s ease",
-                  whiteSpace: "nowrap",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-                onMouseEnter={(e) => {
-                  if (bulkFetcher.state === "idle") {
-                    e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent"
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
-                </svg>
-                Images
-              </button>
 
               {/* More Actions Dropdown */}
               <div style={{ position: "relative" }}>
@@ -3488,7 +3665,7 @@ export default function Dashboard() {
                         executeBulkAction("generate_seo_desc")
                         setShowBulkDropdown(false)
                       }}
-                      disabled={bulkFetcher.state !== "idle"}
+                      disabled={isGeneratingBulk}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -3497,13 +3674,13 @@ export default function Dashboard() {
                         color: "#252F2C",
                         fontSize: "13px",
                         fontWeight: 500,
-                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
                         textAlign: "left",
                         transition: "background 0.15s",
-                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                        opacity: isGeneratingBulk ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
-                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent"
@@ -3514,39 +3691,10 @@ export default function Dashboard() {
                     <button
                       type="button"
                       onClick={() => {
-                        executeBulkAction("generate_alt_text")
-                        setShowBulkDropdown(false)
-                      }}
-                      disabled={bulkFetcher.state !== "idle"}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#252F2C",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                        textAlign: "left",
-                        transition: "background 0.15s",
-                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      Image Alt Text
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
                         executeBulkAction("generate_seo_title")
                         setShowBulkDropdown(false)
                       }}
-                      disabled={bulkFetcher.state !== "idle"}
+                      disabled={isGeneratingBulk}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -3555,13 +3703,13 @@ export default function Dashboard() {
                         color: "#252F2C",
                         fontSize: "13px",
                         fontWeight: 500,
-                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
                         textAlign: "left",
                         transition: "background 0.15s",
-                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                        opacity: isGeneratingBulk ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
-                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent"
@@ -3591,7 +3739,7 @@ export default function Dashboard() {
                         executeBulkAction("generate_tags")
                         setShowBulkDropdown(false)
                       }}
-                      disabled={bulkFetcher.state !== "idle"}
+                      disabled={isGeneratingBulk}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -3600,13 +3748,13 @@ export default function Dashboard() {
                         color: "#252F2C",
                         fontSize: "13px",
                         fontWeight: 500,
-                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
                         textAlign: "left",
                         transition: "background 0.15s",
-                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                        opacity: isGeneratingBulk ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
-                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent"
@@ -3620,7 +3768,7 @@ export default function Dashboard() {
                         executeBulkAction("apply_collection")
                         setShowBulkDropdown(false)
                       }}
-                      disabled={bulkFetcher.state !== "idle"}
+                      disabled={isGeneratingBulk}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -3629,13 +3777,13 @@ export default function Dashboard() {
                         color: "#252F2C",
                         fontSize: "13px",
                         fontWeight: 500,
-                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
                         textAlign: "left",
                         transition: "background 0.15s",
-                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                        opacity: isGeneratingBulk ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
-                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent"
@@ -3651,7 +3799,7 @@ export default function Dashboard() {
                         setShowGenerateAllModal(true)
                         setShowBulkDropdown(false)
                       }}
-                      disabled={bulkFetcher.state !== "idle"}
+                      disabled={isGeneratingBulk}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -3660,13 +3808,13 @@ export default function Dashboard() {
                         color: "#252F2C",
                         fontSize: "13px",
                         fontWeight: 500,
-                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
                         textAlign: "left",
                         transition: "background 0.15s",
-                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                        opacity: isGeneratingBulk ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
-                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent"
@@ -4173,15 +4321,22 @@ export default function Dashboard() {
       {/* Bulk Generate All Modal - Outside main container to avoid overflow clipping */}
       <BulkGenerateAllModal
         isOpen={showGenerateAllModal}
-        onClose={() => setShowGenerateAllModal(false)}
+        onClose={() => {
+          setShowGenerateAllModal(false)
+          setShowBulkDropdown(false)
+        }}
         selectedFields={selectedBulkFields}
         onFieldToggle={(field) => {
           setSelectedBulkFields((prev) => (prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]))
         }}
         onGenerate={() => {
-          if (selectedBulkFields.length === 0) return
+          const hasFieldOptions = Object.values(bulkFieldOptions).some((options) => options.length > 0)
+          if (selectedBulkFields.length === 0 && !hasFieldOptions) return
           setIsGeneratingBulk(true)
-          executeBulkAction("generate_all")
+          executeBulkAction("generate_all", {
+            selectedFields: selectedBulkFields,
+            fieldOptions: bulkFieldOptions,
+          })
           setShowGenerateAllModal(false)
         }}
         isGenerating={isGeneratingBulk}

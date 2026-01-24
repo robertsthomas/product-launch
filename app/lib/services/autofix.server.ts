@@ -130,24 +130,25 @@ async function fixSeoDescription(
 
 /**
  * Auto-fix: Add alt text to images using product title
+ * Uses media nodes (MediaImage IDs) for the mutation, not images (ProductImage IDs)
  */
 async function fixImageAltText(product: Product, admin: AdminGraphQL): Promise<{ success: boolean; message: string }> {
-  const images = product.images?.nodes ?? []
-  const imagesWithoutAlt = images.filter((img) => !img.altText?.trim())
+  const mediaNodes = product.media?.nodes ?? []
+  const imageMedia = mediaNodes.filter((m) => m.mediaContentType === "IMAGE" && !m.alt?.trim())
 
-  if (imagesWithoutAlt.length === 0) {
+  if (imageMedia.length === 0) {
     return { success: true, message: "All images already have alt text" }
   }
 
   let fixed = 0
-  for (let i = 0; i < imagesWithoutAlt.length; i++) {
-    const image = imagesWithoutAlt[i]
+  for (let i = 0; i < imageMedia.length; i++) {
+    const media = imageMedia[i]
     const altText = i === 0 ? product.title : `${product.title} - Image ${i + 1}`
 
     const response = await admin.graphql(
       `#graphql
-      mutation UpdateProductImage($productId: ID!, $image: ImageInput!) {
-        productUpdateMedia(productId: $productId, media: [{ id: $image.id, alt: $image.altText }]) {
+      mutation UpdateMediaAlt($productId: ID!, $mediaId: ID!, $alt: String!) {
+        productUpdateMedia(productId: $productId, media: [{ id: $mediaId, alt: $alt }]) {
           media {
             ... on MediaImage {
               id
@@ -163,10 +164,8 @@ async function fixImageAltText(product: Product, admin: AdminGraphQL): Promise<{
       {
         variables: {
           productId: product.id,
-          image: {
-            id: image.id,
-            altText,
-          },
+          mediaId: media.id,
+          alt: altText,
         },
       }
     )
@@ -181,7 +180,7 @@ async function fixImageAltText(product: Product, admin: AdminGraphQL): Promise<{
 
   return {
     success: fixed > 0,
-    message: `Added alt text to ${fixed} of ${imagesWithoutAlt.length} images`,
+    message: `Added alt text to ${fixed} of ${imageMedia.length} images`,
   }
 }
 
