@@ -290,15 +290,13 @@ function BulkGenerateAllModal({
         left: 0,
         right: 0,
         bottom: 0,
-        width: "100vw",
-        height: "100vh",
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        backgroundColor: "rgba(45, 42, 38, 0.4)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 9999,
         padding: "20px",
-        boxSizing: "border-box",
+        backdropFilter: "blur(4px)",
       }}
       onClick={onClose}
       tabIndex={-1}
@@ -307,13 +305,13 @@ function BulkGenerateAllModal({
       <div
         className="animate-scale-in"
         style={{
-          backgroundColor: "#ffffff",
-          borderRadius: "12px",
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "var(--radius-xl)",
           width: "100%",
           maxWidth: "500px",
           maxHeight: "70vh",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-          border: "1px solid #e5e7eb",
+          boxShadow: "var(--shadow-elevated)",
+          border: "1px solid var(--color-border)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -387,39 +385,91 @@ function BulkGenerateAllModal({
                 }}
                 style={{
                   width: "100%",
-                  padding: "12px 24px",
-                  border: "none",
-                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border-subtle)" : "none",
-                  background: "transparent",
-                  color: "var(--color-text)",
-                  fontSize: "14px",
-                  fontWeight: 500,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  padding: "16px 20px",
+                  border: "none",
+                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
+                  background: (
+                    field.hasOptions
+                      ? (fieldOptions[field.key]?.length || 0) > 0
+                      : selectedFields.includes(field.key)
+                  )
+                    ? "var(--color-primary-soft)"
+                    : "transparent",
                   cursor: "pointer",
-                  transition: "background 0.15s ease",
-                  textAlign: "left",
+                  transition: "all var(--transition-fast)",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--color-surface-elevated)"
+                  const isSelected = field.hasOptions
+                    ? (fieldOptions[field.key]?.length || 0) > 0
+                    : selectedFields.includes(field.key)
+                  if (!isSelected) {
+                    e.currentTarget.style.background = "var(--color-surface-strong)"
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent"
+                  const isSelected = field.hasOptions
+                    ? (fieldOptions[field.key]?.length || 0) > 0
+                    : selectedFields.includes(field.key)
+                  e.currentTarget.style.background = isSelected ? "var(--color-primary-soft)" : "transparent"
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    flex: 1,
+                    textAlign: "left",
+                  }}
+                >
                   <input
                     type="checkbox"
-                    checked={selectedFields.includes(field.key)}
-                    onChange={(e) => e.stopPropagation()}
+                    checked={
+                      field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)
+                    }
+                    onChange={(e) => {
+                      e.stopPropagation()
+                      if (field.hasOptions) {
+                        // For fields with options, checkbox controls the options selection
+                        const currentOptions = fieldOptions[field.key] || []
+                        const allOptions = field.options?.map((opt) => opt.key) || []
+                        if (currentOptions.length > 0) {
+                          // If any options are selected, deselect all
+                          setFieldOptions((prev) => ({
+                            ...prev,
+                            [field.key]: [],
+                          }))
+                        } else {
+                          // If no options are selected, select all
+                          setFieldOptions((prev) => ({
+                            ...prev,
+                            [field.key]: allOptions,
+                          }))
+                        }
+                      } else {
+                        onFieldToggle(field.key)
+                      }
+                    }}
                     onClick={(e) => e.stopPropagation()}
                     style={{
-                      cursor: "pointer",
+                      width: "16px",
+                      height: "16px",
                       accentColor: "var(--color-primary)",
+                      cursor: "pointer",
                     }}
                   />
-                  <span>{field.label}</span>
+                  <span
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
+                      color: "var(--color-text)",
+                    }}
+                  >
+                    {field.label}
+                  </span>
                 </div>
                 {field.hasOptions && (
                   <svg
@@ -430,74 +480,82 @@ function BulkGenerateAllModal({
                     stroke="currentColor"
                     strokeWidth="2"
                     style={{
-                      transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0)",
-                      transition: "transform 0.15s ease",
+                      transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform var(--transition-fast)",
+                      color: "var(--color-muted)",
                     }}
                   >
-                    <path d="M6 9l6 6 6-6" />
+                    <polyline points="6 9 12 15 18 9" />
                   </svg>
                 )}
               </button>
 
-              {/* Options (for images) */}
-              {field.hasOptions && expandedFields[field.key] && field.options && (
+              {/* Expanded options for fields with multiple choices */}
+              {expandedFields[field.key] && field.hasOptions && field.options && (
                 <div
                   style={{
-                    background: "var(--color-surface-subtle)",
-                    padding: "0",
+                    padding: "12px 20px 16px 48px",
+                    backgroundColor: "var(--color-surface-strong)",
+                    borderBottom: "1px solid var(--color-border)",
                   }}
                 >
-                  {field.options.map((option) => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => {
-                        const currentOptions = fieldOptions[field.key] || []
-                        if (currentOptions.includes(option.key)) {
-                          setFieldOptions((prev) => ({
-                            ...prev,
-                            [field.key]: currentOptions.filter((o) => o !== option.key),
-                          }))
-                        } else {
-                          setFieldOptions((prev) => ({
-                            ...prev,
-                            [field.key]: [...currentOptions, option.key],
-                          }))
-                        }
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "8px 24px 8px 48px",
-                        border: "none",
-                        background: "transparent",
-                        color: "var(--color-text-secondary)",
-                        fontSize: "13px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        cursor: "pointer",
-                        transition: "background 0.15s ease",
-                        textAlign: "left",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "var(--color-surface-strong)"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={(fieldOptions[field.key] || []).includes(option.key)}
-                        onChange={() => {}}
+                  <div
+                    style={{
+                      marginBottom: "8px",
+                      fontSize: "var(--text-xs)",
+                      fontWeight: 500,
+                      color: "var(--color-muted)",
+                    }}
+                  >
+                    Choose what to generate:
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    {field.options.map((option) => (
+                      <label
+                        key={option.key}
                         style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
                           cursor: "pointer",
-                          accentColor: "var(--color-primary)",
+                          fontSize: "var(--text-sm)",
+                          color: "var(--color-text)",
                         }}
-                      />
-                      <span>{option.label}</span>
-                    </button>
-                  ))}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldOptions[field.key]?.includes(option.key) || false}
+                          onChange={(e) => {
+                            const currentOptions = fieldOptions[field.key] || []
+                            if (e.target.checked) {
+                              setFieldOptions((prev) => ({
+                                ...prev,
+                                [field.key]: [...currentOptions, option.key],
+                              }))
+                            } else {
+                              setFieldOptions((prev) => ({
+                                ...prev,
+                                [field.key]: currentOptions.filter((opt) => opt !== option.key),
+                              }))
+                            }
+                          }}
+                          style={{
+                            width: "14px",
+                            height: "14px",
+                            accentColor: "var(--color-primary)",
+                            cursor: "pointer",
+                          }}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -507,99 +565,124 @@ function BulkGenerateAllModal({
         {/* Footer */}
         <div
           style={{
+            padding: "20px 24px",
+            borderTop: "1px solid var(--color-border-subtle)",
             display: "flex",
             gap: "12px",
-            padding: "16px 24px",
-            borderTop: "1px solid var(--color-border-subtle)",
+            justifyContent: "space-between",
+            alignItems: "center",
             background: "transparent",
-            justifyContent: "flex-end",
           }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isGenerating}
-            style={{
-              padding: "10px 16px",
-              border: "1px solid var(--color-border)",
-              borderRadius: "6px",
-              background: "transparent",
-              color: "var(--color-text)",
-              fontSize: "13px",
-              fontWeight: 500,
-              cursor: isGenerating ? "not-allowed" : "pointer",
-              transition: "all 0.15s ease",
-              opacity: isGenerating ? 0.5 : 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!isGenerating) {
-                e.currentTarget.style.background = "var(--color-surface-elevated)"
-                e.currentTarget.style.borderColor = "var(--color-border-strong)"
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent"
-              e.currentTarget.style.borderColor = "var(--color-border)"
-            }}
-          >
-            Cancel
-          </button>
+          {/* Select All / Deselect All */}
           <button
             type="button"
             onClick={() => {
-              onGenerate()
+              if (selectedFields.length === fields.length) {
+                selectedFields.forEach((key) => onFieldToggle(key))
+              } else {
+                fields.forEach((field) => {
+                  if (!selectedFields.includes(field.key)) {
+                    onFieldToggle(field.key)
+                  }
+                })
+              }
             }}
-            disabled={isGenerating || selectedFields.length === 0}
             style={{
-              padding: "10px 16px",
-              border: "none",
-              borderRadius: "6px",
-              background: selectedFields.length === 0 ? "var(--color-surface-strong)" : "var(--color-primary)",
-              color: selectedFields.length === 0 ? "var(--color-muted)" : "#fff",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: isGenerating || selectedFields.length === 0 ? "not-allowed" : "pointer",
-              transition: "all 0.15s ease",
-              opacity: isGenerating ? 0.7 : 1,
               display: "flex",
               alignItems: "center",
               gap: "8px",
+              padding: "10px 16px",
+              fontSize: "var(--text-sm)",
+              fontWeight: 500,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text)",
+              cursor: "pointer",
+              transition: "all var(--transition-fast)",
             }}
             onMouseEnter={(e) => {
-              if (!isGenerating && selectedFields.length > 0) {
-                e.currentTarget.style.background = "var(--color-primary-hover)"
-              }
+              e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"
             }}
             onMouseLeave={(e) => {
-              if (selectedFields.length > 0) {
-                e.currentTarget.style.background = "var(--color-primary)"
-              }
+              e.currentTarget.style.backgroundColor = "var(--color-surface)"
             }}
           >
-            {isGenerating ? (
-              <>
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  style={{ animation: "spin 1s linear infinite" }}
-                >
-                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                </svg>
-                Generating...
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                Generate
-              </>
-            )}
+            {selectedFields.length === fields.length ? "Deselect All" : "Select All"}
           </button>
+
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isGenerating}
+              style={{
+                padding: "10px 20px",
+                fontSize: "var(--text-sm)",
+                fontWeight: 500,
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--color-surface)",
+                color: "var(--color-text)",
+                cursor: isGenerating ? "not-allowed" : "pointer",
+                opacity: isGenerating ? 0.5 : 1,
+                transition: "all var(--transition-fast)",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={isGenerating || selectedFields.length === 0}
+              style={{
+                padding: "10px 20px",
+                fontSize: "var(--text-sm)",
+                fontWeight: 500,
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                backgroundColor:
+                  isGenerating || selectedFields.length === 0 ? "var(--color-surface-strong)" : "var(--color-primary)",
+                color: isGenerating || selectedFields.length === 0 ? "var(--color-muted)" : "#fff",
+                cursor: isGenerating || selectedFields.length === 0 ? "not-allowed" : "pointer",
+                opacity: isGenerating ? 0.7 : 1,
+                transition: "all var(--transition-fast)",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+              onMouseEnter={(e) => {
+                if (!isGenerating && selectedFields.length > 0) {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary-hover)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedFields.length > 0 && !isGenerating) {
+                  e.currentTarget.style.backgroundColor = "var(--color-primary)"
+                }
+              }}
+            >
+              {isGenerating ? (
+                <>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{ animation: "spin 1s linear infinite" }}
+                  >
+                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                "Generate"
+              )}
+            </button>
+          </div>
         </div>
 
         <style>{`
