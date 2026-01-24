@@ -1,7 +1,6 @@
 import { useAppBridge } from "@shopify/app-bridge-react"
-import { boundary } from "@shopify/shopify-app-react-router/server"
 import { useEffect, useMemo, useState } from "react"
-import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router"
 import { useFetcher, useLoaderData, useNavigate } from "react-router"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist"
@@ -294,8 +293,9 @@ function BulkGenerateAllModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 1000,
+        zIndex: 9999,
         padding: "20px",
+        pointerEvents: "auto",
       }}
       onClick={onClose}
       tabIndex={-1}
@@ -314,6 +314,7 @@ function BulkGenerateAllModal({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          pointerEvents: "auto",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1737,29 +1738,30 @@ export default function Dashboard() {
   const _completionPercent = stats.totalAudited > 0 ? Math.round((stats.readyCount / stats.totalAudited) * 100) : 0
 
   return (
-    <div
-      className="dashboard-no-scroll"
-      style={{
-        flex: 1,
-        background: "#fafbfc",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif",
-      }}
-    >
-      {/* Main Content - 2 Column Layout */}
+    <>
       <div
-        className="dashboard-grid"
+        className="dashboard-no-scroll"
         style={{
-          display: "grid",
-          gap: "24px",
           flex: 1,
-          minHeight: 0,
-          padding: "24px 32px",
+          background: "#fafbfc",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif",
         }}
       >
-        <style>{`
+        {/* Main Content - 2 Column Layout */}
+        <div
+          className="dashboard-grid"
+          style={{
+            display: "grid",
+            gap: "24px",
+            flex: 1,
+            minHeight: 0,
+            padding: "24px 32px",
+          }}
+        >
+          <style>{`
           .dashboard-grid {
             grid-template-columns: 2fr 1fr;
             grid-template-rows: 1fr;
@@ -1821,1032 +1823,1034 @@ export default function Dashboard() {
           }
         `}</style>
 
-        {/* Left: Products Table */}
-        <div
-          data-tour-products-table
-          style={{
-            background: "#fff",
-            border: "1px solid #e4e4e7",
-            borderRadius: "10px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-            height: "100%",
-            overflow: "hidden",
-          }}
-        >
-          {/* Card Header with Title, Search, Sync */}
+          {/* Left: Products Table */}
           <div
+            data-tour-products-table
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "16px 20px",
-              borderBottom: "1px solid #e4e4e7",
               background: "#fff",
-              flexShrink: 0,
+              border: "1px solid #e4e4e7",
+              borderRadius: "10px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+              height: "100%",
+              overflow: "hidden",
             }}
           >
-            <h2
+            {/* Card Header with Title, Search, Sync */}
+            <div
               style={{
-                fontSize: "16px",
-                fontWeight: 600,
-                color: "#252F2C",
-                margin: 0,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "16px 20px",
+                borderBottom: "1px solid #e4e4e7",
+                background: "#fff",
+                flexShrink: 0,
               }}
             >
-              Products
-            </h2>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              {/* Search */}
-              <div style={{ position: "relative" }}>
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: "160px",
-                    padding: "6px 10px 6px 32px",
-                    fontSize: "13px",
-                    border: "1px solid #e4e4e7",
-                    borderRadius: "6px",
-                    outline: "none",
-                    background: "#fff",
-                    color: "#252F2C",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#c4c4c7"
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "#e4e4e7"
-                  }}
-                />
-                <svg
-                  style={{
-                    position: "absolute",
-                    left: "10px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                  }}
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#a1a1aa"
-                  strokeWidth="2"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="M21 21l-4.35-4.35" />
-                </svg>
-              </div>
+              <h2
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 600,
+                  color: "#252F2C",
+                  margin: 0,
+                }}
+              >
+                Products
+              </h2>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                {/* Search */}
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: "160px",
+                      padding: "6px 10px 6px 32px",
+                      fontSize: "13px",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      outline: "none",
+                      background: "#fff",
+                      color: "#252F2C",
+                      transition: "border-color 0.15s",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#c4c4c7"
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "#e4e4e7"
+                    }}
+                  />
+                  <svg
+                    style={{
+                      position: "absolute",
+                      left: "10px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#a1a1aa"
+                    strokeWidth="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35" />
+                  </svg>
+                </div>
 
-              {/* Sort Dropdown */}
-              <div style={{ position: "relative" }}>
+                {/* Sort Dropdown */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowSortDropdown(!showSortDropdown)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 10px",
+                      fontSize: "13px",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      outline: "none",
+                      background: "#fff",
+                      color: "#252F2C",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "#c4c4c7"
+                      e.currentTarget.style.background = "#fafafa"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "#e4e4e7"
+                      e.currentTarget.style.background = "#fff"
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z" />
+                    </svg>
+                    Sort
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+
+                  {/* Sort Dropdown Menu */}
+                  {showSortDropdown && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        marginTop: "4px",
+                        background: "#fff",
+                        border: "1px solid #e4e4e7",
+                        borderRadius: "6px",
+                        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.07)",
+                        zIndex: 10,
+                        minWidth: "180px",
+                      }}
+                      onMouseLeave={() => setShowSortDropdown(false)}
+                    >
+                      {[
+                        { value: "most-fixes", label: "Most Fixes Needed" },
+                        { value: "least-fixes", label: "Least Fixes Needed" },
+                        { value: "highest-score", label: "Highest Score" },
+                        { value: "lowest-score", label: "Lowest Score" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setSortBy(option.value as any)
+                            setShowSortDropdown(false)
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            width: "100%",
+                            padding: "10px 12px",
+                            border: "none",
+                            background: sortBy === option.value ? "#f0f9ff" : "transparent",
+                            color: sortBy === option.value ? "#0c4a6e" : "#252F2C",
+                            cursor: "pointer",
+                            fontSize: "13px",
+                            textAlign: "left",
+                            transition: "background 0.15s",
+                            borderRadius: 0,
+                          }}
+                          onMouseEnter={(e) => {
+                            if (sortBy !== option.value) {
+                              e.currentTarget.style.background = "#f5f5f5"
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = sortBy === option.value ? "#f0f9ff" : "transparent"
+                          }}
+                        >
+                          {sortBy === option.value && (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                            >
+                              <path d="M20 6L9 17l-5-5" />
+                            </svg>
+                          )}
+                          {sortBy !== option.value && <div style={{ width: "14px" }} />}
+                          <span>{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sync Button */}
                 <button
                   type="button"
-                  onClick={() => setShowSortDropdown(!showSortDropdown)}
+                  data-tour-sync-button
+                  onClick={() => {
+                    setIsScanning(true)
+                    fetcher.submit({ intent: "scan_all" }, { method: "POST" })
+                  }}
+                  disabled={isScanning}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "6px",
-                    padding: "6px 10px",
-                    fontSize: "13px",
-                    border: "1px solid #e4e4e7",
+                    gap: "5px",
+                    padding: "6px 12px",
+                    background: "#465A54",
+                    color: "#fff",
+                    border: "none",
                     borderRadius: "6px",
-                    outline: "none",
-                    background: "#fff",
-                    color: "#252F2C",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    cursor: isScanning ? "not-allowed" : "pointer",
+                    transition: "background 0.15s",
+                    opacity: isScanning ? 0.7 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "#c4c4c7"
-                    e.currentTarget.style.background = "#fafafa"
+                    if (!isScanning) e.currentTarget.style.background = "#3d4e49"
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#e4e4e7"
-                    e.currentTarget.style.background = "#fff"
+                    if (!isScanning) e.currentTarget.style.background = "#465A54"
                   }}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z" />
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                    <path d="M21 3v5h-5" />
                   </svg>
-                  Sort
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
+                  {isScanning ? "Syncing..." : "Sync"}
                 </button>
+              </div>
+            </div>
 
-                {/* Sort Dropdown Menu */}
-                {showSortDropdown && (
-                  <div
+            {/* Table Column Headers */}
+            <div
+              className="products-table-header"
+              style={{
+                display: "grid",
+                gap: "12px",
+                padding: "10px 20px",
+                borderBottom: "1px solid #e4e4e7",
+                background: "#fafafa",
+                flexShrink: 0,
+              }}
+            >
+              <div />
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      selectAllVisible()
+                    } else {
+                      clearSelection()
+                    }
+                  }}
+                  style={{
+                    width: "15px",
+                    height: "15px",
+                    cursor: "pointer",
+                    accentColor: "#465A54",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  color: "#8B8B8B",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                Product
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  color: "#8B8B8B",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                Status
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  color: "#8B8B8B",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                Score
+              </div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  color: "#8B8B8B",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  textAlign: "right",
+                }}
+              >
+                Issues
+              </div>
+            </div>
+
+            {/* Table Rows */}
+            <div className="products-scroll-container" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+              {filteredAudits.length === 0 ? (
+                <div style={{ padding: "80px 20px", textAlign: "center" }}>
+                  <div style={{ marginBottom: "12px" }}>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" strokeWidth="1.5">
+                      <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <p style={{ color: "#71717a", fontSize: "14px", margin: 0 }}>No products found</p>
+                  <p
                     style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      marginTop: "4px",
-                      background: "#fff",
-                      border: "1px solid #e4e4e7",
-                      borderRadius: "6px",
-                      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.07)",
-                      zIndex: 10,
-                      minWidth: "180px",
+                      color: "#a1a1aa",
+                      fontSize: "13px",
+                      margin: "4px 0 0",
                     }}
-                    onMouseLeave={() => setShowSortDropdown(false)}
                   >
-                    {[
-                      { value: "most-fixes", label: "Most Fixes Needed" },
-                      { value: "least-fixes", label: "Least Fixes Needed" },
-                      { value: "highest-score", label: "Highest Score" },
-                      { value: "lowest-score", label: "Lowest Score" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
+                    Sync your catalog to get started
+                  </p>
+                </div>
+              ) : (
+                filteredAudits.map((audit, idx) => {
+                  const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
+                  const isSelected = selectedProducts.has(audit.productId)
+                  const isExpanded = expandedRows.has(audit.id)
+
+                  return (
+                    <div
+                      key={audit.id}
+                      style={{
+                        borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none",
+                      }}
+                    >
+                      {/* Main Row */}
+                      <div
+                        className="products-table-row"
+                        {...(idx === 0 ? { "data-tour-expand-row": true } : {})}
                         onClick={() => {
-                          setSortBy(option.value as any)
-                          setShowSortDropdown(false)
+                          const newExpanded = new Set(expandedRows)
+                          if (isExpanded) {
+                            newExpanded.delete(audit.id)
+                          } else {
+                            newExpanded.add(audit.id)
+                          }
+                          setExpandedRows(newExpanded)
                         }}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          width: "100%",
-                          padding: "10px 12px",
-                          border: "none",
-                          background: sortBy === option.value ? "#f0f9ff" : "transparent",
-                          color: sortBy === option.value ? "#0c4a6e" : "#252F2C",
+                          display: "grid",
+                          gap: "12px",
+                          padding: "14px 20px",
                           cursor: "pointer",
-                          fontSize: "13px",
-                          textAlign: "left",
-                          transition: "background 0.15s",
-                          borderRadius: 0,
+                          transition: "background 0.1s",
+                          background: isExpanded ? "#fafafa" : "transparent",
                         }}
                         onMouseEnter={(e) => {
-                          if (sortBy !== option.value) {
-                            e.currentTarget.style.background = "#f5f5f5"
-                          }
+                          if (!isExpanded) e.currentTarget.style.background = "#fafafa"
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = sortBy === option.value ? "#f0f9ff" : "transparent"
+                          if (!isExpanded) e.currentTarget.style.background = "transparent"
                         }}
                       >
-                        {sortBy === option.value && (
+                        {/* Expand Arrow */}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
                           <svg
                             width="14"
                             height="14"
                             viewBox="0 0 24 24"
                             fill="none"
-                            stroke="currentColor"
-                            strokeWidth="3"
-                          >
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        )}
-                        {sortBy !== option.value && <div style={{ width: "14px" }} />}
-                        <span>{option.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sync Button */}
-              <button
-                type="button"
-                data-tour-sync-button
-                onClick={() => {
-                  setIsScanning(true)
-                  fetcher.submit({ intent: "scan_all" }, { method: "POST" })
-                }}
-                disabled={isScanning}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  padding: "6px 12px",
-                  background: "#465A54",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  cursor: isScanning ? "not-allowed" : "pointer",
-                  transition: "background 0.15s",
-                  opacity: isScanning ? 0.7 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isScanning) e.currentTarget.style.background = "#3d4e49"
-                }}
-                onMouseLeave={(e) => {
-                  if (!isScanning) e.currentTarget.style.background = "#465A54"
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                  <path d="M21 3v5h-5" />
-                </svg>
-                {isScanning ? "Syncing..." : "Sync"}
-              </button>
-            </div>
-          </div>
-
-          {/* Table Column Headers */}
-          <div
-            className="products-table-header"
-            style={{
-              display: "grid",
-              gap: "12px",
-              padding: "10px 20px",
-              borderBottom: "1px solid #e4e4e7",
-              background: "#fafafa",
-              flexShrink: 0,
-            }}
-          >
-            <div />
-            <div style={{ display: "flex", alignItems: "center" }}>
-              <input
-                type="checkbox"
-                checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    selectAllVisible()
-                  } else {
-                    clearSelection()
-                  }
-                }}
-                style={{
-                  width: "15px",
-                  height: "15px",
-                  cursor: "pointer",
-                  accentColor: "#465A54",
-                }}
-              />
-            </div>
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: 500,
-                color: "#8B8B8B",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              Product
-            </div>
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: 500,
-                color: "#8B8B8B",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              Status
-            </div>
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: 500,
-                color: "#8B8B8B",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              Score
-            </div>
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: 500,
-                color: "#8B8B8B",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-                textAlign: "right",
-              }}
-            >
-              Issues
-            </div>
-          </div>
-
-          {/* Table Rows */}
-          <div className="products-scroll-container" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {filteredAudits.length === 0 ? (
-              <div style={{ padding: "80px 20px", textAlign: "center" }}>
-                <div style={{ marginBottom: "12px" }}>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" strokeWidth="1.5">
-                    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <p style={{ color: "#71717a", fontSize: "14px", margin: 0 }}>No products found</p>
-                <p
-                  style={{
-                    color: "#a1a1aa",
-                    fontSize: "13px",
-                    margin: "4px 0 0",
-                  }}
-                >
-                  Sync your catalog to get started
-                </p>
-              </div>
-            ) : (
-              filteredAudits.map((audit, idx) => {
-                const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
-                const isSelected = selectedProducts.has(audit.productId)
-                const isExpanded = expandedRows.has(audit.id)
-
-                return (
-                  <div
-                    key={audit.id}
-                    style={{
-                      borderBottom: idx < filteredAudits.length - 1 ? "1px solid #f4f4f5" : "none",
-                    }}
-                  >
-                    {/* Main Row */}
-                    <div
-                      className="products-table-row"
-                      {...(idx === 0 ? { "data-tour-expand-row": true } : {})}
-                      onClick={() => {
-                        const newExpanded = new Set(expandedRows)
-                        if (isExpanded) {
-                          newExpanded.delete(audit.id)
-                        } else {
-                          newExpanded.add(audit.id)
-                        }
-                        setExpandedRows(newExpanded)
-                      }}
-                      style={{
-                        display: "grid",
-                        gap: "12px",
-                        padding: "14px 20px",
-                        cursor: "pointer",
-                        transition: "background 0.1s",
-                        background: isExpanded ? "#fafafa" : "transparent",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isExpanded) e.currentTarget.style.background = "#fafafa"
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isExpanded) e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      {/* Expand Arrow */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#a1a1aa"
-                          strokeWidth="2"
-                          style={{
-                            transform: isExpanded ? "rotate(90deg)" : "rotate(0)",
-                            transition: "transform 0.15s ease",
-                          }}
-                        >
-                          <path d="M9 18l6-6-6-6" />
-                        </svg>
-                      </div>
-
-                      {/* Checkbox */}
-                      <div style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleProductSelection(audit.productId)}
-                          style={{
-                            width: "15px",
-                            height: "15px",
-                            cursor: "pointer",
-                            accentColor: "#18181b",
-                          }}
-                        />
-                      </div>
-
-                      {/* Product */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "12px",
-                          minWidth: 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "6px",
-                            overflow: "hidden",
-                            background: "#f4f4f5",
-                            flexShrink: 0,
-                            border: "1px solid #e4e4e7",
-                          }}
-                        >
-                          {audit.productImage ? (
-                            <img
-                              src={audit.productImage}
-                              alt=""
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "#d4d4d8",
-                              }}
-                            >
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                              >
-                                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 500,
-                            color: "#252F2C",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {audit.productTitle}
-                        </span>
-                      </div>
-
-                      {/* Status */}
-                      <div data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
-                        <span
-                          style={{
-                            padding: "3px 8px",
-                            borderRadius: "4px",
-                            fontSize: "11px",
-                            fontWeight: 500,
-                            background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
-                            color: audit.status === "ready" ? "#059669" : "#8B7500",
-                            border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
-                          }}
-                        >
-                          {audit.status === "ready" ? "Ready" : "Pending"}
-                        </span>
-                      </div>
-
-                      {/* Score */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            flex: 1,
-                            height: "6px",
-                            background: "#e4e4e7",
-                            borderRadius: "3px",
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
+                            stroke="#a1a1aa"
+                            strokeWidth="2"
                             style={{
-                              width: `${progressPercent}%`,
-                              height: "100%",
-                              background:
-                                audit.status === "ready" ? "#465A54" : progressPercent >= 70 ? "#5A7C66" : "#9B9860",
-                              borderRadius: "3px",
-                              transition: "width 0.3s ease",
+                              transform: isExpanded ? "rotate(90deg)" : "rotate(0)",
+                              transition: "transform 0.15s ease",
+                            }}
+                          >
+                            <path d="M9 18l6-6-6-6" />
+                          </svg>
+                        </div>
+
+                        {/* Checkbox */}
+                        <div style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleProductSelection(audit.productId)}
+                            style={{
+                              width: "15px",
+                              height: "15px",
+                              cursor: "pointer",
+                              accentColor: "#18181b",
                             }}
                           />
                         </div>
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color: "#3f3f46",
-                            minWidth: "32px",
-                            textAlign: "right",
-                          }}
-                        >
-                          {progressPercent}%
-                        </span>
-                      </div>
 
-                      {/* Issues + View Details */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "8px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            fontWeight: 500,
-                            color: audit.failedCount > 0 ? "#B53D3D" : "#71717a",
-                            background: audit.failedCount > 0 ? "#fef2f2" : "transparent",
-                            padding: audit.failedCount > 0 ? "2px 8px" : "0",
-                            borderRadius: "4px",
-                          }}
-                        >
-                          {audit.failedCount}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/app/products/${audit.productId.split("/").pop()}`)
-                          }}
-                          style={{
-                            padding: "4px 8px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            background: "transparent",
-                            border: "1px solid #e4e4e7",
-                            borderRadius: "4px",
-                            color: "#252F2C",
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                            whiteSpace: "nowrap",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#f4f4f5"
-                            e.currentTarget.style.borderColor = "#d4d4d8"
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent"
-                            e.currentTarget.style.borderColor = "#e4e4e7"
-                          }}
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Expanded Content - Enhanced Analytics */}
-                    {isExpanded && (
-                      <div
-                        style={{
-                          padding: "0 20px 20px 56px",
-                          background: "#fafafa",
-                        }}
-                      >
+                        {/* Product */}
                         <div
                           style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr",
-                            gap: "16px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            minWidth: 0,
                           }}
                         >
-                          {/* Top Row: Quick Stats + Progress */}
+                          <div
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "6px",
+                              overflow: "hidden",
+                              background: "#f4f4f5",
+                              flexShrink: 0,
+                              border: "1px solid #e4e4e7",
+                            }}
+                          >
+                            {audit.productImage ? (
+                              <img
+                                src={audit.productImage}
+                                alt=""
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#d4d4d8",
+                                }}
+                              >
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                >
+                                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 500,
+                              color: "#252F2C",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            {audit.productTitle}
+                          </span>
+                        </div>
+
+                        {/* Status */}
+                        <div data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
+                          <span
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              fontWeight: 500,
+                              background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
+                              color: audit.status === "ready" ? "#059669" : "#8B7500",
+                              border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
+                            }}
+                          >
+                            {audit.status === "ready" ? "Ready" : "Pending"}
+                          </span>
+                        </div>
+
+                        {/* Score */}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              flex: 1,
+                              height: "6px",
+                              background: "#e4e4e7",
+                              borderRadius: "3px",
+                              overflow: "hidden",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${progressPercent}%`,
+                                height: "100%",
+                                background:
+                                  audit.status === "ready" ? "#465A54" : progressPercent >= 70 ? "#5A7C66" : "#9B9860",
+                                borderRadius: "3px",
+                                transition: "width 0.3s ease",
+                              }}
+                            />
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              color: "#3f3f46",
+                              minWidth: "32px",
+                              textAlign: "right",
+                            }}
+                          >
+                            {progressPercent}%
+                          </span>
+                        </div>
+
+                        {/* Issues + View Details */}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "8px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: 500,
+                              color: audit.failedCount > 0 ? "#B53D3D" : "#71717a",
+                              background: audit.failedCount > 0 ? "#fef2f2" : "transparent",
+                              padding: audit.failedCount > 0 ? "2px 8px" : "0",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {audit.failedCount}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/app/products/${audit.productId.split("/").pop()}`)
+                            }}
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              background: "transparent",
+                              border: "1px solid #e4e4e7",
+                              borderRadius: "4px",
+                              color: "#252F2C",
+                              cursor: "pointer",
+                              transition: "all 0.15s",
+                              whiteSpace: "nowrap",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#f4f4f5"
+                              e.currentTarget.style.borderColor = "#d4d4d8"
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent"
+                              e.currentTarget.style.borderColor = "#e4e4e7"
+                            }}
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Expanded Content - Enhanced Analytics */}
+                      {isExpanded && (
+                        <div
+                          style={{
+                            padding: "0 20px 20px 56px",
+                            background: "#fafafa",
+                          }}
+                        >
                           <div
                             style={{
                               display: "grid",
-                              gridTemplateColumns: "repeat(4, 1fr)",
-                              gap: "12px",
+                              gridTemplateColumns: "1fr",
+                              gap: "16px",
                             }}
                           >
-                            {/* Completion Rate */}
+                            {/* Top Row: Quick Stats + Progress */}
                             <div
                               style={{
-                                padding: "12px",
-                                background: "#fff",
-                                borderRadius: "6px",
-                                border: "1px solid #e4e4e7",
+                                display: "grid",
+                                gridTemplateColumns: "repeat(4, 1fr)",
+                                gap: "12px",
                               }}
                             >
+                              {/* Completion Rate */}
                               <div
                                 style={{
-                                  fontSize: "10px",
-                                  fontWeight: 500,
-                                  color: "#71717a",
-                                  marginBottom: "4px",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em",
-                                }}
-                              >
-                                Completion
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: "14px",
-                                  fontWeight: 600,
-                                  color:
-                                    progressPercent >= 90 ? "#059669" : progressPercent >= 70 ? "#465A54" : "#B53D3D",
-                                }}
-                              >
-                                {progressPercent}%
-                              </div>
-                            </div>
-
-                            {/* Critical Issues */}
-                            <div
-                              style={{
-                                padding: "12px",
-                                background: "#fff",
-                                borderRadius: "6px",
-                                border: "1px solid #e4e4e7",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: "10px",
-                                  fontWeight: 500,
-                                  color: "#71717a",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em",
-                                  marginBottom: "4px",
-                                }}
-                              >
-                                Issues
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: "14px",
-                                  fontWeight: 600,
-                                  color: audit.failedCount > 0 ? "#B53D3D" : "#059669",
-                                }}
-                              >
-                                {audit.failedCount}
-                              </div>
-                            </div>
-
-                            {/* Status Badge */}
-                            <div
-                              style={{
-                                padding: "12px",
-                                background: "#fff",
-                                borderRadius: "6px",
-                                border: "1px solid #e4e4e7",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: 500,
-                                  color: "#71717a",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em",
-                                  marginBottom: "4px",
-                                }}
-                              >
-                                Status
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "4px",
+                                  padding: "12px",
+                                  background: "#fff",
+                                  borderRadius: "6px",
+                                  border: "1px solid #e4e4e7",
                                 }}
                               >
                                 <div
                                   style={{
-                                    width: "6px",
-                                    height: "6px",
-                                    borderRadius: "50%",
-                                    background: audit.status === "ready" ? "#059669" : "#8B7500",
-                                  }}
-                                />
-                                <span
-                                  style={{
-                                    fontSize: "12px",
+                                    fontSize: "10px",
                                     fontWeight: 500,
-                                    color: audit.status === "ready" ? "#059669" : "#8B7500",
+                                    color: "#71717a",
+                                    marginBottom: "4px",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
                                   }}
                                 >
-                                  {audit.status === "ready" ? "Ready" : "Needs Work"}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Last Updated */}
-                            <div
-                              style={{
-                                padding: "12px",
-                                background: "#fff",
-                                borderRadius: "6px",
-                                border: "1px solid #e4e4e7",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: 500,
-                                  color: "#71717a",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em",
-                                  marginBottom: "4px",
-                                }}
-                              >
-                                Last Checked
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: "12px",
-                                  color: "#252F2C",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {new Date(audit.updatedAt).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Bottom Row: Detailed Breakdown - Real Data Issues */}
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "2fr 1fr",
-                              gap: "16px",
-                            }}
-                          >
-                            {/* Left: Issues List (Real Data) */}
-                            <div
-                              style={{
-                                padding: "20px",
-                                background: "#fff",
-                                borderRadius: "8px",
-                                border: "1px solid #e4e4e7",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: "11px",
-                                  fontWeight: 500,
-                                  color: "#71717a",
-                                  marginBottom: "16px",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em",
-                                }}
-                              >
-                                Checklist Breakdown
+                                  Completion
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "14px",
+                                    fontWeight: 600,
+                                    color:
+                                      progressPercent >= 90 ? "#059669" : progressPercent >= 70 ? "#465A54" : "#B53D3D",
+                                  }}
+                                >
+                                  {progressPercent}%
+                                </div>
                               </div>
 
-                              {/* Items List */}
+                              {/* Critical Issues */}
                               <div
                                 style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: "8px",
+                                  padding: "12px",
+                                  background: "#fff",
+                                  borderRadius: "6px",
+                                  border: "1px solid #e4e4e7",
                                 }}
                               >
-                                {/* Failed Items */}
-                                {audit.items && audit.items.filter((i: any) => i.status === "failed").length > 0 ? (
-                                  <>
-                                    {audit.items
-                                      .filter((i: any) => i.status === "failed")
-                                      .slice(0, 4)
-                                      .map((item: any) => (
-                                        <div
-                                          key={item.id}
-                                          style={{
-                                            padding: "8px 10px",
-                                            background: "#fef2f2",
-                                            border: "1px solid #fed7d7",
-                                            borderRadius: "5px",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: "8px",
-                                            transition: "all 0.15s ease",
-                                            cursor: "default",
-                                          }}
-                                          onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = "#fecaca"
-                                            e.currentTarget.style.borderColor = "#fca5a5"
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = "#fef2f2"
-                                            e.currentTarget.style.borderColor = "#fed7d7"
-                                          }}
-                                          title={item.details}
-                                        >
-                                          <svg
-                                            width="12"
-                                            height="12"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="#dc2626"
-                                            strokeWidth="2.5"
-                                            style={{ flexShrink: 0 }}
-                                          >
-                                            <circle cx="12" cy="12" r="10" />
-                                            <path d="M12 8v4m0 4v.01" />
-                                          </svg>
-                                          <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div
-                                              style={{
-                                                fontSize: "11px",
-                                                fontWeight: 600,
-                                                color: "#7f1d1d",
-                                                whiteSpace: "nowrap",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                              }}
-                                            >
-                                              {item.label}
-                                            </div>
-                                          </div>
-                                          {item.canAutoFix && (
-                                            <div
-                                              style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "3px",
-                                                background: "#fca5a5",
-                                                padding: "2px 6px",
-                                                borderRadius: "10px",
-                                                flexShrink: 0,
-                                              }}
-                                            >
-                                              <svg
-                                                width="8"
-                                                height="8"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="#7f1d1d"
-                                                strokeWidth="3"
-                                              >
-                                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                                              </svg>
-                                              <span
-                                                style={{
-                                                  fontSize: "8px",
-                                                  fontWeight: 700,
-                                                  color: "#7f1d1d",
-                                                  letterSpacing: "0.5px",
-                                                }}
-                                              >
-                                                FIX
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    {audit.items.filter((i: any) => i.status === "failed").length > 4 && (
-                                      <div
-                                        style={{
-                                          padding: "6px 0",
-                                          textAlign: "center",
-                                          fontSize: "11px",
-                                          color: "#a1a1aa",
-                                          fontWeight: 500,
-                                        }}
-                                      >
-                                        +{audit.items.filter((i: any) => i.status === "failed").length - 4} more
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
+                                <div
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: 500,
+                                    color: "#71717a",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    marginBottom: "4px",
+                                  }}
+                                >
+                                  Issues
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "14px",
+                                    fontWeight: 600,
+                                    color: audit.failedCount > 0 ? "#B53D3D" : "#059669",
+                                  }}
+                                >
+                                  {audit.failedCount}
+                                </div>
+                              </div>
+
+                              {/* Status Badge */}
+                              <div
+                                style={{
+                                  padding: "12px",
+                                  background: "#fff",
+                                  borderRadius: "6px",
+                                  border: "1px solid #e4e4e7",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: 500,
+                                    color: "#71717a",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    marginBottom: "4px",
+                                  }}
+                                >
+                                  Status
+                                </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                >
                                   <div
                                     style={{
-                                      fontSize: "var(--text-sm)",
-                                      color: "#52525b",
+                                      width: "6px",
+                                      height: "6px",
+                                      borderRadius: "50%",
+                                      background: audit.status === "ready" ? "#059669" : "#8B7500",
                                     }}
-                                  >
-                                    <div
-                                      style={{
-                                        fontWeight: 600,
-                                        marginBottom: "4px",
-                                      }}
-                                    >
-                                      All checks passed!
-                                    </div>
-                                    <div
-                                      style={{
-                                        fontSize: "var(--text-xs)",
-                                        opacity: 0.8,
-                                      }}
-                                    >
-                                      This product is ready for launch.
-                                    </div>
-                                  </div>
-                                )}
-
-                                {audit.items && audit.items.filter((i: any) => i.status === "passed").length > 0 && (
-                                  <details
+                                  />
+                                  <span
                                     style={{
-                                      cursor: "pointer",
-                                      marginTop: "8px",
+                                      fontSize: "12px",
+                                      fontWeight: 500,
+                                      color: audit.status === "ready" ? "#059669" : "#8B7500",
                                     }}
                                   >
-                                    <summary
-                                      style={{
-                                        fontSize: "11px",
-                                        color: "#a1a1aa",
-                                        fontWeight: 500,
-                                        userSelect: "none",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "5px",
-                                        padding: "4px 0",
-                                        transition: "color 0.15s ease",
-                                      }}
-                                      onMouseEnter={(e) => (e.currentTarget.style.color = "#71717a")}
-                                      onMouseLeave={(e) => (e.currentTarget.style.color = "#a1a1aa")}
-                                    >
-                                      <svg
-                                        width="10"
-                                        height="10"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="3"
-                                        style={{
-                                          transition: "transform 0.3s ease",
-                                          flexShrink: 0,
-                                        }}
-                                      >
-                                        <polyline points="6 9 12 15 18 9" />
-                                      </svg>
-                                      <span>{audit.items.filter((i: any) => i.status === "passed").length} passed</span>
-                                    </summary>
-                                    <div
-                                      style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "1fr 1fr",
-                                        gap: "6px",
-                                        padding: "8px",
-                                        background: "#fafafa",
-                                        borderRadius: "5px",
-                                        animation: "slideDown 0.3s ease",
-                                      }}
-                                    >
+                                    {audit.status === "ready" ? "Ready" : "Needs Work"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Last Updated */}
+                              <div
+                                style={{
+                                  padding: "12px",
+                                  background: "#fff",
+                                  borderRadius: "6px",
+                                  border: "1px solid #e4e4e7",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: 500,
+                                    color: "#71717a",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                    marginBottom: "4px",
+                                  }}
+                                >
+                                  Last Checked
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#252F2C",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {new Date(audit.updatedAt).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Bottom Row: Detailed Breakdown - Real Data Issues */}
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "2fr 1fr",
+                                gap: "16px",
+                              }}
+                            >
+                              {/* Left: Issues List (Real Data) */}
+                              <div
+                                style={{
+                                  padding: "20px",
+                                  background: "#fff",
+                                  borderRadius: "8px",
+                                  border: "1px solid #e4e4e7",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    fontWeight: 500,
+                                    color: "#71717a",
+                                    marginBottom: "16px",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.05em",
+                                  }}
+                                >
+                                  Checklist Breakdown
+                                </div>
+
+                                {/* Items List */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "8px",
+                                  }}
+                                >
+                                  {/* Failed Items */}
+                                  {audit.items && audit.items.filter((i: any) => i.status === "failed").length > 0 ? (
+                                    <>
                                       {audit.items
-                                        .filter((i: any) => i.status === "passed")
+                                        .filter((i: any) => i.status === "failed")
+                                        .slice(0, 4)
                                         .map((item: any) => (
                                           <div
                                             key={item.id}
                                             style={{
+                                              padding: "8px 10px",
+                                              background: "#fef2f2",
+                                              border: "1px solid #fed7d7",
+                                              borderRadius: "5px",
                                               display: "flex",
                                               alignItems: "center",
-                                              gap: "5px",
-                                              fontSize: "10px",
-                                              color: "#52525b",
+                                              gap: "8px",
+                                              transition: "all 0.15s ease",
+                                              cursor: "default",
                                             }}
+                                            onMouseEnter={(e) => {
+                                              e.currentTarget.style.background = "#fecaca"
+                                              e.currentTarget.style.borderColor = "#fca5a5"
+                                            }}
+                                            onMouseLeave={(e) => {
+                                              e.currentTarget.style.background = "#fef2f2"
+                                              e.currentTarget.style.borderColor = "#fed7d7"
+                                            }}
+                                            title={item.details}
                                           >
-                                            <div
-                                              style={{
-                                                color: "#059669",
-                                                flexShrink: 0,
-                                              }}
+                                            <svg
+                                              width="12"
+                                              height="12"
+                                              viewBox="0 0 24 24"
+                                              fill="none"
+                                              stroke="#dc2626"
+                                              strokeWidth="2.5"
+                                              style={{ flexShrink: 0 }}
                                             >
-                                              <svg
-                                                width="10"
-                                                height="10"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="3"
+                                              <circle cx="12" cy="12" r="10" />
+                                              <path d="M12 8v4m0 4v.01" />
+                                            </svg>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                              <div
+                                                style={{
+                                                  fontSize: "11px",
+                                                  fontWeight: 600,
+                                                  color: "#7f1d1d",
+                                                  whiteSpace: "nowrap",
+                                                  overflow: "hidden",
+                                                  textOverflow: "ellipsis",
+                                                }}
                                               >
-                                                <polyline points="20 6 9 17 4 12" />
-                                              </svg>
+                                                {item.label}
+                                              </div>
                                             </div>
-                                            <span
-                                              style={{
-                                                whiteSpace: "nowrap",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                              }}
-                                            >
-                                              {item.label}
-                                            </span>
+                                            {item.canAutoFix && (
+                                              <div
+                                                style={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  gap: "3px",
+                                                  background: "#fca5a5",
+                                                  padding: "2px 6px",
+                                                  borderRadius: "10px",
+                                                  flexShrink: 0,
+                                                }}
+                                              >
+                                                <svg
+                                                  width="8"
+                                                  height="8"
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  stroke="#7f1d1d"
+                                                  strokeWidth="3"
+                                                >
+                                                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                                </svg>
+                                                <span
+                                                  style={{
+                                                    fontSize: "8px",
+                                                    fontWeight: 700,
+                                                    color: "#7f1d1d",
+                                                    letterSpacing: "0.5px",
+                                                  }}
+                                                >
+                                                  FIX
+                                                </span>
+                                              </div>
+                                            )}
                                           </div>
                                         ))}
+                                      {audit.items.filter((i: any) => i.status === "failed").length > 4 && (
+                                        <div
+                                          style={{
+                                            padding: "6px 0",
+                                            textAlign: "center",
+                                            fontSize: "11px",
+                                            color: "#a1a1aa",
+                                            fontWeight: 500,
+                                          }}
+                                        >
+                                          +{audit.items.filter((i: any) => i.status === "failed").length - 4} more
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <div
+                                      style={{
+                                        fontSize: "var(--text-sm)",
+                                        color: "#52525b",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          fontWeight: 600,
+                                          marginBottom: "4px",
+                                        }}
+                                      >
+                                        All checks passed!
+                                      </div>
+                                      <div
+                                        style={{
+                                          fontSize: "var(--text-xs)",
+                                          opacity: 0.8,
+                                        }}
+                                      >
+                                        This product is ready for launch.
+                                      </div>
                                     </div>
-                                    <style>{`
+                                  )}
+
+                                  {audit.items && audit.items.filter((i: any) => i.status === "passed").length > 0 && (
+                                    <details
+                                      style={{
+                                        cursor: "pointer",
+                                        marginTop: "8px",
+                                      }}
+                                    >
+                                      <summary
+                                        style={{
+                                          fontSize: "11px",
+                                          color: "#a1a1aa",
+                                          fontWeight: 500,
+                                          userSelect: "none",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "5px",
+                                          padding: "4px 0",
+                                          transition: "color 0.15s ease",
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.color = "#71717a")}
+                                        onMouseLeave={(e) => (e.currentTarget.style.color = "#a1a1aa")}
+                                      >
+                                        <svg
+                                          width="10"
+                                          height="10"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="3"
+                                          style={{
+                                            transition: "transform 0.3s ease",
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                        <span>
+                                          {audit.items.filter((i: any) => i.status === "passed").length} passed
+                                        </span>
+                                      </summary>
+                                      <div
+                                        style={{
+                                          display: "grid",
+                                          gridTemplateColumns: "1fr 1fr",
+                                          gap: "6px",
+                                          padding: "8px",
+                                          background: "#fafafa",
+                                          borderRadius: "5px",
+                                          animation: "slideDown 0.3s ease",
+                                        }}
+                                      >
+                                        {audit.items
+                                          .filter((i: any) => i.status === "passed")
+                                          .map((item: any) => (
+                                            <div
+                                              key={item.id}
+                                              style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "5px",
+                                                fontSize: "10px",
+                                                color: "#52525b",
+                                              }}
+                                            >
+                                              <div
+                                                style={{
+                                                  color: "#059669",
+                                                  flexShrink: 0,
+                                                }}
+                                              >
+                                                <svg
+                                                  width="10"
+                                                  height="10"
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  strokeWidth="3"
+                                                >
+                                                  <polyline points="20 6 9 17 4 12" />
+                                                </svg>
+                                              </div>
+                                              <span
+                                                style={{
+                                                  whiteSpace: "nowrap",
+                                                  overflow: "hidden",
+                                                  textOverflow: "ellipsis",
+                                                }}
+                                              >
+                                                {item.label}
+                                              </span>
+                                            </div>
+                                          ))}
+                                      </div>
+                                      <style>{`
                                   details {
                                     overflow: hidden;
                                   }
@@ -2886,58 +2890,116 @@ export default function Dashboard() {
                                     }
                                   }
                                 `}</style>
-                                  </details>
-                                )}
+                                    </details>
+                                  )}
+                                </div>
                               </div>
-                            </div>
 
-                            {/* Right: Quick Actions Panel */}
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: "12px",
-                              }}
-                            >
+                              {/* Right: Quick Actions Panel */}
                               <div
                                 style={{
-                                  padding: "16px",
-                                  background: "#fff",
-                                  borderRadius: "8px",
-                                  border: "1px solid #e4e4e7",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "12px",
                                 }}
                               >
                                 <div
                                   style={{
-                                    fontSize: "11px",
-                                    fontWeight: 500,
-                                    color: "#71717a",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.05em",
-                                    marginBottom: "12px",
+                                    padding: "16px",
+                                    background: "#fff",
+                                    borderRadius: "8px",
+                                    border: "1px solid #e4e4e7",
                                   }}
                                 >
-                                  Quick Actions
-                                </div>
-                                <div
-                                  style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr 1fr",
-                                    gap: "8px",
-                                  }}
-                                >
-                                  {audit.failedCount > 0 ? (
+                                  <div
+                                    style={{
+                                      fontSize: "11px",
+                                      fontWeight: 500,
+                                      color: "#71717a",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                      marginBottom: "12px",
+                                    }}
+                                  >
+                                    Quick Actions
+                                  </div>
+                                  <div
+                                    style={{
+                                      display: "grid",
+                                      gridTemplateColumns: "1fr 1fr",
+                                      gap: "8px",
+                                    }}
+                                  >
+                                    {audit.failedCount > 0 ? (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          navigate(`/app/products/${audit.productId.split("/").pop()}?autoFix=true`)
+                                        }}
+                                        style={{
+                                          width: "100%",
+                                          padding: "10px",
+                                          background: "#fff",
+                                          color: "#B53D3D",
+                                          border: "1px solid #fecaca",
+                                          borderRadius: "6px",
+                                          fontSize: "var(--text-sm)",
+                                          fontWeight: 500,
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          gap: "6px",
+                                          transition: "all 0.15s",
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.background = "#fef2f2"
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.background = "#fff"
+                                        }}
+                                      >
+                                        <svg
+                                          width="14"
+                                          height="14"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                        >
+                                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                        </svg>
+                                        Fix
+                                      </button>
+                                    ) : (
+                                      <div
+                                        style={{
+                                          padding: "10px",
+                                          background: "#ecfdf5",
+                                          border: "1px solid #d1fae5",
+                                          borderRadius: "6px",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          fontSize: "var(--text-sm)",
+                                          fontWeight: 500,
+                                          color: "#059669",
+                                        }}
+                                      >
+                                        Ready
+                                      </div>
+                                    )}
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        navigate(`/app/products/${audit.productId.split("/").pop()}?autoFix=true`)
+                                        navigate("/app/settings?tab=version-history")
                                       }}
                                       style={{
                                         width: "100%",
                                         padding: "10px",
                                         background: "#fff",
-                                        color: "#B53D3D",
-                                        border: "1px solid #fecaca",
+                                        color: "#71717a",
+                                        border: "1px solid #e4e4e7",
                                         borderRadius: "6px",
                                         fontSize: "var(--text-sm)",
                                         fontWeight: 500,
@@ -2949,10 +3011,12 @@ export default function Dashboard() {
                                         transition: "all 0.15s",
                                       }}
                                       onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = "#fef2f2"
+                                        e.currentTarget.style.background = "#f4f4f5"
+                                        e.currentTarget.style.borderColor = "#d4d4d8"
                                       }}
                                       onMouseLeave={(e) => {
                                         e.currentTarget.style.background = "#fff"
+                                        e.currentTarget.style.borderColor = "#e4e4e7"
                                       }}
                                     >
                                       <svg
@@ -2963,1116 +3027,1065 @@ export default function Dashboard() {
                                         stroke="currentColor"
                                         strokeWidth="2"
                                       >
-                                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                        <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                       </svg>
-                                      Fix
+                                      History
                                     </button>
-                                  ) : (
-                                    <div
-                                      style={{
-                                        padding: "10px",
-                                        background: "#ecfdf5",
-                                        border: "1px solid #d1fae5",
-                                        borderRadius: "6px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontSize: "var(--text-sm)",
-                                        fontWeight: 500,
-                                        color: "#059669",
-                                      }}
-                                    >
-                                      Ready
-                                    </div>
-                                  )}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      navigate("/app/settings?tab=version-history")
-                                    }}
-                                    style={{
-                                      width: "100%",
-                                      padding: "10px",
-                                      background: "#fff",
-                                      color: "#71717a",
-                                      border: "1px solid #e4e4e7",
-                                      borderRadius: "6px",
-                                      fontSize: "var(--text-sm)",
-                                      fontWeight: 500,
-                                      cursor: "pointer",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      gap: "6px",
-                                      transition: "all 0.15s",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.background = "#f4f4f5"
-                                      e.currentTarget.style.borderColor = "#d4d4d8"
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.background = "#fff"
-                                      e.currentTarget.style.borderColor = "#e4e4e7"
-                                    }}
-                                  >
-                                    <svg
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                    >
-                                      <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                    </svg>
-                                    History
-                                  </button>
+                                  </div>
                                 </div>
-                              </div>
 
-                              {/* Insight Box */}
-                              <div
-                                style={{
-                                  padding: "12px",
-                                  background: "#f0f9ff",
-                                  borderRadius: "6px",
-                                  border: "1px solid #bae6fd",
-                                }}
-                              >
+                                {/* Insight Box */}
                                 <div
                                   style={{
-                                    fontSize: "12px",
-                                    color: "#0369a1",
-                                    lineHeight: 1.5,
+                                    padding: "12px",
+                                    background: "#f0f9ff",
+                                    borderRadius: "6px",
+                                    border: "1px solid #bae6fd",
                                   }}
                                 >
-                                  <strong>Tip:</strong>{" "}
-                                  {audit.failedCount > 0
-                                    ? "Prioritize fixing 'Critical' issues like missing images or descriptions."
-                                    : "Great job! Your product is fully optimized."}
+                                  <div
+                                    style={{
+                                      fontSize: "12px",
+                                      color: "#0369a1",
+                                      lineHeight: 1.5,
+                                    }}
+                                  >
+                                    <strong>Tip:</strong>{" "}
+                                    {audit.failedCount > 0
+                                      ? "Prioritize fixing 'Critical' issues like missing images or descriptions."
+                                      : "Great job! Your product is fully optimized."}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })
-            )}
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Right: Catalog Score Card */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "24px",
-            overflow: "hidden",
-          }}
-        >
-          {/* Overall Score Card */}
+          {/* Right: Catalog Score Card */}
           <div
             style={{
-              background: "#fff",
-              border: "1px solid #e4e4e7",
-              borderRadius: "12px",
-              padding: "24px",
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              gap: "24px",
+              overflow: "hidden",
+            }}
+          >
+            {/* Overall Score Card */}
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid #e4e4e7",
+                borderRadius: "12px",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 500,
+                  color: "#71717a",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: "20px",
+                }}
+              >
+                Products Health
+              </div>
+
+              {/* Circular Progress */}
+              <div
+                style={{
+                  position: "relative",
+                  width: "120px",
+                  height: "120px",
+                  marginBottom: "20px",
+                }}
+              >
+                <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
+                  {/* Background circle */}
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
+                  {/* Progress circle */}
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    fill="none"
+                    stroke={animatedPercent >= 80 ? "#059669" : animatedPercent >= 60 ? "#465A54" : "#B53D3D"}
+                    strokeWidth="8"
+                    strokeDasharray={`${(animatedPercent / 100) * 314.159} 314.159`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                {/* Center text */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 600,
+                      color: "#252F2C",
+                    }}
+                  >
+                    {animatedPercent}%
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-xs)",
+                      color: "#71717a",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Ready
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {selectedProducts.size > 0 && (
+          <div
+            style={{
+              position: "fixed",
+              bottom: "32px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 100,
             }}
           >
             <div
+              data-tour-bulk-actions
               style={{
-                fontSize: "var(--text-xs)",
-                fontWeight: 500,
-                color: "#71717a",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                marginBottom: "20px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "12px 20px",
+                background: "#fff",
+                backdropFilter: "blur(16px)",
+                borderRadius: "10px",
+                border: "1px solid #e4e4e7",
+                boxShadow: "0 10px 24px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.1)",
               }}
             >
-              Products Health
-            </div>
-
-            {/* Circular Progress */}
-            <div
-              style={{
-                position: "relative",
-                width: "120px",
-                height: "120px",
-                marginBottom: "20px",
-              }}
-            >
-              <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
-                {/* Background circle */}
-                <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
-                {/* Progress circle */}
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  fill="none"
-                  stroke={animatedPercent >= 80 ? "#059669" : animatedPercent >= 60 ? "#465A54" : "#B53D3D"}
-                  strokeWidth="8"
-                  strokeDasharray={`${(animatedPercent / 100) * 314.159} 314.159`}
-                  strokeLinecap="round"
-                />
-              </svg>
-              {/* Center text */}
+              {/* Selection count */}
               <div
                 style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  paddingRight: "12px",
+                  borderRight: "1px solid #e4e4e7",
                 }}
               >
                 <div
                   style={{
-                    fontSize: "28px",
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "6px",
+                    background: "#465A54",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontSize: "13px",
                     fontWeight: 600,
+                  }}
+                >
+                  {selectedProducts.size}
+                </div>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
                     color: "#252F2C",
                   }}
                 >
-                  {animatedPercent}%
-                </div>
-                <div
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    color: "#71717a",
-                    marginTop: "4px",
-                  }}
-                >
-                  Ready
-                </div>
+                  selected
+                </span>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      {selectedProducts.size > 0 && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "32px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 100,
-          }}
-        >
-          <div
-            data-tour-bulk-actions
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "12px 20px",
-              background: "#fff",
-              backdropFilter: "blur(16px)",
-              borderRadius: "10px",
-              border: "1px solid #e4e4e7",
-              boxShadow: "0 10px 24px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            {/* Selection count */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                paddingRight: "12px",
-                borderRight: "1px solid #e4e4e7",
-              }}
-            >
-              <div
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "6px",
-                  background: "#465A54",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#fff",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                }}
-              >
-                {selectedProducts.size}
-              </div>
-              <span
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: "#252F2C",
-                }}
-              >
-                selected
-              </span>
-            </div>
 
-            {/* Action buttons */}
-            <button
-              type="button"
-              onClick={() => executeBulkAction("generate_tags")}
-              disabled={bulkFetcher.state !== "idle"}
-              style={{
-                padding: "8px 16px",
-                background: bulkFetcher.state !== "idle" ? "#f4f4f5" : "#465A54",
-                border: "none",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: 500,
-                color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#fff",
-                cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                transition: "all 0.15s ease",
-                whiteSpace: "nowrap",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-              onMouseEnter={(e) => {
-                if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "#3d4e49"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "#465A54"
-                }
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                <line x1="7" y1="7" x2="7.01" y2="7" />
-              </svg>
-              Tags
-            </button>
-
-            <button
-              type="button"
-              onClick={() => executeBulkAction("generate_seo_desc")}
-              disabled={bulkFetcher.state !== "idle"}
-              style={{
-                padding: "8px 16px",
-                background: "transparent",
-                border: "1px solid #e4e4e7",
-                borderRadius: "6px",
-                fontSize: "13px",
-                fontWeight: 500,
-                color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#252F2C",
-                cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                transition: "all 0.15s ease",
-                whiteSpace: "nowrap",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-              onMouseEnter={(e) => {
-                if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "#f4f4f5"
-                  e.currentTarget.style.borderColor = "#d4d4d8"
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent"
-                e.currentTarget.style.borderColor = "#e4e4e7"
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              SEO
-            </button>
-
-            <button
-              type="button"
-              onClick={() => executeBulkAction("generate_alt_text")}
-              disabled={bulkFetcher.state !== "idle"}
-              style={{
-                padding: "8px 16px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "10px",
-                fontSize: "13px",
-                fontWeight: 500,
-                color: bulkFetcher.state !== "idle" ? "var(--color-muted)" : "var(--color-text)",
-                cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                transition: "all 0.15s ease",
-                whiteSpace: "nowrap",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-              onMouseEnter={(e) => {
-                if (bulkFetcher.state === "idle") {
-                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent"
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="M21 15l-5-5L5 21" />
-              </svg>
-              Images
-            </button>
-
-            {/* More Actions Dropdown */}
-            <div style={{ position: "relative" }}>
+              {/* Action buttons */}
               <button
                 type="button"
-                onClick={() => setShowBulkDropdown(!showBulkDropdown)}
+                onClick={() => executeBulkAction("generate_tags")}
+                disabled={bulkFetcher.state !== "idle"}
                 style={{
-                  width: "32px",
-                  height: "32px",
-                  padding: 0,
+                  padding: "8px 16px",
+                  background: bulkFetcher.state !== "idle" ? "#f4f4f5" : "#465A54",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#fff",
+                  cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                  transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                onMouseEnter={(e) => {
+                  if (bulkFetcher.state === "idle") {
+                    e.currentTarget.style.background = "#3d4e49"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (bulkFetcher.state === "idle") {
+                    e.currentTarget.style.background = "#465A54"
+                  }
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                  <line x1="7" y1="7" x2="7.01" y2="7" />
+                </svg>
+                Tags
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeBulkAction("generate_seo_desc")}
+                disabled={bulkFetcher.state !== "idle"}
+                style={{
+                  padding: "8px 16px",
+                  background: "transparent",
+                  border: "1px solid #e4e4e7",
+                  borderRadius: "6px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: bulkFetcher.state !== "idle" ? "#a1a1aa" : "#252F2C",
+                  cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                  transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                onMouseEnter={(e) => {
+                  if (bulkFetcher.state === "idle") {
+                    e.currentTarget.style.background = "#f4f4f5"
+                    e.currentTarget.style.borderColor = "#d4d4d8"
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent"
+                  e.currentTarget.style.borderColor = "#e4e4e7"
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+                SEO
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeBulkAction("generate_alt_text")}
+                disabled={bulkFetcher.state !== "idle"}
+                style={{
+                  padding: "8px 16px",
                   background: "transparent",
                   border: "none",
                   borderRadius: "10px",
-                  color: "var(--color-text)",
-                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: bulkFetcher.state !== "idle" ? "var(--color-muted)" : "var(--color-text)",
+                  cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
                   transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
+                  gap: "6px",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
+                  if (bulkFetcher.state === "idle") {
+                    e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent"
                 }}
-                title="More actions"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="19" cy="12" r="1" />
-                  <circle cx="5" cy="12" r="1" />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
                 </svg>
+                Images
               </button>
 
-              {/* Dropdown Menu */}
-              {showBulkDropdown && (
-                <div
+              {/* More Actions Dropdown */}
+              <div style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDropdown(!showBulkDropdown)}
                   style={{
-                    position: "absolute",
-                    bottom: "100%",
-                    right: "0",
-                    marginBottom: "12px",
-                    background: "#fff",
-                    border: "1px solid rgba(17, 24, 39, 0.1)",
-                    borderRadius: "12px",
-                    boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5) inset",
-                    zIndex: 1001,
-                    minWidth: "200px",
-                    overflow: "hidden",
+                    width: "32px",
+                    height: "32px",
+                    padding: 0,
+                    background: "transparent",
+                    border: "none",
+                    borderRadius: "10px",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
-                  onClick={(e) => e.stopPropagation()}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent"
+                  }}
+                  title="More actions"
                 >
-                  {/* Section: AI Actions */}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="1" />
+                    <circle cx="19" cy="12" r="1" />
+                    <circle cx="5" cy="12" r="1" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showBulkDropdown && (
                   <div
                     style={{
-                      padding: "8px 12px 4px",
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      color: "#8B8B8B",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
+                      position: "absolute",
+                      bottom: "100%",
+                      right: "0",
+                      marginBottom: "12px",
+                      background: "#fff",
+                      border: "1px solid rgba(17, 24, 39, 0.1)",
+                      borderRadius: "12px",
+                      boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5) inset",
+                      zIndex: 1001,
+                      minWidth: "200px",
+                      overflow: "hidden",
                     }}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Generate
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      executeBulkAction("generate_seo_desc")
-                      setShowBulkDropdown(false)
-                    }}
-                    disabled={bulkFetcher.state !== "idle"}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "none",
-                      background: "transparent",
-                      color: "#252F2C",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      textAlign: "left",
-                      transition: "background 0.15s",
-                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    SEO Description
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      executeBulkAction("generate_alt_text")
-                      setShowBulkDropdown(false)
-                    }}
-                    disabled={bulkFetcher.state !== "idle"}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "none",
-                      background: "transparent",
-                      color: "#252F2C",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      textAlign: "left",
-                      transition: "background 0.15s",
-                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    Image Alt Text
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      executeBulkAction("generate_seo_title")
-                      setShowBulkDropdown(false)
-                    }}
-                    disabled={bulkFetcher.state !== "idle"}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "none",
-                      background: "transparent",
-                      color: "#252F2C",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      textAlign: "left",
-                      transition: "background 0.15s",
-                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    SEO Title
-                  </button>
-
-                  {/* Section: Auto Fix Actions */}
-                  <div
-                    style={{
-                      borderTop: "1px solid #e4e4e7",
-                      marginTop: "4px",
-                      padding: "6px 12px 4px",
-                      fontSize: "10px",
-                      fontWeight: 600,
-                      color: "#8B8B8B",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    Actions
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      executeBulkAction("generate_tags")
-                      setShowBulkDropdown(false)
-                    }}
-                    disabled={bulkFetcher.state !== "idle"}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "none",
-                      background: "transparent",
-                      color: "#252F2C",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      textAlign: "left",
-                      transition: "background 0.15s",
-                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    Apply Tags
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      executeBulkAction("apply_collection")
-                      setShowBulkDropdown(false)
-                    }}
-                    disabled={bulkFetcher.state !== "idle"}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "none",
-                      background: "transparent",
-                      color: "#252F2C",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      textAlign: "left",
-                      transition: "background 0.15s",
-                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    Add to Collection
-                  </button>
-
-                  {/* Generate All */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowGenerateAllModal(true)
-                      setShowBulkDropdown(false)
-                    }}
-                    disabled={bulkFetcher.state !== "idle"}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "none",
-                      background: "transparent",
-                      color: "#252F2C",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
-                      textAlign: "left",
-                      transition: "background 0.15s",
-                      opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    Generate All
-                  </button>
-
-                  {/* Divider + Clear */}
-                  <div style={{ borderTop: "1px solid #e4e4e7", marginTop: "4px" }}>
+                    {/* Section: AI Actions */}
+                    <div
+                      style={{
+                        padding: "8px 12px 4px",
+                        fontSize: "10px",
+                        fontWeight: 600,
+                        color: "#8B8B8B",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      Generate
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
-                        clearSelection()
+                        executeBulkAction("generate_seo_desc")
                         setShowBulkDropdown(false)
                       }}
+                      disabled={bulkFetcher.state !== "idle"}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
                         border: "none",
                         background: "transparent",
-                        color: "#a1a1aa",
+                        color: "#252F2C",
                         fontSize: "13px",
                         fontWeight: 500,
-                        cursor: "pointer",
+                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
                         textAlign: "left",
                         transition: "background 0.15s",
+                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#f4f4f5"
-                        e.currentTarget.style.color = "#252F2C"
+                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = "transparent"
-                        e.currentTarget.style.color = "#a1a1aa"
                       }}
                     >
-                      Clear Selection
+                      SEO Description
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeBulkAction("generate_alt_text")
+                        setShowBulkDropdown(false)
+                      }}
+                      disabled={bulkFetcher.state !== "idle"}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "none",
+                        background: "transparent",
+                        color: "#252F2C",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        textAlign: "left",
+                        transition: "background 0.15s",
+                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                      }}
+                    >
+                      Image Alt Text
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeBulkAction("generate_seo_title")
+                        setShowBulkDropdown(false)
+                      }}
+                      disabled={bulkFetcher.state !== "idle"}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "none",
+                        background: "transparent",
+                        color: "#252F2C",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        textAlign: "left",
+                        transition: "background 0.15s",
+                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                      }}
+                    >
+                      SEO Title
+                    </button>
+
+                    {/* Section: Auto Fix Actions */}
+                    <div
+                      style={{
+                        borderTop: "1px solid #e4e4e7",
+                        marginTop: "4px",
+                        padding: "6px 12px 4px",
+                        fontSize: "10px",
+                        fontWeight: 600,
+                        color: "#8B8B8B",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      Actions
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeBulkAction("generate_tags")
+                        setShowBulkDropdown(false)
+                      }}
+                      disabled={bulkFetcher.state !== "idle"}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "none",
+                        background: "transparent",
+                        color: "#252F2C",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        textAlign: "left",
+                        transition: "background 0.15s",
+                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                      }}
+                    >
+                      Apply Tags
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeBulkAction("apply_collection")
+                        setShowBulkDropdown(false)
+                      }}
+                      disabled={bulkFetcher.state !== "idle"}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "none",
+                        background: "transparent",
+                        color: "#252F2C",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        textAlign: "left",
+                        transition: "background 0.15s",
+                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                      }}
+                    >
+                      Add to Collection
+                    </button>
+
+                    {/* Generate All */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowGenerateAllModal(true)
+                        setShowBulkDropdown(false)
+                      }}
+                      disabled={bulkFetcher.state !== "idle"}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "none",
+                        background: "transparent",
+                        color: "#252F2C",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: bulkFetcher.state !== "idle" ? "not-allowed" : "pointer",
+                        textAlign: "left",
+                        transition: "background 0.15s",
+                        opacity: bulkFetcher.state !== "idle" ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (bulkFetcher.state === "idle") e.currentTarget.style.background = "#f4f4f5"
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent"
+                      }}
+                    >
+                      Generate All
+                    </button>
+
+                    {/* Divider + Clear */}
+                    <div
+                      style={{
+                        borderTop: "1px solid #e4e4e7",
+                        marginTop: "4px",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearSelection()
+                          setShowBulkDropdown(false)
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "none",
+                          background: "transparent",
+                          color: "#a1a1aa",
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#f4f4f5"
+                          e.currentTarget.style.color = "#252F2C"
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "transparent"
+                          e.currentTarget.style.color = "#a1a1aa"
+                        }}
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Close/Clear Button */}
-            <button
-              type="button"
-              onClick={clearSelection}
-              style={{
-                width: "32px",
-                height: "32px",
-                padding: 0,
-                background: "transparent",
-                border: "1px solid #e4e4e7",
-                borderRadius: "6px",
-                color: "#8B8B8B",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "18px",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f4f4f5"
-                e.currentTarget.style.borderColor = "#d4d4d8"
-                e.currentTarget.style.color = "#252F2C"
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent"
-                e.currentTarget.style.borderColor = "#e4e4e7"
-                e.currentTarget.style.color = "#8B8B8B"
-              }}
-              title="Close"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Monitoring Modal (Pro only) */}
-      {showMonitoringModal && monitoring && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowMonitoringModal(false)
-          }}
-        >
-          <div
-            className="animate-fade-in-up"
-            style={{
-              background: "var(--color-surface)",
-              borderRadius: "var(--radius-xl)",
-              width: "100%",
-              maxWidth: "600px",
-              maxHeight: "80vh",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                padding: "24px",
-                borderBottom: "1px solid var(--color-border-subtle)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: "transparent",
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    fontSize: "var(--text-xl)",
-                    fontWeight: 600,
-                    margin: 0,
-                    color: "var(--color-text)",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  Catalog Monitor
-                </h2>
-                <p
-                  style={{
-                    fontSize: "var(--text-sm)",
-                    color: "var(--color-muted)",
-                    margin: "4px 0 0",
-                  }}
-                >
-                  Last 7 days compliance overview
-                </p>
+                )}
               </div>
+
+              {/* Close/Clear Button */}
               <button
                 type="button"
-                onClick={() => setShowMonitoringModal(false)}
+                onClick={clearSelection}
                 style={{
+                  width: "32px",
+                  height: "32px",
+                  padding: 0,
                   background: "transparent",
-                  border: "none",
+                  border: "1px solid #e4e4e7",
+                  borderRadius: "6px",
+                  color: "#8B8B8B",
                   cursor: "pointer",
-                  padding: "8px",
-                  color: "var(--color-muted)",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "18px",
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#f4f4f5"
+                  e.currentTarget.style.borderColor = "#d4d4d8"
+                  e.currentTarget.style.color = "#252F2C"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent"
+                  e.currentTarget.style.borderColor = "#e4e4e7"
+                  e.currentTarget.style.color = "#8B8B8B"
+                }}
+                title="Close"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
             </div>
+          </div>
+        )}
 
-            {/* Content */}
-            <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
-              {/* Summary Cards */}
+        {/* Monitoring Modal (Pro only) */}
+        {showMonitoringModal && monitoring && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowMonitoringModal(false)
+            }}
+          >
+            <div
+              className="animate-fade-in-up"
+              style={{
+                background: "var(--color-surface)",
+                borderRadius: "var(--radius-xl)",
+                width: "100%",
+                maxWidth: "600px",
+                maxHeight: "80vh",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Header */}
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "12px",
-                  marginBottom: "24px",
+                  padding: "24px",
+                  borderBottom: "1px solid var(--color-border-subtle)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "transparent",
                 }}
               >
-                <div
-                  style={{
-                    padding: "16px",
-                    background: "var(--color-surface-secondary)",
-                    borderRadius: "var(--radius-md)",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
+                <div>
+                  <h2
                     style={{
-                      fontSize: "28px",
+                      fontSize: "var(--text-xl)",
                       fontWeight: 600,
+                      margin: 0,
                       color: "var(--color-text)",
+                      letterSpacing: "-0.01em",
                     }}
                   >
-                    {monitoring.driftsThisWeek}
-                  </div>
-                  <div
+                    Catalog Monitor
+                  </h2>
+                  <p
                     style={{
-                      fontSize: "11px",
+                      fontSize: "var(--text-sm)",
                       color: "var(--color-muted)",
-                      textTransform: "uppercase",
+                      margin: "4px 0 0",
                     }}
                   >
-                    Drifts This Week
-                  </div>
+                    Last 7 days compliance overview
+                  </p>
                 </div>
-                <div
+                <button
+                  type="button"
+                  onClick={() => setShowMonitoringModal(false)}
                   style={{
-                    padding: "16px",
-                    background:
-                      monitoring.unresolvedDrifts > 0 ? "var(--color-warning-soft)" : "var(--color-success-soft)",
-                    borderRadius: "var(--radius-md)",
-                    textAlign: "center",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "8px",
+                    color: "var(--color-muted)",
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: "28px",
-                      fontWeight: 600,
-                      color: monitoring.unresolvedDrifts > 0 ? "var(--color-warning)" : "var(--color-success)",
-                    }}
-                  >
-                    {monitoring.unresolvedDrifts}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "var(--color-muted)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Unresolved
-                  </div>
-                </div>
-                <div
-                  style={{
-                    padding: "16px",
-                    background: "var(--color-surface-secondary)",
-                    borderRadius: "var(--radius-md)",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "28px",
-                      fontWeight: 600,
-                      color: "var(--color-text)",
-                    }}
-                  >
-                    {monitoring.productsAffected}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "var(--color-muted)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Products Affected
-                  </div>
-                </div>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              {/* Issues by Type */}
-              {Object.keys(monitoring.byType).length > 0 && (
-                <div style={{ marginBottom: "24px" }}>
-                  <h3
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      marginBottom: "12px",
-                    }}
-                  >
-                    Issues by Type
-                  </h3>
+              {/* Content */}
+              <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
+                {/* Summary Cards */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: "12px",
+                    marginBottom: "24px",
+                  }}
+                >
                   <div
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
+                      padding: "16px",
+                      background: "var(--color-surface-secondary)",
+                      borderRadius: "var(--radius-md)",
+                      textAlign: "center",
                     }}
                   >
-                    {Object.entries(monitoring.byType).map(([type, count]) => (
-                      <div
-                        key={type}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "10px 14px",
-                          background: "var(--color-surface-secondary)",
-                          borderRadius: "var(--radius-sm)",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            color: "var(--color-text)",
-                          }}
-                        >
-                          {type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            color: "var(--color-warning)",
-                            background: "var(--color-warning-soft)",
-                            padding: "2px 8px",
-                            borderRadius: "var(--radius-full)",
-                          }}
-                        >
-                          {count}
-                        </span>
-                      </div>
-                    ))}
+                    <div
+                      style={{
+                        fontSize: "28px",
+                        fontWeight: 600,
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      {monitoring.driftsThisWeek}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Drifts This Week
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      padding: "16px",
+                      background:
+                        monitoring.unresolvedDrifts > 0 ? "var(--color-warning-soft)" : "var(--color-success-soft)",
+                      borderRadius: "var(--radius-md)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "28px",
+                        fontWeight: 600,
+                        color: monitoring.unresolvedDrifts > 0 ? "var(--color-warning)" : "var(--color-success)",
+                      }}
+                    >
+                      {monitoring.unresolvedDrifts}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Unresolved
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      padding: "16px",
+                      background: "var(--color-surface-secondary)",
+                      borderRadius: "var(--radius-md)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "28px",
+                        fontWeight: 600,
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      {monitoring.productsAffected}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Products Affected
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {/* Recent Drifts */}
-              {monitoring.recentDrifts.length > 0 && (
-                <div>
-                  <h3
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      marginBottom: "12px",
-                    }}
-                  >
-                    Recent Issues
-                  </h3>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {monitoring.recentDrifts.slice(0, 5).map((drift) => (
-                      <button
-                        key={drift.id}
-                        type="button"
-                        onClick={() => {
-                          setShowMonitoringModal(false)
-                          const numericId = drift.productId.split("/").pop()
-                          navigate(`/app/products/${numericId}`)
-                        }}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "12px 14px",
-                          background: "var(--color-surface)",
-                          border: "1px solid var(--color-border)",
-                          borderRadius: "var(--radius-sm)",
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                      >
-                        <div>
-                          <div
+                {/* Issues by Type */}
+                {Object.keys(monitoring.byType).length > 0 && (
+                  <div style={{ marginBottom: "24px" }}>
+                    <h3
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        marginBottom: "12px",
+                      }}
+                    >
+                      Issues by Type
+                    </h3>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
+                      {Object.entries(monitoring.byType).map(([type, count]) => (
+                        <div
+                          key={type}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "10px 14px",
+                            background: "var(--color-surface-secondary)",
+                            borderRadius: "var(--radius-sm)",
+                          }}
+                        >
+                          <span
                             style={{
                               fontSize: "13px",
-                              fontWeight: 500,
                               color: "var(--color-text)",
                             }}
                           >
-                            {drift.productTitle}
+                            {type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              color: "var(--color-warning)",
+                              background: "var(--color-warning-soft)",
+                              padding: "2px 8px",
+                              borderRadius: "var(--radius-full)",
+                            }}
+                          >
+                            {count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Drifts */}
+                {monitoring.recentDrifts.length > 0 && (
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        marginBottom: "12px",
+                      }}
+                    >
+                      Recent Issues
+                    </h3>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                      }}
+                    >
+                      {monitoring.recentDrifts.slice(0, 5).map((drift) => (
+                        <button
+                          key={drift.id}
+                          type="button"
+                          onClick={() => {
+                            setShowMonitoringModal(false)
+                            const numericId = drift.productId.split("/").pop()
+                            navigate(`/app/products/${numericId}`)
+                          }}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "12px 14px",
+                            background: "var(--color-surface)",
+                            border: "1px solid var(--color-border)",
+                            borderRadius: "var(--radius-sm)",
+                            cursor: "pointer",
+                            textAlign: "left",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                fontWeight: 500,
+                                color: "var(--color-text)",
+                              }}
+                            >
+                              {drift.productTitle}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "var(--color-muted)",
+                              }}
+                            >
+                              {drift.driftType.replace(/_/g, " ")}
+                            </div>
                           </div>
                           <div
                             style={{
-                              fontSize: "11px",
-                              color: "var(--color-muted)",
+                              padding: "4px 8px",
+                              borderRadius: "var(--radius-full)",
+                              fontSize: "10px",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              background:
+                                drift.severity === "high"
+                                  ? "var(--color-danger-soft)"
+                                  : drift.severity === "medium"
+                                    ? "var(--color-warning-soft)"
+                                    : "var(--color-surface-strong)",
+                              color:
+                                drift.severity === "high"
+                                  ? "var(--color-danger)"
+                                  : drift.severity === "medium"
+                                    ? "var(--color-warning)"
+                                    : "var(--color-muted)",
                             }}
                           >
-                            {drift.driftType.replace(/_/g, " ")}
+                            {drift.severity}
                           </div>
-                        </div>
-                        <div
-                          style={{
-                            padding: "4px 8px",
-                            borderRadius: "var(--radius-full)",
-                            fontSize: "10px",
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            background:
-                              drift.severity === "high"
-                                ? "var(--color-danger-soft)"
-                                : drift.severity === "medium"
-                                  ? "var(--color-warning-soft)"
-                                  : "var(--color-surface-strong)",
-                            color:
-                              drift.severity === "high"
-                                ? "var(--color-danger)"
-                                : drift.severity === "medium"
-                                  ? "var(--color-warning)"
-                                  : "var(--color-muted)",
-                          }}
-                        >
-                          {drift.severity}
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Empty state */}
-              {monitoring.driftsThisWeek === 0 && (
-                <div style={{ textAlign: "center", padding: "32px" }}>
-                  <div
-                    style={{
-                      width: "64px",
-                      height: "64px",
-                      borderRadius: "50%",
-                      background: "var(--color-success-soft)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 16px",
-                    }}
-                  >
-                    <svg
-                      width="28"
-                      height="28"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="var(--color-success)"
-                      strokeWidth="2"
+                {/* Empty state */}
+                {monitoring.driftsThisWeek === 0 && (
+                  <div style={{ textAlign: "center", padding: "32px" }}>
+                    <div
+                      style={{
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "50%",
+                        background: "var(--color-success-soft)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        margin: "0 auto 16px",
+                      }}
                     >
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
+                      <svg
+                        width="28"
+                        height="28"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="var(--color-success)"
+                        strokeWidth="2"
+                      >
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    </div>
+                    <h3
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: 600,
+                        marginBottom: "8px",
+                      }}
+                    >
+                      All Clear!
+                    </h3>
+                    <p style={{ fontSize: "13px", color: "var(--color-muted)" }}>
+                      No compliance drifts detected in the last 7 days.
+                    </p>
                   </div>
-                  <h3
-                    style={{
-                      fontSize: "16px",
-                      fontWeight: 600,
-                      marginBottom: "8px",
-                    }}
-                  >
-                    All Clear!
-                  </h3>
-                  <p style={{ fontSize: "13px", color: "var(--color-muted)" }}>
-                    No compliance drifts detected in the last 7 days.
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Footer */}
-            <div
-              style={{
-                padding: "20px 24px",
-                borderTop: "1px solid var(--color-border-subtle)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: "transparent",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => navigate("/app/standards")}
+              {/* Footer */}
+              <div
                 style={{
-                  padding: "10px 16px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--color-border)",
+                  padding: "20px 24px",
+                  borderTop: "1px solid var(--color-border-subtle)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   background: "transparent",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  fontWeight: 500,
                 }}
               >
-                Manage Standards
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowMonitoringModal(false)}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "none",
-                  background: "var(--color-text)",
-                  color: "var(--color-surface)",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                }}
-              >
-                Done
-              </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/app/standards")}
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--color-border)",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                  }}
+                >
+                  Manage Standards
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMonitoringModal(false)}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "none",
+                    background: "var(--color-text)",
+                    color: "var(--color-surface)",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                  }}
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Bulk Generate All Modal */}
+        {/* Dashboard Tour */}
+        <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
+      </div>
+
+      {/* Bulk Generate All Modal - Outside main container to avoid overflow clipping */}
       <BulkGenerateAllModal
         isOpen={showGenerateAllModal}
         onClose={() => setShowGenerateAllModal(false)}
@@ -4090,10 +4103,7 @@ export default function Dashboard() {
         fieldOptions={bulkFieldOptions}
         setFieldOptions={setBulkFieldOptions}
       />
-
-      {/* Dashboard Tour */}
-      <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
-    </div>
+    </>
   )
 }
 
