@@ -1,19 +1,19 @@
-import type { ProductImage } from "./types";
+import type { ProductImage } from "./types"
 
 interface ProductMediaCardProps {
-  images: ProductImage[];
-  featuredImageId: string | null;
-  productId: string;
-  productTitle: string;
-  aiAvailable: boolean;
-  generatingImage: boolean;
-  generatingBulkAlt: boolean;
-  setGeneratingBulkAlt: (value: boolean) => void;
-  onRefresh: () => void;
-  onOpenImagePromptModal: () => void;
-  onAltTextChange: (imageId: string, altText: string) => void;
+  images: ProductImage[]
+  featuredImageId: string | null
+  productId: string
+  productTitle: string
+  aiAvailable: boolean
+  generatingImage: boolean
+  generatingBulkAlt: boolean
+  setGeneratingBulkAlt: (value: boolean) => void
+  onRefresh: () => void
+  onOpenImagePromptModal: () => void
+  onAltTextChange: (imageId: string, altText: string) => void
   // ImageManager component passed in to avoid circular deps
-  ImageManager: React.ComponentType<any>;
+  ImageManager: React.ComponentType<any>
 }
 
 export function ProductMediaCard({
@@ -77,5 +77,5 @@ export function ProductMediaCard({
         onAltTextChange={onAltTextChange}
       />
     </div>
-  );
+  )
 }

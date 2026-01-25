@@ -1,21 +1,21 @@
-import type { ProductForm, AIGenerateMode, FieldVersion } from "./types";
+import type { AIGenerateMode, FieldVersion, ProductForm } from "./types"
 
 interface ProductSeoCardProps {
-  form: ProductForm;
-  productId: string;
-  productTitle: string;
-  updateField: (field: string, value: string) => void;
-  generating: Set<string>;
-  generatingModes: Record<string, AIGenerateMode>;
-  aiAvailable: boolean;
-  fieldVersions: Record<string, FieldVersion[]>;
-  aiGeneratedFields: Set<string>;
-  preGenerationValues: Record<string, string | string[]>;
-  onGenerateAI: (type: string, field: string, mode: AIGenerateMode) => void;
-  onRevert: (field: string, version: number) => void;
-  onInlineRevert: (field: string) => void;
+  form: ProductForm
+  productId: string
+  productTitle: string
+  updateField: (field: string, value: string) => void
+  generating: Set<string>
+  generatingModes: Record<string, AIGenerateMode>
+  aiAvailable: boolean
+  fieldVersions: Record<string, FieldVersion[]>
+  aiGeneratedFields: Set<string>
+  preGenerationValues: Record<string, string | string[]>
+  onGenerateAI: (type: string, field: string, mode: AIGenerateMode) => void
+  onRevert: (field: string, version: number) => void
+  onInlineRevert: (field: string) => void
   // EditableField component passed in
-  EditableField: React.ComponentType<any>;
+  EditableField: React.ComponentType<any>
 }
 
 export function ProductSeoCard({
@@ -37,7 +37,7 @@ export function ProductSeoCard({
   const slug = productTitle
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replace(/^-|-$/g, "")
 
   return (
     <div
@@ -166,5 +166,5 @@ export function ProductSeoCard({
         />
       </div>
     </div>
-  );
+  )
 }

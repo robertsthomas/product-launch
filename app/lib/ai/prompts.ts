@@ -466,15 +466,20 @@ export function buildImagePrompt(product: {
   existingImages?: Array<{ id: string; url: string; altText?: string | null }>
 }) {
   // Extract ALL visual attributes from existing images first (most accurate source)
-  const altTexts = product.existingImages?.map(img => img.altText).filter(Boolean) || []
+  const altTexts = product.existingImages?.map((img) => img.altText).filter(Boolean) || []
   const altTextContext = altTexts.join(" ")
-  
+
   // Extract color and material - prioritize alt text descriptions
-  const colorMaterialInfo = extractColorAndMaterial(product.title, product.descriptionHtml, product.tags, altTextContext)
-  
+  const colorMaterialInfo = extractColorAndMaterial(
+    product.title,
+    product.descriptionHtml,
+    product.tags,
+    altTextContext
+  )
+
   // Build a strict, descriptive prompt
   let prompt = ""
-  
+
   // If we have existing images with descriptions, use them as the primary reference
   if (altTexts.length > 0) {
     prompt = `Generate a product photo that EXACTLY matches this existing product: ${altTexts[0]}.`
@@ -487,7 +492,7 @@ export function buildImagePrompt(product: {
     const template = IMAGE_PROMPT_TEMPLATES[category] || IMAGE_PROMPT_TEMPLATES.apparel
     prompt = template.replace("[Product]", `${product.vendor ? `${product.vendor} ` : ""}${product.title}`)
   }
-  
+
   // Add mandatory attributes
   if (colorMaterialInfo) {
     prompt += ` The product is ${colorMaterialInfo} - this is MANDATORY, do not change these attributes.`
@@ -540,31 +545,141 @@ function extractColorAndMaterial(
   altTextContext?: string
 ): string | null {
   const colors = [
-    "red", "blue", "green", "yellow", "orange", "purple", "pink", "black", "white", "gray", "grey",
-    "brown", "beige", "cream", "ivory", "navy", "teal", "coral", "gold", "silver", "bronze", "copper",
-    "burgundy", "maroon", "olive", "mint", "lavender", "turquoise", "rose", "blush", "charcoal",
-    "tan", "khaki", "nude", "champagne", "emerald", "ruby", "sapphire", "amber", "crimson",
-    "mustard", "rust", "peach", "mauve", "plum", "indigo", "cobalt", "slate", "taupe", "natural",
-    "weathered", "distressed", "aged", "rustic", "painted", "stained", "varnished", "polished"
+    "red",
+    "blue",
+    "green",
+    "yellow",
+    "orange",
+    "purple",
+    "pink",
+    "black",
+    "white",
+    "gray",
+    "grey",
+    "brown",
+    "beige",
+    "cream",
+    "ivory",
+    "navy",
+    "teal",
+    "coral",
+    "gold",
+    "silver",
+    "bronze",
+    "copper",
+    "burgundy",
+    "maroon",
+    "olive",
+    "mint",
+    "lavender",
+    "turquoise",
+    "rose",
+    "blush",
+    "charcoal",
+    "tan",
+    "khaki",
+    "nude",
+    "champagne",
+    "emerald",
+    "ruby",
+    "sapphire",
+    "amber",
+    "crimson",
+    "mustard",
+    "rust",
+    "peach",
+    "mauve",
+    "plum",
+    "indigo",
+    "cobalt",
+    "slate",
+    "taupe",
+    "natural",
+    "weathered",
+    "distressed",
+    "aged",
+    "rustic",
+    "painted",
+    "stained",
+    "varnished",
+    "polished",
   ]
-  
+
   const materials = [
-    "cotton", "wool", "silk", "linen", "leather", "suede", "velvet", "denim", "canvas",
-    "polyester", "nylon", "fleece", "cashmere", "satin", "chiffon", "tweed", "corduroy",
-    "wood", "wooden", "metal", "steel", "aluminum", "brass", "copper", "glass", "ceramic", "porcelain",
-    "plastic", "rubber", "bamboo", "rattan", "wicker", "marble", "granite", "stone",
-    "knit", "knitted", "woven", "crochet", "embroidered", "quilted", "faux", "vegan",
-    "cedar", "pine", "oak", "teak", "mahogany", "walnut", "birch", "maple"
+    "cotton",
+    "wool",
+    "silk",
+    "linen",
+    "leather",
+    "suede",
+    "velvet",
+    "denim",
+    "canvas",
+    "polyester",
+    "nylon",
+    "fleece",
+    "cashmere",
+    "satin",
+    "chiffon",
+    "tweed",
+    "corduroy",
+    "wood",
+    "wooden",
+    "metal",
+    "steel",
+    "aluminum",
+    "brass",
+    "copper",
+    "glass",
+    "ceramic",
+    "porcelain",
+    "plastic",
+    "rubber",
+    "bamboo",
+    "rattan",
+    "wicker",
+    "marble",
+    "granite",
+    "stone",
+    "knit",
+    "knitted",
+    "woven",
+    "crochet",
+    "embroidered",
+    "quilted",
+    "faux",
+    "vegan",
+    "cedar",
+    "pine",
+    "oak",
+    "teak",
+    "mahogany",
+    "walnut",
+    "birch",
+    "maple",
   ]
-  
+
   const patterns = [
-    "striped", "plaid", "checkered", "polka dot", "floral", "paisley", "geometric",
-    "solid", "printed", "tie-dye", "ombre", "textured", "ribbed", "cable-knit"
+    "striped",
+    "plaid",
+    "checkered",
+    "polka dot",
+    "floral",
+    "paisley",
+    "geometric",
+    "solid",
+    "printed",
+    "tie-dye",
+    "ombre",
+    "textured",
+    "ribbed",
+    "cable-knit",
   ]
 
   const found: string[] = []
   // Prioritize alt text (which describes actual images) over title
-  const textToSearch = `${altTextContext || ""} ${title} ${stripHtml(descriptionHtml || "")} ${(tags || []).join(" ")}`.toLowerCase()
+  const textToSearch =
+    `${altTextContext || ""} ${title} ${stripHtml(descriptionHtml || "")} ${(tags || []).join(" ")}`.toLowerCase()
 
   // Find colors
   for (const color of colors) {

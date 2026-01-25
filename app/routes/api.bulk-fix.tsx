@@ -149,15 +149,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const productId = productIds[i]
 
         // Send "processing" event before starting this product
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-          type: "processing", 
-          productId,
-          index: i,
-          total: productIds.length
-        })}\n\n`))
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: "processing",
+              productId,
+              index: i,
+              total: productIds.length,
+            })}\n\n`
+          )
+        )
 
         const result = await processSingleProduct(
-          productId, intent, admin, shop, shopSettings, openaiConfig, selectedFields, fieldOptions
+          productId,
+          intent,
+          admin,
+          shop,
+          shopSettings,
+          openaiConfig,
+          selectedFields,
+          fieldOptions
         )
 
         results.push(result)
@@ -171,14 +182,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
 
         // Send progress update after each product
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-          type: "progress", 
-          productId,
-          processed: results.length, 
-          total: productIds.length,
-          successCount,
-          errorCount
-        })}\n\n`))
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: "progress",
+              productId,
+              processed: results.length,
+              total: productIds.length,
+              successCount,
+              errorCount,
+            })}\n\n`
+          )
+        )
 
         // Small delay between products
         if (i < productIds.length - 1) {
@@ -187,25 +202,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
 
       // Send final result
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-        type: "complete",
-        success: true,
-        intent,
-        totalProcessed: results.length,
-        successCount,
-        errorCount,
-        results,
-      })}\n\n`))
+      controller.enqueue(
+        encoder.encode(
+          `data: ${JSON.stringify({
+            type: "complete",
+            success: true,
+            intent,
+            totalProcessed: results.length,
+            successCount,
+            errorCount,
+            results,
+          })}\n\n`
+        )
+      )
 
       controller.close()
-    }
+    },
   })
 
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     },
   })
 }
@@ -435,9 +454,7 @@ async function generateBulkAltText(
 ): Promise<BulkFixResult> {
   // Use media nodes (MediaImage IDs) for the mutation, not images (ProductImage IDs)
   const mediaNodes = product.media?.nodes || []
-  const imageMedia = mediaNodes.filter(
-    (m) => m.mediaContentType === "IMAGE" && !m.alt?.trim()
-  )
+  const imageMedia = mediaNodes.filter((m) => m.mediaContentType === "IMAGE" && !m.alt?.trim())
 
   if (imageMedia.length === 0) {
     return {
@@ -718,7 +735,7 @@ async function generateBulkAll(
       message: "No fields selected",
     }
   }
-  
+
   // Ensure selectedFields is an array for iteration
   const fieldsToProcess = [...(selectedFields || [])]
   // If we have fieldOptions but no selectedFields, add the keys from fieldOptions
@@ -840,7 +857,7 @@ async function generateBulkAll(
               const currentImageCount = product.media?.nodes?.filter((m) => m.mediaContentType === "IMAGE").length || 0
               const imagesToGenerate = Math.max(0, 3 - currentImageCount)
               console.log("[Bulk Images] currentImageCount:", currentImageCount, "imagesToGenerate:", imagesToGenerate)
-              
+
               if (imagesToGenerate > 0) {
                 let generatedCount = 0
                 for (let imgIdx = 0; imgIdx < imagesToGenerate; imgIdx++) {
@@ -976,9 +993,7 @@ async function generateBulkAll(
             // Handle alt text generation - use media nodes for MediaImage IDs
             if (imageOptions.includes("alt")) {
               const mediaNodes = product.media?.nodes || []
-              const imageMedia = mediaNodes.filter(
-                (m) => m.mediaContentType === "IMAGE" && !m.alt?.trim()
-              )
+              const imageMedia = mediaNodes.filter((m) => m.mediaContentType === "IMAGE" && !m.alt?.trim())
 
               for (let i = 0; i < imageMedia.length; i++) {
                 const media = imageMedia[i]

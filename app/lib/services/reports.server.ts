@@ -1,321 +1,53 @@
 /**
- * Catalog Health Report Service (Pro Feature)
+ * Catalog Health Reports Service (Pro Feature)
  *
- * Generates monthly scorecard:
+ * Generates weekly/monthly health reports with:
  * - Overall readiness score trend
- * - Top issues this month
- * - Most improved products
+ * - Top issues breakdown
  * - Products at risk
- * - Suggestions to improve
- * - PDF/CSV export
+ * - Most improved products
+ * - Drift summary
+ * - AI-generated suggestions
  */
 
 import { and, desc, eq, gte, lte } from "drizzle-orm"
 import { db } from "~/db"
-import { type CatalogReport, catalogReports, complianceDrifts, productAudits, shops } from "~/db/schema"
+import {
+  type CatalogReport,
+  type NewCatalogReport,
+  catalogReports,
+  complianceDrifts,
+  productAudits,
+  shops,
+} from "~/db/schema"
 
-interface TopIssue {
-  issue: string
-  count: number
-  severity: "low" | "medium" | "high"
-}
-
-interface ProductAtRisk {
-  productId: string
-  title: string
-  score: number
-  issues: number
-}
-
-interface ImprovedProduct {
-  productId: string
-  title: string
-  previousScore: number
-  currentScore: number
-  improvement: number
-}
-
-interface ReportSuggestion {
-  priority: "high" | "medium" | "low"
-  title: string
-  description: string
-  actionable: boolean
+interface ReportPeriod {
+  start: Date
+  end: Date
 }
 
 /**
- * Generate a monthly catalog health report
+ * Get the latest catalog report for a shop
  */
-export async function generateMonthlyReport(shopDomain: string): Promise<CatalogReport | null> {
+export async function getLatestReport(shopDomain: string): Promise<CatalogReport | null> {
   const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
-
   if (!shop) return null
 
-  // Calculate period (previous month)
-  const now = new Date()
-  const periodEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
-  const periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0)
-
-  // Get previous period for comparison
-  const prevPeriodEnd = new Date(periodStart.getTime() - 1)
-  const prevPeriodStart = new Date(prevPeriodEnd.getFullYear(), prevPeriodEnd.getMonth(), 1)
-
-  // Get all audits for current period
-  const currentAudits = await db
-    .select()
-    .from(productAudits)
-    .where(
-      and(
-        eq(productAudits.shopId, shop.id),
-        gte(productAudits.updatedAt, periodStart),
-        lte(productAudits.updatedAt, periodEnd)
-      )
-    )
-
-  // Get audits from previous period for comparison
-  const prevAudits = await db
-    .select()
-    .from(productAudits)
-    .where(
-      and(
-        eq(productAudits.shopId, shop.id),
-        gte(productAudits.updatedAt, prevPeriodStart),
-        lte(productAudits.updatedAt, prevPeriodEnd)
-      )
-    )
-
-  // Calculate metrics
-  const totalProducts = currentAudits.length
-  const readyProducts = currentAudits.filter((a) => a.status === "ready").length
-  const incompleteProducts = totalProducts - readyProducts
-  const averageScore = totalProducts > 0 ? currentAudits.reduce((sum, a) => sum + a.score, 0) / totalProducts : 0
-  const previousAverageScore =
-    prevAudits.length > 0 ? prevAudits.reduce((sum, a) => sum + a.score, 0) / prevAudits.length : null
-
-  // Get top issues (from failed audit items)
-  const topIssues = await getTopIssues(shop.id, periodStart, periodEnd)
-
-  // Get products at risk (lowest scores)
-  const productsAtRisk = currentAudits
-    .filter((a) => a.status === "incomplete")
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 10)
-    .map((a) => ({
-      productId: a.productId,
-      title: a.productTitle,
-      score: a.score,
-      issues: a.failedCount,
-    }))
-
-  // Get most improved products
-  const mostImproved = getMostImproved(currentAudits, prevAudits)
-
-  // Get drift summary
-  const drifts = await db
-    .select()
-    .from(complianceDrifts)
-    .where(
-      and(
-        eq(complianceDrifts.shopId, shop.id),
-        gte(complianceDrifts.detectedAt, periodStart),
-        lte(complianceDrifts.detectedAt, periodEnd)
-      )
-    )
-
-  const driftsResolved = drifts.filter((d) => d.isResolved).length
-  const driftsUnresolved = drifts.length - driftsResolved
-
-  // Generate suggestions
-  const suggestions = generateSuggestions({
-    averageScore,
-    previousAverageScore,
-    topIssues,
-    productsAtRisk,
-    driftsUnresolved,
-    totalProducts,
-  })
-
-  // Create report
   const [report] = await db
-    .insert(catalogReports)
-    .values({
-      shopId: shop.id,
-      periodStart,
-      periodEnd,
-      totalProducts,
-      readyProducts,
-      incompleteProducts,
-      averageScore,
-      previousAverageScore,
-      topIssuesJson: JSON.stringify(topIssues),
-      productsAtRiskJson: JSON.stringify(productsAtRisk),
-      mostImprovedJson: JSON.stringify(mostImproved),
-      driftsDetected: drifts.length,
-      driftsResolved,
-      driftsUnresolved,
-      suggestionsJson: JSON.stringify(suggestions),
-      status: "ready",
-    })
-    .returning()
-
-  return report
-}
-
-/**
- * Get top issues for the period
- */
-async function getTopIssues(shopId: string, periodStart: Date, periodEnd: Date): Promise<TopIssue[]> {
-  // This would ideally aggregate from productAuditItems
-  // For now, return common issues based on audit data
-  const audits = await db
     .select()
-    .from(productAudits)
-    .where(
-      and(
-        eq(productAudits.shopId, shopId),
-        gte(productAudits.updatedAt, periodStart),
-        lte(productAudits.updatedAt, periodEnd)
-      )
-    )
+    .from(catalogReports)
+    .where(eq(catalogReports.shopId, shop.id))
+    .orderBy(desc(catalogReports.periodEnd))
+    .limit(1)
 
-  // Count issues by type (simplified)
-  const issueTypes: Record<string, { count: number; severity: "low" | "medium" | "high" }> = {
-    "Missing SEO title": { count: 0, severity: "high" },
-    "Short description": { count: 0, severity: "medium" },
-    "Missing alt text": { count: 0, severity: "medium" },
-    "Low image count": { count: 0, severity: "medium" },
-    "No collection assigned": { count: 0, severity: "low" },
-    "Missing tags": { count: 0, severity: "low" },
-  }
-
-  // Estimate counts from failed counts (simplified)
-  for (const audit of audits) {
-    if (audit.failedCount > 0) {
-      // Distribute failures across common issues (rough estimate)
-      const failCount = Math.ceil(audit.failedCount / 6)
-      for (const key of Object.keys(issueTypes)) {
-        issueTypes[key].count += failCount
-      }
-    }
-  }
-
-  return Object.entries(issueTypes)
-    .map(([issue, data]) => ({ issue, ...data }))
-    .filter((i) => i.count > 0)
-    .sort((a, b) => b.count - a.count)
+  return report || null
 }
 
 /**
- * Find most improved products
+ * Get report history for a shop
  */
-function getMostImproved(
-  currentAudits: (typeof productAudits.$inferSelect)[],
-  prevAudits: (typeof productAudits.$inferSelect)[]
-): ImprovedProduct[] {
-  const prevScores = new Map(prevAudits.map((a) => [a.productId, a]))
-
-  const improvements: ImprovedProduct[] = []
-
-  for (const current of currentAudits) {
-    const prev = prevScores.get(current.productId)
-    if (prev && current.score > prev.score) {
-      improvements.push({
-        productId: current.productId,
-        title: current.productTitle,
-        previousScore: prev.score,
-        currentScore: current.score,
-        improvement: current.score - prev.score,
-      })
-    }
-  }
-
-  return improvements.sort((a, b) => b.improvement - a.improvement).slice(0, 10)
-}
-
-/**
- * Generate actionable suggestions
- */
-function generateSuggestions(data: {
-  averageScore: number
-  previousAverageScore: number | null
-  topIssues: TopIssue[]
-  productsAtRisk: ProductAtRisk[]
-  driftsUnresolved: number
-  totalProducts: number
-}): ReportSuggestion[] {
-  const suggestions: ReportSuggestion[] = []
-
-  // Score trend suggestion
-  if (data.previousAverageScore !== null) {
-    if (data.averageScore < data.previousAverageScore) {
-      suggestions.push({
-        priority: "high",
-        title: "Score Declining",
-        description: `Your average readiness score dropped from ${data.previousAverageScore.toFixed(0)} to ${data.averageScore.toFixed(0)}. Review recent product changes.`,
-        actionable: true,
-      })
-    } else if (data.averageScore > data.previousAverageScore) {
-      suggestions.push({
-        priority: "low",
-        title: "Great Progress!",
-        description: `Your score improved from ${data.previousAverageScore.toFixed(0)} to ${data.averageScore.toFixed(0)}. Keep up the good work!`,
-        actionable: false,
-      })
-    }
-  }
-
-  // Top issue suggestions
-  const highSeverityIssues = data.topIssues.filter((i) => i.severity === "high")
-  if (highSeverityIssues.length > 0) {
-    suggestions.push({
-      priority: "high",
-      title: "Address High-Priority Issues",
-      description: `${highSeverityIssues[0].count} products have "${highSeverityIssues[0].issue}". Use bulk fix to resolve quickly.`,
-      actionable: true,
-    })
-  }
-
-  // Products at risk
-  if (data.productsAtRisk.length >= 5) {
-    suggestions.push({
-      priority: "medium",
-      title: "Products Need Attention",
-      description: `${data.productsAtRisk.length} products have very low scores. Prioritize the worst performers.`,
-      actionable: true,
-    })
-  }
-
-  // Unresolved drifts
-  if (data.driftsUnresolved > 0) {
-    suggestions.push({
-      priority: "high",
-      title: "Resolve Compliance Drifts",
-      description: `${data.driftsUnresolved} compliance issues detected and not yet resolved. Review and fix.`,
-      actionable: true,
-    })
-  }
-
-  // Low overall score
-  if (data.averageScore < 70 && data.totalProducts > 0) {
-    suggestions.push({
-      priority: "medium",
-      title: "Improve Catalog Quality",
-      description: "Your average score is below 70%. Consider running AI fixes on bulk products.",
-      actionable: true,
-    })
-  }
-
-  return suggestions.sort((a, b) => {
-    const priorityOrder = { high: 0, medium: 1, low: 2 }
-    return priorityOrder[a.priority] - priorityOrder[b.priority]
-  })
-}
-
-/**
- * Get recent reports for a shop
- */
-export async function getReports(shopDomain: string, limit = 12): Promise<CatalogReport[]> {
+export async function getReportHistory(shopDomain: string, limit = 12): Promise<CatalogReport[]> {
   const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
-
   if (!shop) return []
 
   return db
@@ -327,84 +59,223 @@ export async function getReports(shopDomain: string, limit = 12): Promise<Catalo
 }
 
 /**
- * Get a specific report
+ * Get a specific report by ID
  */
-export async function getReport(reportId: string): Promise<CatalogReport | null> {
+export async function getReportById(reportId: string): Promise<CatalogReport | null> {
   const [report] = await db.select().from(catalogReports).where(eq(catalogReports.id, reportId)).limit(1)
-
   return report || null
 }
 
 /**
- * Mark report as emailed
+ * Generate a catalog health report for a shop
  */
-export async function markReportEmailed(reportId: string): Promise<void> {
-  await db
-    .update(catalogReports)
-    .set({ emailSent: true, emailSentAt: new Date() })
-    .where(eq(catalogReports.id, reportId))
+export async function generateCatalogReport(
+  shopDomain: string,
+  period: "weekly" | "monthly" = "weekly"
+): Promise<CatalogReport | null> {
+  const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
+  if (!shop) return null
+
+  // Calculate period dates
+  const now = new Date()
+  const periodDates = calculatePeriod(now, period)
+
+  // Get all audits for the shop
+  const audits = await db.select().from(productAudits).where(eq(productAudits.shopId, shop.id))
+
+  // Calculate metrics
+  const totalProducts = audits.length
+  const readyProducts = audits.filter((a) => a.status === "ready").length
+  const incompleteProducts = totalProducts - readyProducts
+  const averageScore = totalProducts > 0 ? audits.reduce((sum, a) => sum + a.score, 0) / totalProducts : 0
+
+  // Get previous period's average score for trend
+  const previousReport = await getLatestReport(shopDomain)
+  const previousAverageScore = previousReport?.averageScore || null
+
+  // Calculate top issues
+  const issueCount: Record<string, number> = {}
+  for (const audit of audits) {
+    if (audit.status === "incomplete") {
+      // Count by audit score ranges
+      if (audit.score < 25) {
+        issueCount["Critical (0-25%)"] = (issueCount["Critical (0-25%)"] || 0) + 1
+      } else if (audit.score < 50) {
+        issueCount["Poor (25-50%)"] = (issueCount["Poor (25-50%)"] || 0) + 1
+      } else if (audit.score < 75) {
+        issueCount["Fair (50-75%)"] = (issueCount["Fair (50-75%)"] || 0) + 1
+      } else {
+        issueCount["Good (75-99%)"] = (issueCount["Good (75-99%)"] || 0) + 1
+      }
+    }
+  }
+
+  const topIssues = Object.entries(issueCount)
+    .map(([issue, count]) => ({ issue, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+
+  // Products at risk (lowest scores)
+  const productsAtRisk = audits
+    .filter((a) => a.status === "incomplete")
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 5)
+    .map((a) => ({
+      productId: a.productId,
+      title: a.productTitle,
+      score: a.score,
+      issues: a.failedCount,
+    }))
+
+  // Most improved (would need historical data - placeholder for now)
+  const mostImproved: Array<{ productId: string; title: string; scoreChange: number }> = []
+
+  // Get drift stats for the period
+  const drifts = await db
+    .select()
+    .from(complianceDrifts)
+    .where(
+      and(
+        eq(complianceDrifts.shopId, shop.id),
+        gte(complianceDrifts.detectedAt, periodDates.start),
+        lte(complianceDrifts.detectedAt, periodDates.end)
+      )
+    )
+
+  const driftsDetected = drifts.length
+  const driftsResolved = drifts.filter((d) => d.isResolved).length
+  const driftsUnresolved = driftsDetected - driftsResolved
+
+  // Generate suggestions based on data
+  const suggestions = generateSuggestions(
+    totalProducts,
+    readyProducts,
+    averageScore,
+    previousAverageScore,
+    topIssues,
+    driftsUnresolved
+  )
+
+  // Create the report
+  const reportData: NewCatalogReport = {
+    shopId: shop.id,
+    periodStart: periodDates.start,
+    periodEnd: periodDates.end,
+    totalProducts,
+    readyProducts,
+    incompleteProducts,
+    averageScore,
+    previousAverageScore,
+    topIssuesJson: JSON.stringify(topIssues),
+    productsAtRiskJson: JSON.stringify(productsAtRisk),
+    mostImprovedJson: JSON.stringify(mostImproved),
+    driftsDetected,
+    driftsResolved,
+    driftsUnresolved,
+    suggestionsJson: JSON.stringify(suggestions),
+  }
+
+  const [report] = await db.insert(catalogReports).values(reportData).returning()
+
+  return report
 }
 
 /**
- * Generate CSV export data for a report
+ * Calculate period start and end dates
  */
-export function generateReportCSV(report: CatalogReport): string {
-  const lines: string[] = []
+function calculatePeriod(now: Date, period: "weekly" | "monthly"): ReportPeriod {
+  const end = new Date(now)
+  end.setHours(23, 59, 59, 999)
 
-  // Header
-  lines.push("Catalog Health Report")
-  lines.push(`Period,${report.periodStart.toISOString()},${report.periodEnd.toISOString()}`)
-  lines.push("")
-
-  // Summary
-  lines.push("Summary")
-  lines.push(`Total Products,${report.totalProducts}`)
-  lines.push(`Ready Products,${report.readyProducts}`)
-  lines.push(`Incomplete Products,${report.incompleteProducts}`)
-  lines.push(`Average Score,${report.averageScore.toFixed(1)}`)
-  if (report.previousAverageScore) {
-    lines.push(`Previous Score,${report.previousAverageScore.toFixed(1)}`)
+  const start = new Date(now)
+  if (period === "weekly") {
+    start.setDate(start.getDate() - 7)
+  } else {
+    start.setMonth(start.getMonth() - 1)
   }
-  lines.push("")
+  start.setHours(0, 0, 0, 0)
 
-  // Drifts
-  lines.push("Compliance Drifts")
-  lines.push(`Detected,${report.driftsDetected}`)
-  lines.push(`Resolved,${report.driftsResolved}`)
-  lines.push(`Unresolved,${report.driftsUnresolved}`)
-  lines.push("")
+  return { start, end }
+}
 
-  // Top Issues
-  if (report.topIssuesJson) {
-    const issues = JSON.parse(report.topIssuesJson) as TopIssue[]
-    lines.push("Top Issues")
-    lines.push("Issue,Count,Severity")
-    for (const issue of issues) {
-      lines.push(`"${issue.issue}",${issue.count},${issue.severity}`)
-    }
-    lines.push("")
-  }
+/**
+ * Generate suggestions based on report data
+ */
+function generateSuggestions(
+  totalProducts: number,
+  readyProducts: number,
+  averageScore: number,
+  previousAverageScore: number | null,
+  topIssues: Array<{ issue: string; count: number }>,
+  driftsUnresolved: number
+): string[] {
+  const suggestions: string[] = []
 
-  // Products at Risk
-  if (report.productsAtRiskJson) {
-    const products = JSON.parse(report.productsAtRiskJson) as ProductAtRisk[]
-    lines.push("Products at Risk")
-    lines.push("Product ID,Title,Score,Issues")
-    for (const p of products) {
-      lines.push(`"${p.productId}","${p.title}",${p.score},${p.issues}`)
-    }
-    lines.push("")
+  // Readiness rate suggestion
+  const readinessRate = totalProducts > 0 ? (readyProducts / totalProducts) * 100 : 0
+  if (readinessRate < 50) {
+    suggestions.push(
+      `Only ${Math.round(readinessRate)}% of products are launch-ready. Consider using bulk autofix to improve multiple products at once.`
+    )
+  } else if (readinessRate < 80) {
+    suggestions.push(
+      `${Math.round(readinessRate)}% readiness is good, but there's room for improvement. Focus on the ${topIssues[0]?.issue || "lowest scoring"} products.`
+    )
   }
 
-  // Most Improved
-  if (report.mostImprovedJson) {
-    const improved = JSON.parse(report.mostImprovedJson) as ImprovedProduct[]
-    lines.push("Most Improved")
-    lines.push("Product ID,Title,Previous Score,Current Score,Improvement")
-    for (const p of improved) {
-      lines.push(`"${p.productId}","${p.title}",${p.previousScore},${p.currentScore},${p.improvement}`)
+  // Score trend suggestion
+  if (previousAverageScore !== null) {
+    const scoreDiff = averageScore - previousAverageScore
+    if (scoreDiff < -5) {
+      suggestions.push(
+        `Average score dropped by ${Math.abs(Math.round(scoreDiff))}% since last report. Review recent product changes to identify issues.`
+      )
+    } else if (scoreDiff > 5) {
+      suggestions.push(`Great progress! Average score improved by ${Math.round(scoreDiff)}% since last report.`)
     }
   }
 
-  return lines.join("\n")
+  // Drift suggestion
+  if (driftsUnresolved > 0) {
+    suggestions.push(
+      `You have ${driftsUnresolved} unresolved compliance drift${driftsUnresolved !== 1 ? "s" : ""}. Review and resolve them to maintain catalog health.`
+    )
+  }
+
+  // Critical products suggestion
+  const criticalIssue = topIssues.find((i) => i.issue.includes("Critical"))
+  if (criticalIssue && criticalIssue.count > 0) {
+    suggestions.push(
+      `${criticalIssue.count} product${criticalIssue.count !== 1 ? "s" : ""} have critical issues (score below 25%). These should be prioritized.`
+    )
+  }
+
+  // Default suggestion if none
+  if (suggestions.length === 0) {
+    suggestions.push("Your catalog is in great shape! Keep monitoring for any changes.")
+  }
+
+  return suggestions
+}
+
+/**
+ * Get parsed report data with typed fields
+ */
+export function parseReportData(report: CatalogReport) {
+  return {
+    ...report,
+    topIssues: JSON.parse(report.topIssuesJson || "[]") as Array<{ issue: string; count: number }>,
+    productsAtRisk: JSON.parse(report.productsAtRiskJson || "[]") as Array<{
+      productId: string
+      title: string
+      score: number
+      issues: number
+    }>,
+    mostImproved: JSON.parse(report.mostImprovedJson || "[]") as Array<{
+      productId: string
+      title: string
+      scoreChange: number
+    }>,
+    suggestions: JSON.parse(report.suggestionsJson || "[]") as string[],
+  }
 }

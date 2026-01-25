@@ -264,7 +264,15 @@ function BulkProgressModal({
         }}
       >
         <div>
-          <p style={{ margin: 0, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.2em", color: "#6b7280" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              color: "#6b7280",
+            }}
+          >
             {label}
           </p>
           <h3 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 600, color: "#111827" }}>
@@ -1160,7 +1168,10 @@ function _ProductRow({
               <span className="hide-on-mobile">Ready</span>
             </>
           ) : (
-            <><span className="hide-on-mobile">{audit.failedCount} to fix</span><span className="show-on-mobile-only">{audit.failedCount}</span></>
+            <>
+              <span className="hide-on-mobile">{audit.failedCount} to fix</span>
+              <span className="show-on-mobile-only">{audit.failedCount}</span>
+            </>
           )}
         </div>
 
@@ -1755,6 +1766,7 @@ function DashboardTour({
 
 export default function Dashboard() {
   const { shop, stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>()
+  const isPro = plan === "pro"
   const fetcher = useFetcher<typeof action>()
   const autofixFetcher = useFetcher()
   const navigate = useNavigate()
@@ -1789,7 +1801,7 @@ export default function Dashboard() {
   const [generatingProductIds, setGeneratingProductIds] = useState<Set<string>>(new Set())
   const [currentlyProcessingId, setCurrentlyProcessingId] = useState<string | null>(null)
   const [completedProductIds, setCompletedProductIds] = useState<Set<string>>(new Set())
-  
+
   // Bulk action progress modal state
   const [showBulkProgressModal, setShowBulkProgressModal] = useState(false)
   const [bulkActionType, setBulkActionType] = useState<string>("")
@@ -1852,7 +1864,6 @@ export default function Dashboard() {
     }
   }, [fetcher.data, shopify])
 
-
   // Animated progress for catalog health
   const [animatedPercent, setAnimatedPercent] = useState(0)
   useEffect(() => {
@@ -1875,7 +1886,7 @@ export default function Dashboard() {
   // Confetti celebration when reaching 100% product health
   const hasTriggeredConfetti = useRef(false)
   const [showCelebrationModal, setShowCelebrationModal] = useState(false)
-  
+
   const triggerConfetti = useCallback(() => {
     // Fire confetti from the top of the screen
     const duration = 3000
@@ -1911,13 +1922,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     const currentPercent = stats.totalAudited > 0 ? Math.round((stats.readyCount / stats.totalAudited) * 100) : 0
-    
+
     // Check if we've reached 100% and haven't triggered confetti yet
     if (currentPercent === 100 && stats.totalAudited > 0 && !hasTriggeredConfetti.current) {
       // Check if this is the first time reaching 100% in this session
       const confettiKey = `confetti_celebrated_${shop}`
       const alreadyCelebrated = sessionStorage.getItem(confettiKey)
-      
+
       if (!alreadyCelebrated) {
         // Delay slightly to let the animation complete
         setTimeout(() => {
@@ -1940,7 +1951,7 @@ export default function Dashboard() {
     if (autofixFetcher.state === "idle" && autofixFetcher.data && fixingProductId) {
       setFixingProductId(null)
       revalidator.revalidate()
-      
+
       const data = autofixFetcher.data as { success: boolean; message: string }
       if (data.success) {
         shopify.toast.show(data.message || "Fixes applied")
@@ -2480,13 +2491,16 @@ export default function Dashboard() {
             </div>
 
             {/* Table Rows */}
-            <div className="products-list-container" style={{ 
-              flex: 1, 
-              overflow: "auto",
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "column",
-            }}>
+            <div
+              className="products-list-container"
+              style={{
+                flex: 1,
+                overflow: "auto",
+                minHeight: 0,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               {paginatedAudits.length === 0 ? (
                 <div style={{ padding: "80px 20px", textAlign: "center" }}>
                   <div style={{ marginBottom: "12px" }}>
@@ -2507,772 +2521,442 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div>
-                {paginatedAudits.map((audit, idx) => {
-                  const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
-                  const isSelected = selectedProducts.has(audit.productId)
-                  const isExpanded = expandedRows.has(audit.id)
-                  const isQueued = generatingProductIds.has(audit.productId)
-                  const isProcessing = currentlyProcessingId === audit.productId
-                  const isCompleted = completedProductIds.has(audit.productId)
+                  {paginatedAudits.map((audit, idx) => {
+                    const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
+                    const isSelected = selectedProducts.has(audit.productId)
+                    const isExpanded = expandedRows.has(audit.id)
+                    const isQueued = generatingProductIds.has(audit.productId)
+                    const isProcessing = currentlyProcessingId === audit.productId
+                    const isCompleted = completedProductIds.has(audit.productId)
 
-                  return (
-                    <div
-                      key={audit.id}
-                      style={{
-                        borderBottom: idx < paginatedAudits.length - 1 ? "1px solid #f4f4f5" : "none",
-                      }}
-                    >
-                      {/* Main Row */}
+                    return (
                       <div
-                        className="products-table-row"
-                        {...(idx === 0 ? { "data-tour-expand-row": true } : {})}
-                        onClick={() => {
-                          const newExpanded = new Set(expandedRows)
-                          if (isExpanded) {
-                            newExpanded.delete(audit.id)
-                          } else {
-                            newExpanded.add(audit.id)
-                          }
-                          setExpandedRows(newExpanded)
-                        }}
+                        key={audit.id}
                         style={{
-                          display: "grid",
-                          gap: "12px",
-                          padding: "14px 20px",
-                          cursor: "pointer",
-                          transition: "background 0.1s",
-                          background: isExpanded ? "#fafafa" : "transparent",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isExpanded) e.currentTarget.style.background = "#fafafa"
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isExpanded) e.currentTarget.style.background = "transparent"
+                          borderBottom: idx < paginatedAudits.length - 1 ? "1px solid #f4f4f5" : "none",
                         }}
                       >
-                        {/* Expand Arrow */}
+                        {/* Main Row */}
                         <div
-                          className="col-expand"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
+                          className="products-table-row"
+                          {...(idx === 0 ? { "data-tour-expand-row": true } : {})}
+                          onClick={() => {
+                            const newExpanded = new Set(expandedRows)
+                            if (isExpanded) {
+                              newExpanded.delete(audit.id)
+                            } else {
+                              newExpanded.add(audit.id)
+                            }
+                            setExpandedRows(newExpanded)
                           }}
-                        >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#a1a1aa"
-                            strokeWidth="2"
-                            style={{
-                              transform: isExpanded ? "rotate(90deg)" : "rotate(0)",
-                              transition: "transform 0.15s ease",
-                            }}
-                          >
-                            <path d="M9 18l6-6-6-6" />
-                          </svg>
-                        </div>
-
-                        {/* Checkbox */}
-                        <div className="col-checkbox" style={{ display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleProductSelection(audit.productId)}
-                            style={{
-                              width: "15px",
-                              height: "15px",
-                              cursor: "pointer",
-                              accentColor: "#18181b",
-                            }}
-                          />
-                        </div>
-
-                        {/* Product */}
-                        <div
-                          className="col-product"
                           style={{
-                            display: "flex",
-                            alignItems: "center",
+                            display: "grid",
                             gap: "12px",
-                            minWidth: 0,
-                            overflow: "hidden",
+                            padding: "14px 20px",
+                            cursor: "pointer",
+                            transition: "background 0.1s",
+                            background: isExpanded ? "#fafafa" : "transparent",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isExpanded) e.currentTarget.style.background = "#fafafa"
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isExpanded) e.currentTarget.style.background = "transparent"
                           }}
                         >
+                          {/* Expand Arrow */}
                           <div
-                            className="hide-on-tablet"
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              borderRadius: "6px",
-                              overflow: "hidden",
-                              background: "#f4f4f5",
-                              flexShrink: 0,
-                              border: "1px solid #e4e4e7",
-                            }}
-                          >
-                            {audit.productImage ? (
-                              <img
-                                src={audit.productImage}
-                                alt=""
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "#d4d4d8",
-                                }}
-                              >
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="1.5"
-                                >
-                                  <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          <div
+                            className="col-expand"
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: "8px",
-                              minWidth: 0,
-                              overflow: "hidden",
-                              flex: 1,
+                              justifyContent: "center",
                             }}
                           >
-                            <span
-                              className="product-title-text"
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#a1a1aa"
+                              strokeWidth="2"
                               style={{
-                                fontSize: "13px",
-                                fontWeight: 500,
-                                color: "#252F2C",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                fontFamily: "inherit",
-                                flex: 1,
-                                minWidth: 0,
+                                transform: isExpanded ? "rotate(90deg)" : "rotate(0)",
+                                transition: "transform 0.15s ease",
                               }}
                             >
-                              {audit.productTitle}
-                            </span>
-                            {isProcessing && (
-                              <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                                <div
-                                  style={{
-                                    width: "14px",
-                                    height: "14px",
-                                    border: "2px solid #1f4fd8",
-                                    borderRightColor: "transparent",
-                                    borderRadius: "50%",
-                                    animation: "spin 1s linear infinite",
-                                  }}
-                                />
-                                <span style={{ fontSize: "11px", color: "#1f4fd8", fontWeight: 500 }}>Processing</span>
-                              </div>
-                            )}
-                            {isQueued && !isProcessing && !isCompleted && (
-                              <span style={{ fontSize: "11px", color: "#71717a", fontWeight: 500, flexShrink: 0 }}>Queued</span>
-                            )}
-                            {isCompleted && isQueued && (
-                              <span style={{ fontSize: "11px", color: "#059669", fontWeight: 500, flexShrink: 0 }}>Done</span>
-                            )}
+                              <path d="M9 18l6-6-6-6" />
+                            </svg>
                           </div>
-                        </div>
 
-                        {/* Status */}
-                        <div className="col-status" data-tour-status-score style={{ display: "flex", alignItems: "center" }}>
-                          <span
-                            className="status-badge"
-                            style={{
-                              padding: "3px 8px",
-                              borderRadius: "4px",
-                              fontSize: "11px",
-                              fontWeight: 500,
-                              background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
-                              color: audit.status === "ready" ? "#059669" : "#8B7500",
-                              border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {audit.status === "ready" ? "Ready" : "Pending"}
-                          </span>
-                        </div>
-
-                        {/* Score */}
-                        <div
-                          className="col-score"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "10px",
-                          }}
-                        >
+                          {/* Checkbox */}
                           <div
-                            className="hide-on-mobile"
-                            style={{
-                              flex: 1,
-                              height: "6px",
-                              background: "#e4e4e7",
-                              borderRadius: "3px",
-                              overflow: "hidden",
-                            }}
+                            className="col-checkbox"
+                            style={{ display: "flex", alignItems: "center" }}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <div
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleProductSelection(audit.productId)}
                               style={{
-                                width: `${progressPercent}%`,
-                                height: "100%",
-                                background:
-                                  audit.status === "ready" ? "#465A54" : progressPercent >= 70 ? "#5A7C66" : "#9B9860",
-                                borderRadius: "3px",
-                                transition: "width 0.3s ease",
+                                width: "15px",
+                                height: "15px",
+                                cursor: "pointer",
+                                accentColor: "#18181b",
                               }}
                             />
                           </div>
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              color: "#3f3f46",
-                              minWidth: "32px",
-                              textAlign: "right",
-                            }}
-                          >
-                            {progressPercent}%
-                          </span>
-                        </div>
 
-                        {/* Issues + View Details */}
-                        <div
-                          className="col-issues"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: "8px",
-                          }}
-                        >
-                          <span
+                          {/* Product */}
+                          <div
+                            className="col-product"
                             style={{
-                              fontSize: "12px",
-                              fontWeight: 500,
-                              color: audit.failedCount > 0 ? "#B53D3D" : "#71717a",
-                              background: audit.failedCount > 0 ? "#fef2f2" : "transparent",
-                              padding: audit.failedCount > 0 ? "2px 8px" : "0",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            {audit.failedCount}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigate(`/app/products/${audit.productId.split("/").pop()}`)
-                            }}
-                            className="view-details-btn"
-                            style={{
-                              padding: "4px 8px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              background: "transparent",
-                              border: "1px solid #e4e4e7",
-                              borderRadius: "4px",
-                              color: "#252F2C",
-                              cursor: "pointer",
-                              transition: "all 0.15s",
-                              whiteSpace: "nowrap",
                               display: "flex",
                               alignItems: "center",
-                              gap: "4px",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#f4f4f5"
-                              e.currentTarget.style.borderColor = "#d4d4d8"
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent"
-                              e.currentTarget.style.borderColor = "#e4e4e7"
+                              gap: "12px",
+                              minWidth: 0,
+                              overflow: "hidden",
                             }}
                           >
-                            <span className="hide-tablet">View</span>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M9 18l6-6-6-6" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+                            <div
+                              className="hide-on-tablet"
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "6px",
+                                overflow: "hidden",
+                                background: "#f4f4f5",
+                                flexShrink: 0,
+                                border: "1px solid #e4e4e7",
+                              }}
+                            >
+                              {audit.productImage ? (
+                                <img
+                                  src={audit.productImage}
+                                  alt=""
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#d4d4d8",
+                                  }}
+                                >
+                                  <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                  >
+                                    <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                minWidth: 0,
+                                overflow: "hidden",
+                                flex: 1,
+                              }}
+                            >
+                              <span
+                                className="product-title-text"
+                                style={{
+                                  fontSize: "13px",
+                                  fontWeight: 500,
+                                  color: "#252F2C",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  fontFamily: "inherit",
+                                  flex: 1,
+                                  minWidth: 0,
+                                }}
+                              >
+                                {audit.productTitle}
+                              </span>
+                              {isProcessing && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                                  <div
+                                    style={{
+                                      width: "14px",
+                                      height: "14px",
+                                      border: "2px solid #1f4fd8",
+                                      borderRightColor: "transparent",
+                                      borderRadius: "50%",
+                                      animation: "spin 1s linear infinite",
+                                    }}
+                                  />
+                                  <span style={{ fontSize: "11px", color: "#1f4fd8", fontWeight: 500 }}>
+                                    Processing
+                                  </span>
+                                </div>
+                              )}
+                              {isQueued && !isProcessing && !isCompleted && (
+                                <span style={{ fontSize: "11px", color: "#71717a", fontWeight: 500, flexShrink: 0 }}>
+                                  Queued
+                                </span>
+                              )}
+                              {isCompleted && isQueued && (
+                                <span style={{ fontSize: "11px", color: "#059669", fontWeight: 500, flexShrink: 0 }}>
+                                  Done
+                                </span>
+                              )}
+                            </div>
+                          </div>
 
-                      {/* Expanded Content - Enhanced Analytics */}
-                      {isExpanded && (
-                        <div
-                          style={{
-                            padding: "0 20px 20px 56px",
-                            background: "#fafafa",
-                          }}
-                        >
+                          {/* Status */}
+                          <div
+                            className="col-status"
+                            data-tour-status-score
+                            style={{ display: "flex", alignItems: "center" }}
+                          >
+                            <span
+                              className="status-badge"
+                              style={{
+                                padding: "3px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: 500,
+                                background: audit.status === "ready" ? "#ecfdf5" : "#fef9e7",
+                                color: audit.status === "ready" ? "#059669" : "#8B7500",
+                                border: audit.status === "ready" ? "1px solid #a7f3d0" : "1px solid #fde68a",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {audit.status === "ready" ? "Ready" : "Pending"}
+                            </span>
+                          </div>
+
+                          {/* Score */}
+                          <div
+                            className="col-score"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                            }}
+                          >
+                            <div
+                              className="hide-on-mobile"
+                              style={{
+                                flex: 1,
+                                height: "6px",
+                                background: "#e4e4e7",
+                                borderRadius: "3px",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: `${progressPercent}%`,
+                                  height: "100%",
+                                  background:
+                                    audit.status === "ready"
+                                      ? "#465A54"
+                                      : progressPercent >= 70
+                                        ? "#5A7C66"
+                                        : "#9B9860",
+                                  borderRadius: "3px",
+                                  transition: "width 0.3s ease",
+                                }}
+                              />
+                            </div>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                color: "#3f3f46",
+                                minWidth: "32px",
+                                textAlign: "right",
+                              }}
+                            >
+                              {progressPercent}%
+                            </span>
+                          </div>
+
+                          {/* Issues + View Details */}
+                          <div
+                            className="col-issues"
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 500,
+                                color: audit.failedCount > 0 ? "#B53D3D" : "#71717a",
+                                background: audit.failedCount > 0 ? "#fef2f2" : "transparent",
+                                padding: audit.failedCount > 0 ? "2px 8px" : "0",
+                                borderRadius: "4px",
+                              }}
+                            >
+                              {audit.failedCount}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(`/app/products/${audit.productId.split("/").pop()}`)
+                              }}
+                              className="view-details-btn"
+                              style={{
+                                padding: "4px 8px",
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                background: "transparent",
+                                border: "1px solid #e4e4e7",
+                                borderRadius: "4px",
+                                color: "#252F2C",
+                                cursor: "pointer",
+                                transition: "all 0.15s",
+                                whiteSpace: "nowrap",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#f4f4f5"
+                                e.currentTarget.style.borderColor = "#d4d4d8"
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent"
+                                e.currentTarget.style.borderColor = "#e4e4e7"
+                              }}
+                            >
+                              <span className="hide-tablet">View</span>
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <path d="M9 18l6-6-6-6" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expanded Content - Enhanced Analytics */}
+                        {isExpanded && (
                           <div
                             style={{
-                              display: "grid",
-                              gridTemplateColumns: "1fr",
-                              gap: "16px",
+                              padding: "0 20px 20px 56px",
+                              background: "#fafafa",
                             }}
                           >
-                            {/* Top Row: Quick Stats + Progress */}
                             <div
                               style={{
                                 display: "grid",
-                                gridTemplateColumns: "repeat(4, 1fr)",
-                                gap: "12px",
+                                gridTemplateColumns: "1fr",
+                                gap: "16px",
                               }}
                             >
-                              {/* Completion Rate */}
+                              {/* Top Row: Quick Stats + Progress */}
                               <div
                                 style={{
-                                  padding: "12px",
-                                  background: "#fff",
-                                  borderRadius: "6px",
-                                  border: "1px solid #e4e4e7",
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(4, 1fr)",
+                                  gap: "12px",
                                 }}
                               >
+                                {/* Completion Rate */}
                                 <div
                                   style={{
-                                    fontSize: "10px",
-                                    fontWeight: 500,
-                                    color: "#71717a",
-                                    marginBottom: "4px",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.05em",
-                                  }}
-                                >
-                                  Completion
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: "14px",
-                                    fontWeight: 600,
-                                    color:
-                                      progressPercent >= 90 ? "#059669" : progressPercent >= 70 ? "#465A54" : "#B53D3D",
-                                  }}
-                                >
-                                  {progressPercent}%
-                                </div>
-                              </div>
-
-                              {/* Critical Issues */}
-                              <div
-                                style={{
-                                  padding: "12px",
-                                  background: "#fff",
-                                  borderRadius: "6px",
-                                  border: "1px solid #e4e4e7",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    fontSize: "10px",
-                                    fontWeight: 500,
-                                    color: "#71717a",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.05em",
-                                    marginBottom: "4px",
-                                  }}
-                                >
-                                  Issues
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: "14px",
-                                    fontWeight: 600,
-                                    color: audit.failedCount > 0 ? "#B53D3D" : "#059669",
-                                  }}
-                                >
-                                  {audit.failedCount}
-                                </div>
-                              </div>
-
-                              {/* Status Badge */}
-                              <div
-                                style={{
-                                  padding: "12px",
-                                  background: "#fff",
-                                  borderRadius: "6px",
-                                  border: "1px solid #e4e4e7",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    fontSize: "11px",
-                                    fontWeight: 500,
-                                    color: "#71717a",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.05em",
-                                    marginBottom: "4px",
-                                  }}
-                                >
-                                  Status
-                                </div>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "4px",
+                                    padding: "12px",
+                                    background: "#fff",
+                                    borderRadius: "6px",
+                                    border: "1px solid #e4e4e7",
                                   }}
                                 >
                                   <div
                                     style={{
-                                      width: "6px",
-                                      height: "6px",
-                                      borderRadius: "50%",
-                                      background: audit.status === "ready" ? "#059669" : "#8B7500",
-                                    }}
-                                  />
-                                  <span
-                                    style={{
-                                      fontSize: "12px",
+                                      fontSize: "10px",
                                       fontWeight: 500,
-                                      color: audit.status === "ready" ? "#059669" : "#8B7500",
+                                      color: "#71717a",
+                                      marginBottom: "4px",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
                                     }}
                                   >
-                                    {audit.status === "ready" ? "Ready" : "Needs Work"}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Last Updated */}
-                              <div
-                                style={{
-                                  padding: "12px",
-                                  background: "#fff",
-                                  borderRadius: "6px",
-                                  border: "1px solid #e4e4e7",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    fontSize: "11px",
-                                    fontWeight: 500,
-                                    color: "#71717a",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.05em",
-                                    marginBottom: "4px",
-                                  }}
-                                >
-                                  Last Checked
-                                </div>
-                                <div
-                                  style={{
-                                    fontSize: "12px",
-                                    color: "#252F2C",
-                                    fontWeight: 500,
-                                  }}
-                                >
-                                  {new Date(audit.updatedAt).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Bottom Row: Detailed Breakdown - Real Data Issues */}
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns: "2fr 1fr",
-                                gap: "16px",
-                              }}
-                            >
-                              {/* Left: Issues List (Real Data) */}
-                              <div
-                                style={{
-                                  padding: "20px",
-                                  background: "#fff",
-                                  borderRadius: "8px",
-                                  border: "1px solid #e4e4e7",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    fontSize: "11px",
-                                    fontWeight: 500,
-                                    color: "#71717a",
-                                    marginBottom: "16px",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.05em",
-                                  }}
-                                >
-                                  Checklist Breakdown
+                                    Completion
+                                  </div>
+                                  <div
+                                    style={{
+                                      fontSize: "14px",
+                                      fontWeight: 600,
+                                      color:
+                                        progressPercent >= 90
+                                          ? "#059669"
+                                          : progressPercent >= 70
+                                            ? "#465A54"
+                                            : "#B53D3D",
+                                    }}
+                                  >
+                                    {progressPercent}%
+                                  </div>
                                 </div>
 
-                                {/* Items List */}
+                                {/* Critical Issues */}
                                 <div
                                   style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "8px",
-                                  }}
-                                >
-                                  {/* Failed Items */}
-                                  {audit.items && audit.items.filter((i: any) => i.status === "failed").length > 0 ? (
-                                    <>
-                                      {audit.items
-                                        .filter((i: any) => i.status === "failed")
-                                        .slice(0, 4)
-                                        .map((item: any) => (
-                                          <div
-                                            key={item.id}
-                                            style={{
-                                              padding: "8px 10px",
-                                              background: "#fef2f2",
-                                              border: "1px solid #fed7d7",
-                                              borderRadius: "5px",
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: "8px",
-                                              transition: "all 0.15s ease",
-                                              cursor: "default",
-                                            }}
-                                            onMouseEnter={(e) => {
-                                              e.currentTarget.style.background = "#fecaca"
-                                              e.currentTarget.style.borderColor = "#fca5a5"
-                                            }}
-                                            onMouseLeave={(e) => {
-                                              e.currentTarget.style.background = "#fef2f2"
-                                              e.currentTarget.style.borderColor = "#fed7d7"
-                                            }}
-                                            title={item.details}
-                                          >
-                                            <svg
-                                              width="12"
-                                              height="12"
-                                              viewBox="0 0 24 24"
-                                              fill="none"
-                                              stroke="#dc2626"
-                                              strokeWidth="2.5"
-                                              style={{ flexShrink: 0 }}
-                                            >
-                                              <circle cx="12" cy="12" r="10" />
-                                              <path d="M12 8v4m0 4v.01" />
-                                            </svg>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                              <div
-                                                style={{
-                                                  fontSize: "11px",
-                                                  fontWeight: 600,
-                                                  color: "#7f1d1d",
-                                                  whiteSpace: "nowrap",
-                                                  overflow: "hidden",
-                                                  textOverflow: "ellipsis",
-                                                }}
-                                              >
-                                                {item.label}
-                                              </div>
-                                            </div>
-                                            {item.canAutoFix && (
-                                              <div
-                                                style={{
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  gap: "3px",
-                                                  background: "#fca5a5",
-                                                  padding: "2px 6px",
-                                                  borderRadius: "10px",
-                                                  flexShrink: 0,
-                                                }}
-                                              >
-                                                <svg
-                                                  width="8"
-                                                  height="8"
-                                                  viewBox="0 0 24 24"
-                                                  fill="none"
-                                                  stroke="#7f1d1d"
-                                                  strokeWidth="3"
-                                                >
-                                                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                                                </svg>
-                                                <span
-                                                  style={{
-                                                    fontSize: "8px",
-                                                    fontWeight: 700,
-                                                    color: "#7f1d1d",
-                                                    letterSpacing: "0.5px",
-                                                  }}
-                                                >
-                                                  FIX
-                                                </span>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      {audit.items.filter((i: any) => i.status === "failed").length > 4 && (
-                                        <div
-                                          style={{
-                                            padding: "6px 0",
-                                            textAlign: "center",
-                                            fontSize: "11px",
-                                            color: "#a1a1aa",
-                                            fontWeight: 500,
-                                          }}
-                                        >
-                                          +{audit.items.filter((i: any) => i.status === "failed").length - 4} more
-                                        </div>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <div
-                                      style={{
-                                        fontSize: "var(--text-sm)",
-                                        color: "#52525b",
-                                      }}
-                                    >
-                                      <div
-                                        style={{
-                                          fontWeight: 600,
-                                          marginBottom: "4px",
-                                        }}
-                                      >
-                                        All checks passed!
-                                      </div>
-                                      <div
-                                        style={{
-                                          fontSize: "var(--text-xs)",
-                                          opacity: 0.8,
-                                        }}
-                                      >
-                                        This product is ready for launch.
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {audit.items && audit.items.filter((i: any) => i.status === "passed").length > 0 && (
-                                    <details
-                                      style={{
-                                        cursor: "pointer",
-                                        marginTop: "8px",
-                                      }}
-                                    >
-                                      <summary
-                                        style={{
-                                          fontSize: "11px",
-                                          color: "#a1a1aa",
-                                          fontWeight: 500,
-                                          userSelect: "none",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: "5px",
-                                          padding: "4px 0",
-                                          transition: "color 0.15s ease",
-                                        }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.color = "#71717a")}
-                                        onMouseLeave={(e) => (e.currentTarget.style.color = "#a1a1aa")}
-                                      >
-                                        <svg
-                                          width="10"
-                                          height="10"
-                                          viewBox="0 0 24 24"
-                                          fill="none"
-                                          stroke="currentColor"
-                                          strokeWidth="3"
-                                          style={{
-                                            transition: "transform 0.3s ease",
-                                            flexShrink: 0,
-                                          }}
-                                        >
-                                          <polyline points="6 9 12 15 18 9" />
-                                        </svg>
-                                        <span>
-                                          {audit.items.filter((i: any) => i.status === "passed").length} passed
-                                        </span>
-                                      </summary>
-                                      <div
-                                        style={{
-                                          display: "grid",
-                                          gridTemplateColumns: "1fr 1fr",
-                                          gap: "6px",
-                                          padding: "8px",
-                                          background: "#fafafa",
-                                          borderRadius: "5px",
-                                          animation: "slideDown 0.3s ease",
-                                        }}
-                                      >
-                                        {audit.items
-                                          .filter((i: any) => i.status === "passed")
-                                          .map((item: any) => (
-                                            <div
-                                              key={item.id}
-                                              style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "5px",
-                                                fontSize: "10px",
-                                                color: "#52525b",
-                                              }}
-                                            >
-                                              <div
-                                                style={{
-                                                  color: "#059669",
-                                                  flexShrink: 0,
-                                                }}
-                                              >
-                                                <svg
-                                                  width="10"
-                                                  height="10"
-                                                  viewBox="0 0 24 24"
-                                                  fill="none"
-                                                  stroke="currentColor"
-                                                  strokeWidth="3"
-                                                >
-                                                  <polyline points="20 6 9 17 4 12" />
-                                                </svg>
-                                              </div>
-                                              <span
-                                                style={{
-                                                  whiteSpace: "nowrap",
-                                                  overflow: "hidden",
-                                                  textOverflow: "ellipsis",
-                                                }}
-                                              >
-                                                {item.label}
-                                              </span>
-                                            </div>
-                                          ))}
-                                      </div>
-                                    </details>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Right: Quick Actions Panel */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: "12px",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    padding: "16px",
+                                    padding: "12px",
                                     background: "#fff",
-                                    borderRadius: "8px",
+                                    borderRadius: "6px",
+                                    border: "1px solid #e4e4e7",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      fontSize: "10px",
+                                      fontWeight: 500,
+                                      color: "#71717a",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                      marginBottom: "4px",
+                                    }}
+                                  >
+                                    Issues
+                                  </div>
+                                  <div
+                                    style={{
+                                      fontSize: "14px",
+                                      fontWeight: 600,
+                                      color: audit.failedCount > 0 ? "#B53D3D" : "#059669",
+                                    }}
+                                  >
+                                    {audit.failedCount}
+                                  </div>
+                                </div>
+
+                                {/* Status Badge */}
+                                <div
+                                  style={{
+                                    padding: "12px",
+                                    background: "#fff",
+                                    borderRadius: "6px",
                                     border: "1px solid #e4e4e7",
                                   }}
                                 >
@@ -3283,173 +2967,533 @@ export default function Dashboard() {
                                       color: "#71717a",
                                       textTransform: "uppercase",
                                       letterSpacing: "0.05em",
-                                      marginBottom: "12px",
+                                      marginBottom: "4px",
                                     }}
                                   >
-                                    Quick Actions
+                                    Status
                                   </div>
                                   <div
                                     style={{
-                                      display: "grid",
-                                      gridTemplateColumns: "1fr 1fr",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        width: "6px",
+                                        height: "6px",
+                                        borderRadius: "50%",
+                                        background: audit.status === "ready" ? "#059669" : "#8B7500",
+                                      }}
+                                    />
+                                    <span
+                                      style={{
+                                        fontSize: "12px",
+                                        fontWeight: 500,
+                                        color: audit.status === "ready" ? "#059669" : "#8B7500",
+                                      }}
+                                    >
+                                      {audit.status === "ready" ? "Ready" : "Needs Work"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Last Updated */}
+                                <div
+                                  style={{
+                                    padding: "12px",
+                                    background: "#fff",
+                                    borderRadius: "6px",
+                                    border: "1px solid #e4e4e7",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      fontSize: "11px",
+                                      fontWeight: 500,
+                                      color: "#71717a",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                      marginBottom: "4px",
+                                    }}
+                                  >
+                                    Last Checked
+                                  </div>
+                                  <div
+                                    style={{
+                                      fontSize: "12px",
+                                      color: "#252F2C",
+                                      fontWeight: 500,
+                                    }}
+                                  >
+                                    {new Date(audit.updatedAt).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Bottom Row: Detailed Breakdown - Real Data Issues */}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "2fr 1fr",
+                                  gap: "16px",
+                                }}
+                              >
+                                {/* Left: Issues List (Real Data) */}
+                                <div
+                                  style={{
+                                    padding: "20px",
+                                    background: "#fff",
+                                    borderRadius: "8px",
+                                    border: "1px solid #e4e4e7",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      fontSize: "11px",
+                                      fontWeight: 500,
+                                      color: "#71717a",
+                                      marginBottom: "16px",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.05em",
+                                    }}
+                                  >
+                                    Checklist Breakdown
+                                  </div>
+
+                                  {/* Items List */}
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      flexDirection: "column",
                                       gap: "8px",
                                     }}
                                   >
-                                    {audit.failedCount > 0 ? (
+                                    {/* Failed Items */}
+                                    {audit.items && audit.items.filter((i: any) => i.status === "failed").length > 0 ? (
+                                      <>
+                                        {audit.items
+                                          .filter((i: any) => i.status === "failed")
+                                          .slice(0, 4)
+                                          .map((item: any) => (
+                                            <div
+                                              key={item.id}
+                                              style={{
+                                                padding: "8px 10px",
+                                                background: "#fef2f2",
+                                                border: "1px solid #fed7d7",
+                                                borderRadius: "5px",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "8px",
+                                                transition: "all 0.15s ease",
+                                                cursor: "default",
+                                              }}
+                                              onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = "#fecaca"
+                                                e.currentTarget.style.borderColor = "#fca5a5"
+                                              }}
+                                              onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = "#fef2f2"
+                                                e.currentTarget.style.borderColor = "#fed7d7"
+                                              }}
+                                              title={item.details}
+                                            >
+                                              <svg
+                                                width="12"
+                                                height="12"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="#dc2626"
+                                                strokeWidth="2.5"
+                                                style={{ flexShrink: 0 }}
+                                              >
+                                                <circle cx="12" cy="12" r="10" />
+                                                <path d="M12 8v4m0 4v.01" />
+                                              </svg>
+                                              <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div
+                                                  style={{
+                                                    fontSize: "11px",
+                                                    fontWeight: 600,
+                                                    color: "#7f1d1d",
+                                                    whiteSpace: "nowrap",
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                  }}
+                                                >
+                                                  {item.label}
+                                                </div>
+                                              </div>
+                                              {item.canAutoFix && (
+                                                <div
+                                                  style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "3px",
+                                                    background: "#fca5a5",
+                                                    padding: "2px 6px",
+                                                    borderRadius: "10px",
+                                                    flexShrink: 0,
+                                                  }}
+                                                >
+                                                  <svg
+                                                    width="8"
+                                                    height="8"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="#7f1d1d"
+                                                    strokeWidth="3"
+                                                  >
+                                                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                                  </svg>
+                                                  <span
+                                                    style={{
+                                                      fontSize: "8px",
+                                                      fontWeight: 700,
+                                                      color: "#7f1d1d",
+                                                      letterSpacing: "0.5px",
+                                                    }}
+                                                  >
+                                                    FIX
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        {audit.items.filter((i: any) => i.status === "failed").length > 4 && (
+                                          <div
+                                            style={{
+                                              padding: "6px 0",
+                                              textAlign: "center",
+                                              fontSize: "11px",
+                                              color: "#a1a1aa",
+                                              fontWeight: 500,
+                                            }}
+                                          >
+                                            +{audit.items.filter((i: any) => i.status === "failed").length - 4} more
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <div
+                                        style={{
+                                          fontSize: "var(--text-sm)",
+                                          color: "#52525b",
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            fontWeight: 600,
+                                            marginBottom: "4px",
+                                          }}
+                                        >
+                                          All checks passed!
+                                        </div>
+                                        <div
+                                          style={{
+                                            fontSize: "var(--text-xs)",
+                                            opacity: 0.8,
+                                          }}
+                                        >
+                                          This product is ready for launch.
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {audit.items &&
+                                      audit.items.filter((i: any) => i.status === "passed").length > 0 && (
+                                        <details
+                                          style={{
+                                            cursor: "pointer",
+                                            marginTop: "8px",
+                                          }}
+                                        >
+                                          <summary
+                                            style={{
+                                              fontSize: "11px",
+                                              color: "#a1a1aa",
+                                              fontWeight: 500,
+                                              userSelect: "none",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "5px",
+                                              padding: "4px 0",
+                                              transition: "color 0.15s ease",
+                                            }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.color = "#71717a")}
+                                            onMouseLeave={(e) => (e.currentTarget.style.color = "#a1a1aa")}
+                                          >
+                                            <svg
+                                              width="10"
+                                              height="10"
+                                              viewBox="0 0 24 24"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              strokeWidth="3"
+                                              style={{
+                                                transition: "transform 0.3s ease",
+                                                flexShrink: 0,
+                                              }}
+                                            >
+                                              <polyline points="6 9 12 15 18 9" />
+                                            </svg>
+                                            <span>
+                                              {audit.items.filter((i: any) => i.status === "passed").length} passed
+                                            </span>
+                                          </summary>
+                                          <div
+                                            style={{
+                                              display: "grid",
+                                              gridTemplateColumns: "1fr 1fr",
+                                              gap: "6px",
+                                              padding: "8px",
+                                              background: "#fafafa",
+                                              borderRadius: "5px",
+                                              animation: "slideDown 0.3s ease",
+                                            }}
+                                          >
+                                            {audit.items
+                                              .filter((i: any) => i.status === "passed")
+                                              .map((item: any) => (
+                                                <div
+                                                  key={item.id}
+                                                  style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "5px",
+                                                    fontSize: "10px",
+                                                    color: "#52525b",
+                                                  }}
+                                                >
+                                                  <div
+                                                    style={{
+                                                      color: "#059669",
+                                                      flexShrink: 0,
+                                                    }}
+                                                  >
+                                                    <svg
+                                                      width="10"
+                                                      height="10"
+                                                      viewBox="0 0 24 24"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      strokeWidth="3"
+                                                    >
+                                                      <polyline points="20 6 9 17 4 12" />
+                                                    </svg>
+                                                  </div>
+                                                  <span
+                                                    style={{
+                                                      whiteSpace: "nowrap",
+                                                      overflow: "hidden",
+                                                      textOverflow: "ellipsis",
+                                                    }}
+                                                  >
+                                                    {item.label}
+                                                  </span>
+                                                </div>
+                                              ))}
+                                          </div>
+                                        </details>
+                                      )}
+                                  </div>
+                                </div>
+
+                                {/* Right: Quick Actions Panel */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "12px",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      padding: "16px",
+                                      background: "#fff",
+                                      borderRadius: "8px",
+                                      border: "1px solid #e4e4e7",
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        fontSize: "11px",
+                                        fontWeight: 500,
+                                        color: "#71717a",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
+                                        marginBottom: "12px",
+                                      }}
+                                    >
+                                      Quick Actions
+                                    </div>
+                                    <div
+                                      style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        gap: "8px",
+                                      }}
+                                    >
+                                      {audit.failedCount > 0 ? (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            const productIdShort = audit.productId.split("/").pop()
+                                            setFixingProductId(audit.productId)
+                                            autofixFetcher.submit(
+                                              { intent: "fix_all" },
+                                              { method: "POST", action: `/api/products/${productIdShort}/autofix` }
+                                            )
+                                          }}
+                                          disabled={fixingProductId === audit.productId}
+                                          style={{
+                                            width: "100%",
+                                            padding: "10px",
+                                            background: "#fff",
+                                            color: "#B53D3D",
+                                            border: "1px solid #fecaca",
+                                            borderRadius: "6px",
+                                            fontSize: "var(--text-sm)",
+                                            fontWeight: 500,
+                                            cursor: fixingProductId === audit.productId ? "not-allowed" : "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "6px",
+                                            transition: "all 0.15s",
+                                            opacity: fixingProductId === audit.productId ? 0.6 : 1,
+                                          }}
+                                          onMouseEnter={(e) => {
+                                            if (fixingProductId !== audit.productId)
+                                              e.currentTarget.style.background = "#fef2f2"
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = "#fff"
+                                          }}
+                                        >
+                                          {fixingProductId === audit.productId ? (
+                                            <div
+                                              style={{
+                                                width: "14px",
+                                                height: "14px",
+                                                border: "2px solid #B53D3D",
+                                                borderRightColor: "transparent",
+                                                borderRadius: "50%",
+                                                animation: "spin 1s linear infinite",
+                                              }}
+                                            />
+                                          ) : (
+                                            <svg
+                                              width="14"
+                                              height="14"
+                                              viewBox="0 0 24 24"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              strokeWidth="2"
+                                            >
+                                              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                            </svg>
+                                          )}
+                                          {fixingProductId === audit.productId ? "Fixing..." : "Fix"}
+                                        </button>
+                                      ) : (
+                                        <div
+                                          style={{
+                                            padding: "10px",
+                                            background: "#ecfdf5",
+                                            border: "1px solid #d1fae5",
+                                            borderRadius: "6px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            fontSize: "var(--text-sm)",
+                                            fontWeight: 500,
+                                            color: "#059669",
+                                          }}
+                                        >
+                                          Ready
+                                        </div>
+                                      )}
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          const productIdShort = audit.productId.split("/").pop()
-                                          setFixingProductId(audit.productId)
-                                          autofixFetcher.submit(
-                                            { intent: "fix_all" },
-                                            { method: "POST", action: `/api/products/${productIdShort}/autofix` }
-                                          )
+                                          navigate("/app/settings?tab=version-history")
                                         }}
-                                        disabled={fixingProductId === audit.productId}
                                         style={{
                                           width: "100%",
                                           padding: "10px",
                                           background: "#fff",
-                                          color: "#B53D3D",
-                                          border: "1px solid #fecaca",
+                                          color: "#71717a",
+                                          border: "1px solid #e4e4e7",
                                           borderRadius: "6px",
                                           fontSize: "var(--text-sm)",
                                           fontWeight: 500,
-                                          cursor: fixingProductId === audit.productId ? "not-allowed" : "pointer",
+                                          cursor: "pointer",
                                           display: "flex",
                                           alignItems: "center",
                                           justifyContent: "center",
                                           gap: "6px",
                                           transition: "all 0.15s",
-                                          opacity: fixingProductId === audit.productId ? 0.6 : 1,
                                         }}
                                         onMouseEnter={(e) => {
-                                          if (fixingProductId !== audit.productId) e.currentTarget.style.background = "#fef2f2"
+                                          e.currentTarget.style.background = "#f4f4f5"
+                                          e.currentTarget.style.borderColor = "#d4d4d8"
                                         }}
                                         onMouseLeave={(e) => {
                                           e.currentTarget.style.background = "#fff"
+                                          e.currentTarget.style.borderColor = "#e4e4e7"
                                         }}
                                       >
-                                        {fixingProductId === audit.productId ? (
-                                          <div
-                                            style={{
-                                              width: "14px",
-                                              height: "14px",
-                                              border: "2px solid #B53D3D",
-                                              borderRightColor: "transparent",
-                                              borderRadius: "50%",
-                                              animation: "spin 1s linear infinite",
-                                            }}
-                                          />
-                                        ) : (
-                                          <svg
-                                            width="14"
-                                            height="14"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                          >
-                                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                                          </svg>
-                                        )}
-                                        {fixingProductId === audit.productId ? "Fixing..." : "Fix"}
+                                        <svg
+                                          width="14"
+                                          height="14"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                        >
+                                          <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                        History
                                       </button>
-                                    ) : (
-                                      <div
-                                        style={{
-                                          padding: "10px",
-                                          background: "#ecfdf5",
-                                          border: "1px solid #d1fae5",
-                                          borderRadius: "6px",
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          fontSize: "var(--text-sm)",
-                                          fontWeight: 500,
-                                          color: "#059669",
-                                        }}
-                                      >
-                                        Ready
-                                      </div>
-                                    )}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        navigate("/app/settings?tab=version-history")
-                                      }}
-                                      style={{
-                                        width: "100%",
-                                        padding: "10px",
-                                        background: "#fff",
-                                        color: "#71717a",
-                                        border: "1px solid #e4e4e7",
-                                        borderRadius: "6px",
-                                        fontSize: "var(--text-sm)",
-                                        fontWeight: 500,
-                                        cursor: "pointer",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        gap: "6px",
-                                        transition: "all 0.15s",
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = "#f4f4f5"
-                                        e.currentTarget.style.borderColor = "#d4d4d8"
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = "#fff"
-                                        e.currentTarget.style.borderColor = "#e4e4e7"
-                                      }}
-                                    >
-                                      <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                      >
-                                        <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                      </svg>
-                                      History
-                                    </button>
+                                    </div>
                                   </div>
-                                </div>
 
-                                {/* Insight Box */}
-                                <div
-                                  style={{
-                                    padding: "12px",
-                                    background: "#f0f9ff",
-                                    borderRadius: "6px",
-                                    border: "1px solid #bae6fd",
-                                  }}
-                                >
+                                  {/* Insight Box */}
                                   <div
                                     style={{
-                                      fontSize: "12px",
-                                      color: "#0369a1",
-                                      lineHeight: 1.5,
+                                      padding: "12px",
+                                      background: "#f0f9ff",
+                                      borderRadius: "6px",
+                                      border: "1px solid #bae6fd",
                                     }}
                                   >
-                                    <strong>Tip:</strong>{" "}
-                                    {audit.failedCount > 0
-                                      ? "Prioritize fixing 'Critical' issues like missing images or descriptions."
-                                      : "Great job! Your product is fully optimized."}
+                                    <div
+                                      style={{
+                                        fontSize: "12px",
+                                        color: "#0369a1",
+                                        lineHeight: 1.5,
+                                      }}
+                                    >
+                                      <strong>Tip:</strong>{" "}
+                                      {audit.failedCount > 0
+                                        ? "Prioritize fixing 'Critical' issues like missing images or descriptions."
+                                        : "Great job! Your product is fully optimized."}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })
-                }
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -3468,7 +3512,8 @@ export default function Dashboard() {
                 }}
               >
                 <span style={{ fontSize: "13px", color: "#71717a" }}>
-                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAudits.length)} of {filteredAudits.length}
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–
+                  {Math.min(currentPage * ITEMS_PER_PAGE, filteredAudits.length)} of {filteredAudits.length}
                 </span>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
@@ -3530,160 +3575,160 @@ export default function Dashboard() {
                 gap: "24px",
               }}
             >
-            {/* Overall Score Card */}
-            <div
-              style={{
-                position: "relative",
-                background: "#fff",
-                border: "1px solid #e4e4e7",
-                borderRadius: "12px",
-                padding: "24px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "var(--text-xs)",
-                  fontWeight: 500,
-                  color: "#71717a",
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase",
-                  marginBottom: "20px",
-                }}
-              >
-                Products Health
-              </div>
-
-              {/* Circular Progress */}
+              {/* Overall Score Card */}
               <div
                 style={{
                   position: "relative",
-                  width: "120px",
-                  height: "120px",
-                  marginBottom: "20px",
+                  background: "#fff",
+                  border: "1px solid #e4e4e7",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                 }}
               >
-                <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
-                  <circle
-                    cx="60"
-                    cy="60"
-                    r="50"
-                    fill="none"
-                    stroke={animatedPercent >= 80 ? "#059669" : animatedPercent >= 60 ? "#465A54" : "#B53D3D"}
-                    strokeWidth="8"
-                    strokeDasharray={`${(animatedPercent / 100) * 314.159} 314.159`}
-                    strokeLinecap="round"
-                  />
-                </svg>
+                <div
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    fontWeight: 500,
+                    color: "#71717a",
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    marginBottom: "20px",
+                  }}
+                >
+                  Products Health
+                </div>
+
+                {/* Circular Progress */}
+                <div
+                  style={{
+                    position: "relative",
+                    width: "120px",
+                    height: "120px",
+                    marginBottom: "20px",
+                  }}
+                >
+                  <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="50"
+                      fill="none"
+                      stroke={animatedPercent >= 80 ? "#059669" : animatedPercent >= 60 ? "#465A54" : "#B53D3D"}
+                      strokeWidth="8"
+                      strokeDasharray={`${(animatedPercent / 100) * 314.159} 314.159`}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "28px",
+                        fontWeight: 600,
+                        color: "#252F2C",
+                      }}
+                    >
+                      {animatedPercent}%
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "var(--text-xs)",
+                        color: "#71717a",
+                        marginTop: "4px",
+                      }}
+                    >
+                      Ready
+                    </div>
+                  </div>
+                </div>
 
                 <div
                   style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
+                    fontSize: "var(--text-sm)",
+                    color: "#71717a",
                     textAlign: "center",
+                    marginBottom: "16px",
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: "28px",
-                      fontWeight: 600,
-                      color: "#252F2C",
-                    }}
-                  >
-                    {animatedPercent}%
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "var(--text-xs)",
-                      color: "#71717a",
-                      marginTop: "4px",
-                    }}
-                  >
-                    Ready
-                  </div>
+                  {stats.totalAudited > 0
+                    ? `${stats.readyCount} of ${stats.totalAudited} products`
+                    : "No products synced yet"}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    width: "100%",
+                    justifyContent: "space-between",
+                    paddingTop: "16px",
+                    borderTop: "1px solid #f4f4f5",
+                  }}
+                >
+                  {[
+                    {
+                      label: "Ready",
+                      value: stats.readyCount,
+                      color: "#059669",
+                    },
+                    {
+                      label: "Needs Attention",
+                      value: stats.incompleteCount,
+                      color: "#f97316",
+                    },
+                    {
+                      label: "Average Score",
+                      value: `${stats.avgCompletion}%`,
+                      color: "#465A54",
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "#a1a1aa",
+                          fontWeight: 600,
+                          letterSpacing: "0.05em",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {item.label.toUpperCase()}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "20px",
+                          fontWeight: 700,
+                          color: item.color,
+                        }}
+                      >
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div
-                style={{
-                  fontSize: "var(--text-sm)",
-                  color: "#71717a",
-                  textAlign: "center",
-                  marginBottom: "16px",
-                }}
-              >
-                {stats.totalAudited > 0
-                  ? `${stats.readyCount} of ${stats.totalAudited} products`
-                  : "No products synced yet"}
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "16px",
-                  width: "100%",
-                  justifyContent: "space-between",
-                  paddingTop: "16px",
-                  borderTop: "1px solid #f4f4f5",
-                }}
-              >
-                {[
-                  {
-                    label: "Ready",
-                    value: stats.readyCount,
-                    color: "#059669",
-                  },
-                  {
-                    label: "Needs Attention",
-                    value: stats.incompleteCount,
-                    color: "#f97316",
-                  },
-                  {
-                    label: "Average Score",
-                    value: `${stats.avgCompletion}%`,
-                    color: "#465A54",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      flex: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "#a1a1aa",
-                        fontWeight: 600,
-                        letterSpacing: "0.05em",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.label.toUpperCase()}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "20px",
-                        fontWeight: 700,
-                        color: item.color,
-                      }}
-                    >
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
             </div>
           </div>
         </div>
@@ -3852,7 +3897,7 @@ export default function Dashboard() {
                       const selectedProductIds = Array.from(selectedProducts)
                       const skipped: string[] = []
                       const eligible: string[] = []
-                      
+
                       for (const productId of selectedProductIds) {
                         const audit = audits.find((a) => a.productId === productId)
                         // Check min_images item details to extract current image count
@@ -3865,14 +3910,14 @@ export default function Dashboard() {
                             imageCount = parseInt(match[1], 10)
                           }
                         }
-                        
+
                         if (imageCount >= 3) {
                           skipped.push(audit?.productTitle || productId)
                         } else {
                           eligible.push(productId)
                         }
                       }
-                      
+
                       if (skipped.length > 0) {
                         setSkippedImageProducts(skipped)
                         setEligibleImageProductIds(eligible)
@@ -3958,7 +4003,7 @@ export default function Dashboard() {
                       const selectedProductIds = Array.from(selectedProducts)
                       const skipped: string[] = []
                       const eligible: string[] = []
-                      
+
                       for (const productId of selectedProductIds) {
                         const audit = audits.find((a) => a.productId === productId)
                         if (audit?.status === "ready") {
@@ -3967,7 +4012,7 @@ export default function Dashboard() {
                           eligible.push(productId)
                         }
                       }
-                      
+
                       if (skipped.length > 0 && eligible.length > 0) {
                         // Some ready, some need fixing - show alert
                         setSkippedAutofixProducts(skipped)
@@ -4458,21 +4503,42 @@ export default function Dashboard() {
                   background: "transparent",
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => navigate("/app/standards")}
-                  style={{
-                    padding: "10px 16px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--color-border)",
-                    background: "transparent",
-                    cursor: "pointer",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                  }}
-                >
-                  Manage Standards
-                </button>
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/app/standards")}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--color-border)",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Manage Standards
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMonitoringModal(false)
+                      navigate("/app/monitoring")
+                    }}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: "var(--radius-sm)",
+                      border: "none",
+                      background: "var(--color-primary)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    View Full Report
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowMonitoringModal(false)}
@@ -4561,7 +4627,8 @@ export default function Dashboard() {
                   Some products will be skipped
                 </h3>
                 <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b7280" }}>
-                  {skippedImageProducts.length} product{skippedImageProducts.length !== 1 ? "s have" : " has"} 3+ images already
+                  {skippedImageProducts.length} product{skippedImageProducts.length !== 1 ? "s have" : " has"} 3+ images
+                  already
                 </p>
               </div>
             </div>
@@ -4576,12 +4643,22 @@ export default function Dashboard() {
                 overflow: "auto",
               }}
             >
-              <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 500, color: "#6b7280", textTransform: "uppercase" }}>
+              <p
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#6b7280",
+                  textTransform: "uppercase",
+                }}
+              >
                 Will be skipped:
               </p>
               <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: "13px", color: "#374151" }}>
                 {skippedImageProducts.map((name, i) => (
-                  <li key={i} style={{ marginBottom: "4px" }}>{name}</li>
+                  <li key={i} style={{ marginBottom: "4px" }}>
+                    {name}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -4636,7 +4713,8 @@ export default function Dashboard() {
                     cursor: "pointer",
                   }}
                 >
-                  Continue with {eligibleImageProductIds.length} product{eligibleImageProductIds.length !== 1 ? "s" : ""}
+                  Continue with {eligibleImageProductIds.length} product
+                  {eligibleImageProductIds.length !== 1 ? "s" : ""}
                 </button>
               )}
             </div>
@@ -4692,7 +4770,8 @@ export default function Dashboard() {
                   Some products already ready
                 </h3>
                 <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b7280" }}>
-                  {skippedAutofixProducts.length} product{skippedAutofixProducts.length !== 1 ? "s are" : " is"} already at 100%
+                  {skippedAutofixProducts.length} product{skippedAutofixProducts.length !== 1 ? "s are" : " is"} already
+                  at 100%
                 </p>
               </div>
             </div>
@@ -4707,12 +4786,22 @@ export default function Dashboard() {
                 overflow: "auto",
               }}
             >
-              <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 500, color: "#059669", textTransform: "uppercase" }}>
+              <p
+                style={{
+                  margin: "0 0 8px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#059669",
+                  textTransform: "uppercase",
+                }}
+              >
                 Already ready (will skip):
               </p>
               <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: "13px", color: "#374151" }}>
                 {skippedAutofixProducts.map((name, i) => (
-                  <li key={i} style={{ marginBottom: "4px" }}>{name}</li>
+                  <li key={i} style={{ marginBottom: "4px" }}>
+                    {name}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -4834,46 +4923,89 @@ export default function Dashboard() {
                 boxShadow: "0 8px 24px rgba(34, 197, 94, 0.3)",
               }}
             >
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#fff"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            <h2 style={{ margin: "0 0 12px", fontSize: "28px", fontWeight: 700, color: "#111827" }}>
-              You did it!
-            </h2>
+            <h2 style={{ margin: "0 0 12px", fontSize: "28px", fontWeight: 700, color: "#111827" }}>You did it!</h2>
             <p style={{ margin: "0 0 8px", fontSize: "18px", color: "#465A54", fontWeight: 600 }}>
               100% Product Health
             </p>
             <p style={{ margin: "0 0 28px", fontSize: "14px", color: "#6b7280", lineHeight: 1.5 }}>
               All your products are launch-ready. Your catalog is in perfect shape!
             </p>
-            <button
-              type="button"
-              onClick={() => setShowCelebrationModal(false)}
-              style={{
-                padding: "14px 32px",
-                background: "linear-gradient(135deg, #465A54 0%, #3d4e49 100%)",
-                border: "none",
-                borderRadius: "10px",
-                fontSize: "15px",
-                fontWeight: 600,
-                color: "#fff",
-                cursor: "pointer",
-                boxShadow: "0 4px 12px rgba(70, 90, 84, 0.3)",
-                transition: "transform 0.15s, box-shadow 0.15s",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = "translateY(-1px)"
-                e.currentTarget.style.boxShadow = "0 6px 16px rgba(70, 90, 84, 0.35)"
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = "translateY(0)"
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(70, 90, 84, 0.3)"
-              }}
-            >
-              Awesome!
-            </button>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => setShowCelebrationModal(false)}
+                style={{
+                  padding: "14px 32px",
+                  background: "linear-gradient(135deg, #465A54 0%, #3d4e49 100%)",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                  color: "#fff",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(70, 90, 84, 0.3)",
+                  transition: "transform 0.15s, box-shadow 0.15s",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = "translateY(-1px)"
+                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(70, 90, 84, 0.35)"
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)"
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(70, 90, 84, 0.3)"
+                }}
+              >
+                Awesome!
+              </button>
+              {isPro && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCelebrationModal(false)
+                    navigate("/app/monitoring")
+                  }}
+                  style={{
+                    padding: "14px 24px",
+                    background: "transparent",
+                    border: "2px solid var(--color-primary)",
+                    borderRadius: "10px",
+                    fontSize: "15px",
+                    fontWeight: 600,
+                    color: "var(--color-primary)",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = "var(--color-primary-soft)"
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = "transparent"
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  View Monitoring
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

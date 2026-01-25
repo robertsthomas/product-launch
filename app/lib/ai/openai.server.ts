@@ -74,7 +74,6 @@ const OPENROUTER_IMAGE_MODELS = {
   quality: "black-forest-labs/flux.2-max", // ~$0.07/MP - highest quality
 }
 
-
 // ============================================
 // Product context type
 // ============================================
@@ -503,7 +502,7 @@ export async function generateProductImageWithOpenRouter(
   if (!response.ok) {
     const errorText = await response.text()
     console.error(`[OpenRouter Image] API error: ${response.status}`, errorText)
-    
+
     // Try fallback to next quality tier
     if (quality === "fast") {
       console.log("[OpenRouter Image] Retrying with balanced model...")
@@ -512,12 +511,12 @@ export async function generateProductImageWithOpenRouter(
       console.log("[OpenRouter Image] Retrying with quality model...")
       return generateProductImageWithOpenRouter(product, "quality")
     }
-    
+
     throw new Error(`OpenRouter image API error: ${response.status}`)
   }
 
   const data = await response.json()
-  
+
   // Reduce log size - don't log full base64
   console.log("[OpenRouter Image] Response received, model:", data.model, "cost:", data.usage?.cost)
 

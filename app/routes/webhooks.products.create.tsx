@@ -1,5 +1,7 @@
 import type { ActionFunctionArgs } from "react-router"
-import { auditProduct } from "../lib/services/audit.server"
+import { PLANS } from "../lib/billing/constants"
+import { auditProduct, getProductAudit } from "../lib/services/audit.server"
+import { createNewProductDrift } from "../lib/services/monitoring.server"
 import { getOrCreateShop } from "../lib/services/shop.server"
 import { authenticate } from "../shopify.server"
 
@@ -32,6 +34,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await auditProduct(shop, productGid, admin, true)
 
     console.log(`Audit completed for product ${productGid}`)
+
+    // Pro feature: Create drift for incomplete new products
+    if (shopRecord.plan === PLANS.PRO || shopRecord.isDevStore) {
+      try {
+        const audit = await getProductAudit(shop, productGid)
+        if (audit && audit.status === "incomplete") {
+          const drift = await createNewProductDrift(shop, productGid, payload.title || "Unknown Product", {
+            status: audit.status,
+            score: audit.score,
+            failedCount: audit.failedCount,
+          })
+          if (drift) {
+            console.log(`Created new product drift for ${productGid} (score: ${audit.score}%)`)
+          }
+        }
+      } catch (driftError) {
+        console.error("Error creating new product drift:", driftError)
+        // Don't fail the webhook for drift errors
+      }
+    }
   } catch (error) {
     console.error("Error processing product create webhook:", error)
   }

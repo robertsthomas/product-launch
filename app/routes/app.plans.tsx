@@ -1,10 +1,10 @@
 import { boundary } from "@shopify/shopify-app-react-router/server"
+import { useState } from "react"
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { useLoaderData } from "react-router"
-import { useState } from "react"
-import { authenticate } from "../shopify.server"
-import { getOrCreateShop } from "../lib/services/shop.server"
 import { getCurrentSubscription } from "../lib/billing/billing.server"
+import { getOrCreateShop } from "../lib/services/shop.server"
+import { authenticate } from "../shopify.server"
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request)
@@ -14,7 +14,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Check current subscription
   const subscription = await getCurrentSubscription(admin)
   const isPro = shopRecord.plan === "pro"
-  const isYearly = subscription?.name?.toLowerCase().includes("yearly") || subscription?.name?.toLowerCase().includes("annual")
+  const isYearly =
+    subscription?.name?.toLowerCase().includes("yearly") || subscription?.name?.toLowerCase().includes("annual")
 
   // Build redirect URL for Shopify's hosted plan selection
   const storeHandle = shop.replace(".myshopify.com", "")
@@ -49,59 +50,71 @@ export default function PlansPage() {
   const yearlyMonthly = Math.round(yearlyPrice / 12)
 
   return (
-    <div style={{ 
-      minHeight: "100vh", 
-      background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
-      padding: "40px 24px",
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
+        padding: "40px 24px",
+      }}
+    >
       <div style={{ maxWidth: "720px", margin: "0 auto" }}>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <span style={{
-            display: "inline-block",
-            padding: "6px 14px",
-            fontSize: "12px",
-            fontWeight: 600,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-            borderRadius: "20px",
-            background: "rgba(99, 102, 241, 0.1)",
-            color: "#6366f1",
-            marginBottom: "16px",
-          }}>
+          <span
+            style={{
+              display: "inline-block",
+              padding: "6px 14px",
+              fontSize: "12px",
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              borderRadius: "20px",
+              background: "rgba(99, 102, 241, 0.1)",
+              color: "#6366f1",
+              marginBottom: "16px",
+            }}
+          >
             Pricing
           </span>
-          <h1 style={{
-            margin: "0 0 12px",
-            fontSize: "36px",
-            fontWeight: 700,
-            color: "#0f172a",
-            lineHeight: 1.2,
-          }}>
+          <h1
+            style={{
+              margin: "0 0 12px",
+              fontSize: "36px",
+              fontWeight: 700,
+              color: "#0f172a",
+              lineHeight: 1.2,
+            }}
+          >
             Simple, transparent pricing
           </h1>
-          <p style={{
-            margin: 0,
-            fontSize: "16px",
-            color: "#64748b",
-          }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "16px",
+              color: "#64748b",
+            }}
+          >
             Start free, upgrade when you need more
           </p>
         </div>
 
         {/* Billing Toggle */}
-        <div style={{
-          display: "flex",
-          justifyContent: "center",
-          marginBottom: "32px",
-        }}>
-          <div style={{
-            display: "inline-flex",
-            background: "#fff",
-            borderRadius: "10px",
-            padding: "4px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: "32px",
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              background: "#fff",
+              borderRadius: "10px",
+              padding: "4px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+            }}
+          >
             <button
               type="button"
               onClick={() => setBillingInterval("monthly")}
@@ -138,48 +151,57 @@ export default function PlansPage() {
               }}
             >
               Yearly
-              <span style={{
-                padding: "3px 8px",
-                fontSize: "11px",
-                fontWeight: 600,
-                borderRadius: "6px",
-                background: billingInterval === "yearly" ? "#22c55e" : "#dcfce7",
-                color: billingInterval === "yearly" ? "#fff" : "#16a34a",
-              }}>
+              <span
+                style={{
+                  padding: "3px 8px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  borderRadius: "6px",
+                  background: billingInterval === "yearly" ? "#22c55e" : "#dcfce7",
+                  color: billingInterval === "yearly" ? "#fff" : "#16a34a",
+                }}
+              >
                 -17%
               </span>
             </button>
           </div>
         </div>
 
-
         {/* Plans */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "20px",
-        }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "20px",
+          }}
+        >
           {/* Free Plan */}
-          <div style={{
-            background: "#fff",
-            borderRadius: "16px",
-            padding: "28px",
-            border: "1px solid #e2e8f0",
-          }}>
-            <h3 style={{
-              margin: "0 0 8px",
-              fontSize: "18px",
-              fontWeight: 600,
-              color: "#0f172a",
-            }}>
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "16px",
+              padding: "28px",
+              border: "1px solid #e2e8f0",
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 8px",
+                fontSize: "18px",
+                fontWeight: 600,
+                color: "#0f172a",
+              }}
+            >
               Free
             </h3>
-            <p style={{
-              margin: "0 0 20px",
-              fontSize: "13px",
-              color: "#64748b",
-              lineHeight: 1.5,
-            }}>
+            <p
+              style={{
+                margin: "0 0 20px",
+                fontSize: "13px",
+                color: "#64748b",
+                lineHeight: 1.5,
+              }}
+            >
               Get started with the basics
             </p>
 
@@ -209,9 +231,7 @@ export default function PlansPage() {
             </button>
 
             <div style={{ fontSize: "13px", color: "#64748b" }}>
-              <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "12px" }}>
-                What's included:
-              </div>
+              <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "12px" }}>What's included:</div>
               {["Unlimited audits", "Readiness checklist", "One-click fixes", "Basic analytics"].map((feature) => (
                 <div key={feature} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5">
@@ -224,44 +244,52 @@ export default function PlansPage() {
           </div>
 
           {/* Pro Plan */}
-          <div style={{
-            background: "#fff",
-            borderRadius: "16px",
-            padding: "28px",
-            border: "2px solid #6366f1",
-            position: "relative",
-          }}>
-            <div style={{
-              position: "absolute",
-              top: "-11px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              padding: "4px 12px",
-              fontSize: "11px",
-              fontWeight: 600,
-              borderRadius: "6px",
-              background: "#6366f1",
-              color: "#fff",
-              textTransform: "uppercase",
-              letterSpacing: "0.03em",
-            }}>
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "16px",
+              padding: "28px",
+              border: "2px solid #6366f1",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: "-11px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "4px 12px",
+                fontSize: "11px",
+                fontWeight: 600,
+                borderRadius: "6px",
+                background: "#6366f1",
+                color: "#fff",
+                textTransform: "uppercase",
+                letterSpacing: "0.03em",
+              }}
+            >
               Most Popular
             </div>
 
-            <h3 style={{
-              margin: "0 0 8px",
-              fontSize: "18px",
-              fontWeight: 600,
-              color: "#0f172a",
-            }}>
+            <h3
+              style={{
+                margin: "0 0 8px",
+                fontSize: "18px",
+                fontWeight: 600,
+                color: "#0f172a",
+              }}
+            >
               Pro
             </h3>
-            <p style={{
-              margin: "0 0 20px",
-              fontSize: "13px",
-              color: "#64748b",
-              lineHeight: 1.5,
-            }}>
+            <p
+              style={{
+                margin: "0 0 20px",
+                fontSize: "13px",
+                color: "#64748b",
+                lineHeight: 1.5,
+              }}
+            >
               Everything to launch faster
             </p>
 
@@ -272,8 +300,8 @@ export default function PlansPage() {
               <span style={{ fontSize: "14px", color: "#94a3b8" }}> /month</span>
               {billingInterval === "yearly" && (
                 <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>
-                  <span style={{ textDecoration: "line-through", color: "#94a3b8" }}>${monthlyPrice * 12}</span>
-                  {" "}${yearlyPrice}/year
+                  <span style={{ textDecoration: "line-through", color: "#94a3b8" }}>${monthlyPrice * 12}</span> $
+                  {yearlyPrice}/year
                 </div>
               )}
             </div>
@@ -299,9 +327,7 @@ export default function PlansPage() {
             </button>
 
             <div style={{ fontSize: "13px", color: "#64748b" }}>
-              <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "12px" }}>
-                Everything in Free +
-              </div>
+              <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "12px" }}>Everything in Free +</div>
               {[
                 "AI content generation",
                 "Brand voice settings",
@@ -321,12 +347,14 @@ export default function PlansPage() {
         </div>
 
         {/* Footer */}
-        <p style={{
-          textAlign: "center",
-          marginTop: "28px",
-          fontSize: "13px",
-          color: "#94a3b8",
-        }}>
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: "28px",
+            fontSize: "13px",
+            color: "#94a3b8",
+          }}
+        >
           7-day free trial · Cancel anytime
         </p>
       </div>

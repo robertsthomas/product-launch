@@ -1,10 +1,10 @@
 interface ActionBentoCardProps {
-  hasChanges: boolean;
-  isSaving: boolean;
-  aiAvailable: boolean;
-  generatingAll: boolean;
-  onSave: () => void;
-  onGenerateAll: () => void;
+  hasChanges: boolean
+  isSaving: boolean
+  aiAvailable: boolean
+  generatingAll: boolean
+  onSave: () => void
+  onGenerateAll: () => void
 }
 
 export function ActionBentoCard({
@@ -98,5 +98,5 @@ export function ActionBentoCard({
         </button>
       )}
     </div>
-  );
+  )
 }

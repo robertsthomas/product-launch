@@ -1,29 +1,29 @@
 interface ProductImage {
-  id: string;
-  url: string;
-  altText: string | null;
+  id: string
+  url: string
+  altText: string | null
 }
 
 interface ProductData {
-  id: string;
-  title: string;
-  vendor: string;
-  productType: string;
-  tags: string[];
-  featuredImage: string | null;
-  images: ProductImage[];
+  id: string
+  title: string
+  vendor: string
+  productType: string
+  tags: string[]
+  featuredImage: string | null
+  images: ProductImage[]
 }
 
 interface Audit {
-  status: string;
-  passedCount: number;
-  failedCount: number;
-  totalCount: number;
+  status: string
+  passedCount: number
+  failedCount: number
+  totalCount: number
 }
 
 interface ProductSummaryCardProps {
-  product: ProductData;
-  audit: Audit | null;
+  product: ProductData
+  audit: Audit | null
 }
 
 export function ProductSummaryCard({ product, audit }: ProductSummaryCardProps) {
@@ -53,9 +53,22 @@ export function ProductSummaryCard({ product, audit }: ProductSummaryCardProps) 
           }}
         >
           {product.featuredImage ? (
-            <img src={product.featuredImage} alt={product.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img
+              src={product.featuredImage}
+              alt={product.title}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
           ) : (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d4d4d8" }}>
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#d4d4d8",
+              }}
+            >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                 <path d="M21 15l-5-5L5 21" />
@@ -64,7 +77,17 @@ export function ProductSummaryCard({ product, audit }: ProductSummaryCardProps) 
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ fontSize: "14px", fontWeight: 600, color: "#18181b", margin: "0 0 4px 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <h2
+            style={{
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "#18181b",
+              margin: "0 0 4px 0",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {product.title}
           </h2>
           <div style={{ fontSize: "11px", color: "#71717a" }}>
@@ -100,5 +123,5 @@ export function ProductSummaryCard({ product, audit }: ProductSummaryCardProps) 
         </div>
       </div>
     </div>
-  );
+  )
 }

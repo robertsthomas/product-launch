@@ -1,23 +1,23 @@
-import type { ProductForm, ProductData, AIGenerateMode, FieldVersion, AutocompleteOptions } from "./types";
+import type { AIGenerateMode, AutocompleteOptions, FieldVersion, ProductData, ProductForm } from "./types"
 
 interface ProductInfoCardProps {
-  product: ProductData;
-  form: ProductForm;
-  updateField: (field: string, value: string | string[]) => void;
-  generating: Set<string>;
-  generatingModes: Record<string, AIGenerateMode>;
-  aiAvailable: boolean;
-  autocomplete: AutocompleteOptions;
-  fieldVersions: Record<string, FieldVersion[]>;
-  aiGeneratedFields: Set<string>;
-  preGenerationValues: Record<string, string | string[]>;
-  onGenerateAI: (type: string, field: string, mode: AIGenerateMode) => void;
-  onRevert: (field: string, version: number) => void;
-  onInlineRevert: (field: string) => void;
+  product: ProductData
+  form: ProductForm
+  updateField: (field: string, value: string | string[]) => void
+  generating: Set<string>
+  generatingModes: Record<string, AIGenerateMode>
+  aiAvailable: boolean
+  autocomplete: AutocompleteOptions
+  fieldVersions: Record<string, FieldVersion[]>
+  aiGeneratedFields: Set<string>
+  preGenerationValues: Record<string, string | string[]>
+  onGenerateAI: (type: string, field: string, mode: AIGenerateMode) => void
+  onRevert: (field: string, version: number) => void
+  onInlineRevert: (field: string) => void
   // Sub-components passed in to avoid circular deps
-  EditableField: React.ComponentType<any>;
-  AutocompleteField: React.ComponentType<any>;
-  TagsInput: React.ComponentType<any>;
+  EditableField: React.ComponentType<any>
+  AutocompleteField: React.ComponentType<any>
+  TagsInput: React.ComponentType<any>
 }
 
 export function ProductInfoCard({
@@ -182,5 +182,5 @@ export function ProductInfoCard({
         </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,14 +1,10 @@
 interface CompactActionCardProps {
-  hasChanges: boolean;
-  isSaving: boolean;
-  onSave: () => void;
+  hasChanges: boolean
+  isSaving: boolean
+  onSave: () => void
 }
 
-export function CompactActionCard({
-  hasChanges,
-  isSaving,
-  onSave,
-}: CompactActionCardProps) {
+export function CompactActionCard({ hasChanges, isSaving, onSave }: CompactActionCardProps) {
   return (
     <button
       type="button"
@@ -49,5 +45,5 @@ export function CompactActionCard({
         </>
       )}
     </button>
-  );
+  )
 }

@@ -1,28 +1,28 @@
-import { useNavigate } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
+import { useAppBridge } from "@shopify/app-bridge-react"
+import { useNavigate } from "react-router"
 
 interface ProductHeaderProps {
-  title: string;
-  audit: { status: string } | null;
-  productId: string;
+  title: string
+  audit: { status: string } | null
+  productId: string
 }
 
 export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
-  const navigate = useNavigate();
-  const shopify = useAppBridge();
+  const navigate = useNavigate()
+  const shopify = useAppBridge()
 
   const handleOpenInShopify = async () => {
     try {
       await shopify.intents.invoke("edit:shopify/Product", {
         value: productId,
-      });
+      })
     } catch (error) {
       // Fallback to opening in new tab if intents API fails
-      const numericId = productId.split("/").pop();
-      const shop = shopify.config?.shop || "";
-      window.open(`https://${shop}/admin/products/${numericId}`, "_blank");
+      const numericId = productId.split("/").pop()
+      const shop = shopify.config?.shop || ""
+      window.open(`https://${shop}/admin/products/${numericId}`, "_blank")
     }
-  };
+  }
 
   return (
     <div
@@ -56,12 +56,12 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
             transition: "all 0.15s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#f4f4f5";
-            e.currentTarget.style.borderColor = "#d4d4d8";
+            e.currentTarget.style.background = "#f4f4f5"
+            e.currentTarget.style.borderColor = "#d4d4d8"
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#fff";
-            e.currentTarget.style.borderColor = "#e4e4e7";
+            e.currentTarget.style.background = "#fff"
+            e.currentTarget.style.borderColor = "#e4e4e7"
           }}
           aria-label="Back to dashboard"
         >
@@ -113,9 +113,7 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
               </span>
             )}
           </h1>
-          <p style={{ margin: 0, fontSize: "13px", color: "#71717a" }}>
-            Product details and optimization
-          </p>
+          <p style={{ margin: 0, fontSize: "13px", color: "#71717a" }}>Product details and optimization</p>
         </div>
       </div>
 
@@ -137,12 +135,12 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
           transition: "all 0.15s",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "#f4f4f5";
-          e.currentTarget.style.borderColor = "#d4d4d8";
+          e.currentTarget.style.background = "#f4f4f5"
+          e.currentTarget.style.borderColor = "#d4d4d8"
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "#fff";
-          e.currentTarget.style.borderColor = "#e4e4e7";
+          e.currentTarget.style.background = "#fff"
+          e.currentTarget.style.borderColor = "#e4e4e7"
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -153,5 +151,5 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
         Open in Shopify
       </button>
     </div>
-  );
+  )
 }

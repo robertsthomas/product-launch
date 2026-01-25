@@ -24,6 +24,10 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--set-secrets'
+      - 'OPENROUTER_API_KEY=OPENROUTER_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,KIE_API_KEY=KIE_API_KEY:latest,SHOPIFY_API_SECRET=SHOPIFY_API_SECRET:latest,RESEND_API_KEY=RESEND_API_KEY:latest,CRON_SECRET=CRON_SECRET:latest'
+      - '--set-env-vars'
+      - 'OPENROUTER_MODEL=openai/gpt-4o-mini,OPENROUTER_IMAGE_MODEL=openai/gpt-4o-mini,SHOPIFY_API_KEY=479c0f4598b92323ac11cc6cfe129112,SCOPES=write_products,write_files,EMAIL_PROVIDER=resend,EMAIL_FROM=support@launchreadyapp.com,EMAIL_FROM_NAME=LaunchReady'
 
 substitutions:
   _SERVICE_NAME: launch-ready

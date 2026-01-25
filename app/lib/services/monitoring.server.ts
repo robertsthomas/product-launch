@@ -396,3 +396,45 @@ export async function resolveProductDrifts(
       )
     )
 }
+
+/**
+ * Create a drift for a new product that is incomplete
+ */
+export async function createNewProductDrift(
+  shopDomain: string,
+  productId: string,
+  productTitle: string,
+  auditResult: { status: string; score: number; failedCount: number }
+) {
+  const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
+
+  if (!shop) return null
+
+  // Determine severity based on score
+  let severity: "low" | "medium" | "high" = "medium"
+  if (auditResult.score < 25) {
+    severity = "high"
+  } else if (auditResult.score < 50) {
+    severity = "medium"
+  } else {
+    severity = "low"
+  }
+
+  const drift: NewComplianceDrift = {
+    shopId: shop.id,
+    productId,
+    productTitle,
+    driftType: "new_product_incomplete",
+    severity,
+    previousValue: null,
+    currentValue: JSON.stringify({
+      score: auditResult.score,
+      failedCount: auditResult.failedCount,
+      message: "New product added without meeting launch requirements",
+    }),
+    detectedAt: new Date(),
+  }
+
+  const [created] = await db.insert(complianceDrifts).values(drift).returning()
+  return created
+}

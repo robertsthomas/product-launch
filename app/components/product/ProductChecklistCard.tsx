@@ -1,34 +1,34 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react"
 
 interface AuditItem {
-  key: string;
-  label: string;
-  status: string;
-  details: string | null;
+  key: string
+  label: string
+  status: string
+  details: string | null
 }
 
 interface Audit {
-  status: string;
-  passedCount: number;
-  failedCount: number;
-  totalCount: number;
-  items: AuditItem[];
+  status: string
+  passedCount: number
+  failedCount: number
+  totalCount: number
+  items: AuditItem[]
 }
 
 interface ProductChecklistCardProps {
-  audit: Audit | null;
-  hasChanges: boolean;
-  isSaving: boolean;
-  aiAvailable: boolean;
-  generatingAll: boolean;
-  isRescanning: boolean;
-  canAutoFixCollection: boolean;
-  onSave: () => void;
-  onGenerateAll: () => void;
-  onRescan: () => void;
-  onItemClick: (key: string) => void;
-  onAutoFixCollection: () => void;
-  onChooseCollection: () => void;
+  audit: Audit | null
+  hasChanges: boolean
+  isSaving: boolean
+  aiAvailable: boolean
+  generatingAll: boolean
+  isRescanning: boolean
+  canAutoFixCollection: boolean
+  onSave: () => void
+  onGenerateAll: () => void
+  onRescan: () => void
+  onItemClick: (key: string) => void
+  onAutoFixCollection: () => void
+  onChooseCollection: () => void
 }
 
 // Group checklist items by category
@@ -49,7 +49,7 @@ const CHECKLIST_CATEGORIES: Record<string, { label: string; keys: string[] }> = 
     label: "SEO",
     keys: ["seo_title", "seo_description"],
   },
-};
+}
 
 export function ProductChecklistCard({
   audit,
@@ -68,66 +68,66 @@ export function ProductChecklistCard({
 }: ProductChecklistCardProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
     // Auto-expand categories with failed items
-    const expanded = new Set<string>();
+    const expanded = new Set<string>()
     if (audit?.items) {
       for (const [categoryKey, category] of Object.entries(CHECKLIST_CATEGORIES)) {
-        const items = audit.items.filter((item) => category.keys.includes(item.key));
-        const hasFailed = items.some((item) => item.status === "fail" || item.status === "failed");
+        const items = audit.items.filter((item) => category.keys.includes(item.key))
+        const hasFailed = items.some((item) => item.status === "fail" || item.status === "failed")
         if (hasFailed) {
-          expanded.add(categoryKey);
+          expanded.add(categoryKey)
         }
       }
     }
-    return expanded;
-  });
-  const [animatedPercent, setAnimatedPercent] = useState(0);
+    return expanded
+  })
+  const [animatedPercent, setAnimatedPercent] = useState(0)
 
-  const passedCount = audit?.passedCount ?? 0;
-  const totalCount = audit?.totalCount ?? 1;
-  const percent = Math.round((passedCount / totalCount) * 100);
+  const passedCount = audit?.passedCount ?? 0
+  const totalCount = audit?.totalCount ?? 1
+  const percent = Math.round((passedCount / totalCount) * 100)
 
   // Animate percentage
   useEffect(() => {
-    const duration = 600;
-    const startTime = Date.now();
-    const startValue = animatedPercent;
+    const duration = 600
+    const startTime = Date.now()
+    const startValue = animatedPercent
 
     const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(startValue + (percent - startValue) * eased);
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const current = Math.round(startValue + (percent - startValue) * eased)
 
-      setAnimatedPercent(current);
+      setAnimatedPercent(current)
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        requestAnimationFrame(animate)
       }
-    };
+    }
 
-    requestAnimationFrame(animate);
-  }, [percent]);
+    requestAnimationFrame(animate)
+  }, [percent])
 
   // Get items by category
   const getItemsByCategory = (categoryKeys: string[]): AuditItem[] => {
-    if (!audit?.items) return [];
-    return audit.items.filter((item) => categoryKeys.includes(item.key));
-  };
+    if (!audit?.items) return []
+    return audit.items.filter((item) => categoryKeys.includes(item.key))
+  }
 
   // Use a single professional color for the gauge
-  const statusColor = "#18181b";
+  const statusColor = "#18181b"
 
   const toggleCategory = (categoryKey: string) => {
-    setExpandedCategories(prev => {
-      const next = new Set(prev);
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
       if (next.has(categoryKey)) {
-        next.delete(categoryKey);
+        next.delete(categoryKey)
       } else {
-        next.add(categoryKey);
+        next.add(categoryKey)
       }
-      return next;
-    });
-  };
+      return next
+    })
+  }
 
   return (
     <div
@@ -277,12 +277,14 @@ export function ProductChecklistCard({
       {/* Checklist by Category */}
       <div style={{ padding: "12px" }}>
         {Object.entries(CHECKLIST_CATEGORIES).map(([categoryKey, category]) => {
-          const items = getItemsByCategory(category.keys);
-          if (items.length === 0) return null;
+          const items = getItemsByCategory(category.keys)
+          if (items.length === 0) return null
 
-          const passedInCategory = items.filter((i) => i.status === "pass" || i.status === "passed" || i.status === "auto_fixed").length;
-          const isExpanded = expandedCategories.has(categoryKey);
-          const failedCount = items.length - passedInCategory;
+          const passedInCategory = items.filter(
+            (i) => i.status === "pass" || i.status === "passed" || i.status === "auto_fixed"
+          ).length
+          const isExpanded = expandedCategories.has(categoryKey)
+          const failedCount = items.length - passedInCategory
 
           return (
             <div key={categoryKey} style={{ marginBottom: "8px" }}>
@@ -315,7 +317,15 @@ export function ProductChecklistCard({
                   >
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
-                  <span style={{ fontSize: "11px", fontWeight: 600, color: "#71717a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#71717a",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
                     {category.label}
                   </span>
                   {failedCount > 0 && (
@@ -340,92 +350,114 @@ export function ProductChecklistCard({
 
               {/* Items (Show when expanded) */}
               {isExpanded && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginTop: "4px", paddingLeft: "20px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                    marginTop: "4px",
+                    paddingLeft: "20px",
+                  }}
+                >
                   {items.map((item) => {
-                    const isPassed = item.status === "pass" || item.status === "passed" || item.status === "auto_fixed";
+                    const isPassed = item.status === "pass" || item.status === "passed" || item.status === "auto_fixed"
                     return (
-                    <div
-                      key={item.key}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "6px 8px",
-                        borderRadius: "6px",
-                        background: "transparent",
-                        width: "100%",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onItemClick(item.key)}
+                      <div
+                        key={item.key}
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: "8px",
-                          flex: 1,
-                          minWidth: 0,
-                          padding: 0,
-                          border: "none",
-                          background: "none",
-                          cursor: "pointer",
-                          textAlign: "left",
+                          padding: "6px 8px",
+                          borderRadius: "6px",
+                          background: "transparent",
+                          width: "100%",
                         }}
                       >
-                        {/* Status Icon */}
-                        {isPassed ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5">
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        ) : (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" />
-                          </svg>
-                        )}
-
-                        {/* Label */}
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            fontWeight: 400,
-                            color: isPassed ? "#71717a" : "#18181b",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {item.label}
-                        </span>
-                      </button>
-                      {item.key === "has_collections" && (item.status === "fail" || item.status === "failed") && (
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            canAutoFixCollection ? onAutoFixCollection() : onChooseCollection();
-                          }}
+                          onClick={() => onItemClick(item.key)}
                           style={{
-                            padding: "2px 6px",
-                            fontSize: "10px",
-                            fontWeight: 500,
-                            background: "#fff",
-                            border: "1px solid #e4e4e7",
-                            borderRadius: "4px",
-                            color: "#18181b",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            flex: 1,
+                            minWidth: 0,
+                            padding: 0,
+                            border: "none",
+                            background: "none",
                             cursor: "pointer",
-                            flexShrink: 0,
+                            textAlign: "left",
                           }}
                         >
-                          Fix
+                          {/* Status Icon */}
+                          {isPassed ? (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#16a34a"
+                              strokeWidth="2.5"
+                            >
+                              <path d="M20 6L9 17l-5-5" />
+                            </svg>
+                          ) : (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#dc2626"
+                              strokeWidth="2"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                            </svg>
+                          )}
+
+                          {/* Label */}
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: 400,
+                              color: isPassed ? "#71717a" : "#18181b",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {item.label}
+                          </span>
                         </button>
-                      )}
-                    </div>
-                  );
+                        {item.key === "has_collections" && (item.status === "fail" || item.status === "failed") && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              canAutoFixCollection ? onAutoFixCollection() : onChooseCollection()
+                            }}
+                            style={{
+                              padding: "2px 6px",
+                              fontSize: "10px",
+                              fontWeight: 500,
+                              background: "#fff",
+                              border: "1px solid #e4e4e7",
+                              borderRadius: "4px",
+                              color: "#18181b",
+                              cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          >
+                            Fix
+                          </button>
+                        )}
+                      </div>
+                    )
                   })}
                 </div>
               )}
             </div>
-          );
+          )
         })}
       </div>
 
@@ -467,5 +499,5 @@ export function ProductChecklistCard({
         </button>
       </div>
     </div>
-  );
+  )
 }

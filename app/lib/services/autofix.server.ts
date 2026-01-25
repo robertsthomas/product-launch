@@ -259,7 +259,7 @@ export async function applyAutoFix(
   config?: Record<string, unknown>
 ): Promise<{ success: boolean; message: string }> {
   console.log("[applyAutoFix] Starting:", { shopDomain, productId, itemKey })
-  
+
   // Get the product data
   const response = await admin.graphql(PRODUCT_QUERY, {
     variables: { id: productId },
@@ -296,7 +296,7 @@ export async function applyAutoFix(
   }
 
   console.log("[applyAutoFix] Applying fix function:", itemKey, "config:", fixConfig)
-  
+
   // Apply the fix
   const result = await fixFn(product, admin, fixConfig)
   console.log("[applyAutoFix] Fix result:", { itemKey, ...result })
@@ -315,7 +315,7 @@ export async function applyAutoFix(
  */
 export async function getAvailableAutoFixes(shopDomain: string, productId: string) {
   console.log("[getAvailableAutoFixes] Looking for fixes:", { shopDomain, productId })
-  
+
   const shop = await db.query.shops.findFirst({
     where: eq(shops.shopDomain, shopDomain),
   })

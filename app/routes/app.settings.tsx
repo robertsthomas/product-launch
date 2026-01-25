@@ -39,7 +39,7 @@ type VersionHistoryItem = {
   createdAt: string
 }
 
-type SettingsTab = "automation" | "ai" | "brand-voice" | "version-history" | "checklist"
+type SettingsTab = "automation" | "ai" | "brand-voice" | "version-history" | "checklist" | "monitoring"
 
 // Get dev plan override for local testing
 function getDevPlanOverride(): "free" | "pro" | null {
@@ -289,6 +289,16 @@ const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    key: "monitoring",
+    label: "Monitoring",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    ),
+    pro: true,
+  },
 ]
 
 export default function Settings() {
@@ -303,7 +313,7 @@ export default function Settings() {
 
   // Get initial tab from URL params
   const tabParam = searchParams.get("tab") as SettingsTab | null
-  const validTabs: SettingsTab[] = ["automation", "ai", "brand-voice", "version-history", "checklist"]
+  const validTabs: SettingsTab[] = ["automation", "ai", "brand-voice", "version-history", "checklist", "monitoring"]
   const initialTab = tabParam && validTabs.includes(tabParam) ? tabParam : "automation"
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
 
@@ -551,14 +561,14 @@ export default function Settings() {
               }}
               onMouseEnter={(e) => {
                 if (activeTab !== tab.key) {
-                  e.currentTarget.style.color = "#18181b";
-                  e.currentTarget.style.background = "rgba(255,255,255,0.5)";
+                  e.currentTarget.style.color = "#18181b"
+                  e.currentTarget.style.background = "rgba(255,255,255,0.5)"
                 }
               }}
               onMouseLeave={(e) => {
                 if (activeTab !== tab.key) {
-                  e.currentTarget.style.color = "#71717a";
-                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "#71717a"
+                  e.currentTarget.style.background = "transparent"
                 }
               }}
             >
@@ -1006,9 +1016,15 @@ export default function Settings() {
                               gap: "6px",
                             }}
                           >
-                            <div>• Generate Tags: <strong style={{ color: "var(--color-text)" }}>1 credit</strong></div>
-                            <div>• Write Description: <strong style={{ color: "var(--color-text)" }}>2 credits</strong></div>
-                            <div>• Optimize SEO: <strong style={{ color: "var(--color-text)" }}>2 credits</strong></div>
+                            <div>
+                              • Generate Tags: <strong style={{ color: "var(--color-text)" }}>1 credit</strong>
+                            </div>
+                            <div>
+                              • Write Description: <strong style={{ color: "var(--color-text)" }}>2 credits</strong>
+                            </div>
+                            <div>
+                              • Optimize SEO: <strong style={{ color: "var(--color-text)" }}>2 credits</strong>
+                            </div>
                           </div>
                         </div>
 
@@ -1042,10 +1058,12 @@ export default function Settings() {
                             }}
                           >
                             <li>
-                              <strong style={{ color: "var(--color-text)" }}>With your own API key:</strong> The app automatically switches to your OpenAI key
+                              <strong style={{ color: "var(--color-text)" }}>With your own API key:</strong> The app
+                              automatically switches to your OpenAI key
                             </li>
                             <li>
-                              <strong style={{ color: "var(--color-text)" }}>Without API key:</strong> AI features are locked until next month or upgrade to Pro
+                              <strong style={{ color: "var(--color-text)" }}>Without API key:</strong> AI features are
+                              locked until next month or upgrade to Pro
                             </li>
                           </ul>
                         </div>
@@ -1399,7 +1417,6 @@ export default function Settings() {
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
           )}
@@ -2056,7 +2073,7 @@ export default function Settings() {
               {template ? (
                 <div className="card" style={{ padding: "8px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    {template.items.map((item, idx) => (
+                    {template.items.map((item) => (
                       <label
                         key={item.id}
                         style={{
@@ -2113,6 +2130,243 @@ export default function Settings() {
               ) : (
                 <div className="card" style={{ padding: "32px", textAlign: "center" }}>
                   <p style={{ margin: 0, color: "var(--color-muted)" }}>No checklist template found</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Monitoring Tab (Pro only) */}
+          {activeTab === "monitoring" && (
+            <div className="animate-fade-in-up">
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "8px" }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-heading)",
+                    fontSize: "var(--text-lg)",
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                  }}
+                >
+                  Drift Monitoring
+                </h2>
+                <span
+                  style={{
+                    padding: "2px 8px",
+                    background: "var(--color-primary-soft)",
+                    color: "var(--color-primary)",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    borderRadius: "var(--radius-full)",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Pro
+                </span>
+              </div>
+              <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                Configure real-time compliance monitoring and scheduled health reports.
+              </p>
+
+              {shop.plan === "pro" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {/* Real-time Monitoring */}
+                  <div className="card" style={{ padding: "20px" }}>
+                    <h3
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        fontWeight: 600,
+                        margin: "0 0 12px",
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      Real-time Monitoring
+                    </h3>
+                    <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", margin: "0 0 16px" }}>
+                      Automatically detect compliance drifts when products are updated.
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div
+                        style={{
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          background: "var(--color-success)",
+                          animation: "pulse 2s infinite",
+                        }}
+                      />
+                      <span style={{ fontSize: "var(--text-sm)", color: "var(--color-success)", fontWeight: 500 }}>
+                        Active — Monitoring all product updates
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Scheduled Reports */}
+                  <div className="card" style={{ padding: "20px" }}>
+                    <h3
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        fontWeight: 600,
+                        margin: "0 0 12px",
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      Scheduled Health Reports
+                    </h3>
+                    <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", margin: "0 0 16px" }}>
+                      Receive weekly or monthly catalog health summaries via email.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)", minWidth: "100px" }}>
+                          Frequency:
+                        </span>
+                        <select
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "var(--radius-md)",
+                            border: "1px solid var(--color-border)",
+                            background: "var(--color-surface)",
+                            fontSize: "var(--text-sm)",
+                            color: "var(--color-text)",
+                            cursor: "pointer",
+                          }}
+                          defaultValue="weekly"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Email Notifications */}
+                  <div className="card" style={{ padding: "20px" }}>
+                    <h3
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        fontWeight: 600,
+                        margin: "0 0 12px",
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      Email Notifications
+                    </h3>
+                    <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", margin: "0 0 16px" }}>
+                      Get notified when high-severity drifts are detected.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          defaultChecked
+                          style={{
+                            width: "18px",
+                            height: "18px",
+                            accentColor: "var(--color-primary)",
+                          }}
+                        />
+                        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)" }}>
+                          Send alerts for high-severity drifts
+                        </span>
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          defaultChecked
+                          style={{
+                            width: "18px",
+                            height: "18px",
+                            accentColor: "var(--color-primary)",
+                          }}
+                        />
+                        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text)" }}>
+                          Include in scheduled health report
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* View Monitoring Dashboard Button */}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/app/monitoring")}
+                    style={{
+                      padding: "12px 20px",
+                      background: "var(--color-primary)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    Open Monitoring Dashboard
+                  </button>
+                </div>
+              ) : (
+                <div className="card" style={{ padding: "32px", textAlign: "center" }}>
+                  <div
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "var(--radius-lg)",
+                      background: "var(--color-primary-soft)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 16px",
+                    }}
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--color-primary)"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: "var(--text-base)",
+                      fontWeight: 600,
+                      margin: "0 0 8px",
+                      color: "var(--color-text)",
+                    }}
+                  >
+                    Upgrade to Pro
+                  </h3>
+                  <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", margin: "0 0 16px" }}>
+                    Get real-time drift monitoring, scheduled health reports, and email notifications.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/app/plans")}
+                    style={{
+                      padding: "10px 20px",
+                      background: "var(--color-primary)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    View Plans
+                  </button>
                 </div>
               )}
             </div>

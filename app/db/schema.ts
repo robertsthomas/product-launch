@@ -392,6 +392,7 @@ export const complianceDrifts = sqliteTable("compliance_drifts", {
       "tags_removed",
       "collection_removed",
       "custom_rule_violated",
+      "new_product_incomplete",
     ],
   }).notNull(),
   severity: text("severity", { enum: ["low", "medium", "high"] })

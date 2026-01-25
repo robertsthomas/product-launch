@@ -17,7 +17,10 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
   if (intent === "fix_all") {
     console.log("[AUTOFIX] Getting available fixes for:", productId)
     const availableFixes = await getAvailableAutoFixes(shop, productId)
-    console.log("[AUTOFIX] Available fixes:", availableFixes.map((f) => f.item.key))
+    console.log(
+      "[AUTOFIX] Available fixes:",
+      availableFixes.map((f) => f.item.key)
+    )
 
     if (availableFixes.length === 0) {
       console.log("[AUTOFIX] No fixes available")

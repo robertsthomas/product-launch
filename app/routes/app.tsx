@@ -3,13 +3,15 @@ import { boundary } from "@shopify/shopify-app-react-router/server"
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { Link, Outlet, useLoaderData, useLocation, useRouteError } from "react-router"
 
+import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { authenticate } from "../shopify.server"
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request)
+  const { session } = await authenticate.admin(request)
+  const { plan } = await getShopPlanStatus(session.shop)
 
   // eslint-disable-next-line no-undef
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" }
+  return { apiKey: process.env.SHOPIFY_API_KEY || "", isPro: plan === "pro" }
 }
 
 // Logo component - neutral color palette
@@ -38,9 +40,10 @@ function LogoIcon() {
 }
 
 // Navigation component
-function AppNavigation() {
+function AppNavigation({ isPro }: { isPro: boolean }) {
   const location = useLocation()
   const isDashboard = location.pathname === "/app"
+  const isMonitoring = location.pathname.startsWith("/app/monitoring")
   const isSettings = location.pathname.startsWith("/app/settings")
   const isPlans = location.pathname === "/app/plans"
 
@@ -49,6 +52,7 @@ function AppNavigation() {
 
   const navItems = [
     { to: "/app", label: "Dashboard", isActive: isDashboard },
+    ...(isPro ? [{ to: "/app/monitoring", label: "Monitoring", isActive: isMonitoring }] : []),
     { to: "/app/settings", label: "Settings", isActive: isSettings },
   ]
 
@@ -112,7 +116,7 @@ function BackButton() {
 }
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>()
+  const { apiKey, isPro } = useLoaderData<typeof loader>()
 
   return (
     <AppProvider embedded apiKey={apiKey}>
@@ -160,7 +164,7 @@ export default function App() {
                 </span>
               </Link>
             </div>
-            <AppNavigation />
+            <AppNavigation isPro={isPro} />
           </div>
         </header>
         <main style={{ flex: 1, overflow: "auto" }}>

@@ -80,13 +80,9 @@
     "vite": "^6.3.6"
   },
   "workspaces": {
-    "packages": [
-      "extensions/*"
-    ]
+    "packages": ["extensions/*"]
   },
-  "trustedDependencies": [
-    "@shopify/plugin-cloudflare"
-  ],
+  "trustedDependencies": ["@shopify/plugin-cloudflare"],
   "overrides": {
     "p-map": "^4.0.0"
   },
