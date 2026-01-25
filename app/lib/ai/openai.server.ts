@@ -67,9 +67,13 @@ const OPENROUTER_IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL || DEFAULT_IMA
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 const OPENAI_MODEL = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL
 
-// Kie.ai API configuration
-const KIE_API_KEY = process.env.KIE_API_KEY
-const KIE_API_BASE = "https://api.kie.ai/api/v1"
+// OpenRouter Image Generation Models (cheapest to highest quality)
+const OPENROUTER_IMAGE_MODELS = {
+  fast: "black-forest-labs/flux.2-klein-4b", // ~$0.014/MP - fastest/cheapest
+  balanced: "black-forest-labs/flux.2-pro", // ~$0.03/MP - good balance
+  quality: "black-forest-labs/flux.2-max", // ~$0.07/MP - highest quality
+}
+
 
 // ============================================
 // Product context type
@@ -381,15 +385,14 @@ export async function generateImageAltText(
 // ============================================
 
 export async function generateProductImage(product: ProductContext, options?: GenerationOptions): Promise<string> {
-  // Use Kie.ai Nano Banana Pro if available (preferred over DALL-E)
-  if (isKieAvailable()) {
-    const referenceCount = product.existingImages?.length || 0
-    console.log(`[AI Image Generation] Using Kie.ai Nano Banana Pro with ${referenceCount} reference images`)
-    return generateProductImageWithKie(product)
+  // Use OpenRouter FLUX models if available (preferred - cheapest and fast)
+  if (isImageGenAvailable()) {
+    console.log("[AI Image Generation] Using OpenRouter FLUX models")
+    return generateProductImageWithOpenRouter(product, "fast")
   }
 
-  // Fall back to DALL-E
-  console.log("[AI Image Generation] Using DALL-E (Kie.ai not available)")
+  // Fall back to DALL-E if user has their own OpenAI key
+  console.log("[AI Image Generation] Using DALL-E (OpenRouter not available)")
   console.log("[AI Image Generation] Using custom API key:", !!options?.apiKey)
 
   const prompt = buildImagePrompt(product)
@@ -446,117 +449,118 @@ export async function generateProductImage(product: ProductContext, options?: Ge
 }
 
 // ============================================
-// Kie.ai Nano Banana Pro Image Generation
+// OpenRouter FLUX Image Generation
 // ============================================
 
-interface KieTaskResponse {
-  code: number
-  message: string
-  data: {
-    taskId: string
-    state?: string
-    resultJson?: string
-    failCode?: string
-    failMsg?: string
-  }
-}
+type ImageQuality = "fast" | "balanced" | "quality"
 
-async function createKieTask(prompt: string, imageUrls: string[]): Promise<string> {
-  const response = await fetch(`${KIE_API_BASE}/jobs/createTask`, {
+/**
+ * Generate an image using OpenRouter's FLUX models via chat completions
+ * Uses modalities: ["image", "text"] to enable image generation
+ */
+export async function generateProductImageWithOpenRouter(
+  product: ProductContext,
+  quality: ImageQuality = "fast"
+): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY not configured")
+  }
+
+  const prompt = buildImagePrompt(product)
+  const model = OPENROUTER_IMAGE_MODELS[quality]
+
+  console.log(`[OpenRouter Image] Generating image for: ${product.title}`)
+  console.log(`[OpenRouter Image] Using model: ${model} (${quality})`)
+  console.log(`[OpenRouter Image] Existing images count: ${product.existingImages?.length || 0}`)
+  console.log(`[OpenRouter Image] Full prompt:`, prompt)
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${KIE_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://launchready.app",
+      "X-Title": "Launch Ready",
     },
     body: JSON.stringify({
-      model: "nano-banana-pro",
-      input: {
-        prompt,
-        ...(imageUrls.length > 0 && { image_input: imageUrls }),
-        aspect_ratio: "1:1",
-        resolution: "1K",
-        output_format: "png",
+      model,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      // Enable image generation modality
+      modalities: ["image"],
+      // Image generation parameters
+      provider: {
+        require_parameters: true,
       },
     }),
   })
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error(`[Kie.ai] Create task failed: ${response.status}`, errorText)
-    throw new Error(`Kie.ai API error: ${response.status}`)
-  }
-
-  const data: KieTaskResponse = await response.json()
-  if (data.code !== 200) {
-    throw new Error(`Kie.ai error: ${data.message}`)
-  }
-
-  return data.data.taskId
-}
-
-async function pollKieTask(taskId: string, maxAttempts = 36): Promise<string> {
-  for (let i = 0; i < maxAttempts; i++) {
-    const response = await fetch(`${KIE_API_BASE}/jobs/recordInfo?taskId=${taskId}`, {
-      headers: { Authorization: `Bearer ${KIE_API_KEY}` },
-    })
-
-    if (!response.ok) {
-      throw new Error(`Kie.ai query failed: ${response.status}`)
+    console.error(`[OpenRouter Image] API error: ${response.status}`, errorText)
+    
+    // Try fallback to next quality tier
+    if (quality === "fast") {
+      console.log("[OpenRouter Image] Retrying with balanced model...")
+      return generateProductImageWithOpenRouter(product, "balanced")
+    } else if (quality === "balanced") {
+      console.log("[OpenRouter Image] Retrying with quality model...")
+      return generateProductImageWithOpenRouter(product, "quality")
     }
+    
+    throw new Error(`OpenRouter image API error: ${response.status}`)
+  }
 
-    const data: KieTaskResponse = await response.json()
-    const state = data.data.state
+  const data = await response.json()
+  
+  // Reduce log size - don't log full base64
+  console.log("[OpenRouter Image] Response received, model:", data.model, "cost:", data.usage?.cost)
 
-    console.log(`[Kie.ai] Task ${taskId} state: ${state}`)
+  if (data.error) {
+    throw new Error(`OpenRouter image error: ${data.error.message}`)
+  }
 
-    if (state === "success") {
-      const resultJson = JSON.parse(data.data.resultJson || "{}")
-      const imageUrl = resultJson.resultUrls?.[0]
-      if (!imageUrl) {
-        throw new Error("No image URL in Kie.ai response")
-      }
+  // Check for image in message.images array (OpenRouter FLUX format)
+  const images = data.choices?.[0]?.message?.images
+  if (images && images.length > 0) {
+    const imageUrl = images[0]?.image_url?.url
+    if (imageUrl) {
+      console.log(`[OpenRouter Image] Generated successfully with ${model} (images array)`)
       return imageUrl
     }
+  }
 
-    if (state === "fail") {
-      throw new Error(`Kie.ai generation failed: ${data.data.failMsg || "Unknown error"}`)
+  // Fallback: Check message content for base64 or URL
+  const content = data.choices?.[0]?.message?.content
+  if (content) {
+    // Check if content is a data URL (base64 image)
+    if (content.startsWith("data:image")) {
+      console.log(`[OpenRouter Image] Generated successfully with ${model} (base64 content)`)
+      return content
     }
 
-    // Wait 5 seconds before polling again
-    await new Promise((resolve) => setTimeout(resolve, 5000))
+    // Check if content contains a URL
+    const urlMatch = content.match(/https?:\/\/[^\s"'<>]+\.(png|jpg|jpeg|webp)/i)
+    if (urlMatch) {
+      console.log(`[OpenRouter Image] Generated successfully with ${model} (URL in content)`)
+      return urlMatch[0]
+    }
   }
 
-  throw new Error("Kie.ai generation timed out")
+  console.error("[OpenRouter Image] Unexpected response format - no image found")
+  throw new Error("No image found in OpenRouter response")
 }
 
-export async function generateProductImageWithKie(product: ProductContext): Promise<string> {
-  if (!KIE_API_KEY) {
-    throw new Error("KIE_API_KEY not configured")
-  }
-
-  const imageUrls = product.existingImages?.slice(0, 8).map((img) => img.url) || []
-  const prompt = buildImagePrompt(product)
-
-  console.log("[Kie.ai] Generating image for:", product.title, "using Nano Banana Pro model")
-  console.log("[Kie.ai] Using", imageUrls.length, "reference images")
-
-  if (imageUrls.length === 0) {
-    console.log("[Kie.ai] No reference images - generating from text prompt only")
-  } else {
-    console.log("[Kie.ai] Using reference-based generation for style consistency")
-  }
-
-  const taskId = await createKieTask(prompt, imageUrls)
-  console.log("[Kie.ai] Task created:", taskId)
-
-  const imageUrl = await pollKieTask(taskId)
-  console.log("[Kie.ai] Nano Banana Pro image generated successfully")
-
-  return imageUrl
-}
-
-export function isKieAvailable(): boolean {
-  return !!KIE_API_KEY
+/**
+ * Check if OpenRouter image generation is available
+ */
+export function isImageGenAvailable(): boolean {
+  return !!process.env.OPENROUTER_API_KEY
 }
 
 // ============================================

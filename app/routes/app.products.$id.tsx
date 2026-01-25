@@ -560,7 +560,7 @@ function ImageActionsDropdown({
             position: "absolute",
             top: "calc(100% + 4px)",
             right: 0,
-            zIndex: 50,
+            zIndex: 1000,
             minWidth: "140px",
             background: "var(--color-surface)",
             border: "1px solid var(--color-border)",
@@ -2964,9 +2964,9 @@ function ImageManager({
               key={image.id}
               style={{
                 position: "relative",
-                borderRadius: "var(--radius-md)",
-                overflow: "hidden",
-                backgroundColor: "var(--color-surface-strong)",
+                borderRadius: "var(--radius-lg)",
+                overflow: "visible",
+                backgroundColor: "var(--color-surface)",
                 border: "1px solid var(--color-border)",
                 transition: "all var(--transition-fast)",
               }}
@@ -2977,6 +2977,8 @@ function ImageManager({
                   width: "100%",
                   paddingTop: "100%",
                   position: "relative",
+                  overflow: "hidden",
+                  borderRadius: "var(--radius-lg) var(--radius-lg) 0 0",
                 }}
               >
                 <img
@@ -3041,6 +3043,8 @@ function ImageManager({
                 style={{
                   padding: "10px",
                   backgroundColor: "var(--color-surface)",
+                  borderTop: "1px solid var(--color-border)",
+                  borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
                 }}
               >
                 {editingAlt === image.id ? (

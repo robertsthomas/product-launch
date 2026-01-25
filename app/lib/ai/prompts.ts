@@ -465,29 +465,132 @@ export function buildImagePrompt(product: {
   customPrompt?: string
   existingImages?: Array<{ id: string; url: string; altText?: string | null }>
 }) {
-  const category = detectProductCategory(product.productType, product.tags)
-  const template = IMAGE_PROMPT_TEMPLATES[category] || IMAGE_PROMPT_TEMPLATES.apparel
-
-  // Replace [Product] placeholder with actual product info
-  let prompt = template.replace("[Product]", `${product.vendor ? `${product.vendor} ` : ""}${product.title}`)
-
-  // Add product details if available
-  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 200)
-  if (existingDesc) {
-    prompt += ` Product details: ${existingDesc}.`
+  // Extract ALL visual attributes from existing images first (most accurate source)
+  const altTexts = product.existingImages?.map(img => img.altText).filter(Boolean) || []
+  const altTextContext = altTexts.join(" ")
+  
+  // Extract color and material - prioritize alt text descriptions
+  const colorMaterialInfo = extractColorAndMaterial(product.title, product.descriptionHtml, product.tags, altTextContext)
+  
+  // Build a strict, descriptive prompt
+  let prompt = ""
+  
+  // If we have existing images with descriptions, use them as the primary reference
+  if (altTexts.length > 0) {
+    prompt = `Generate a product photo that EXACTLY matches this existing product: ${altTexts[0]}.`
+    if (altTexts.length > 1) {
+      prompt += ` Additional reference: ${altTexts.slice(1).join(". ")}.`
+    }
+  } else {
+    // No alt text - use title and category-based template
+    const category = detectProductCategory(product.productType, product.tags)
+    const template = IMAGE_PROMPT_TEMPLATES[category] || IMAGE_PROMPT_TEMPLATES.apparel
+    prompt = template.replace("[Product]", `${product.vendor ? `${product.vendor} ` : ""}${product.title}`)
+  }
+  
+  // Add mandatory attributes
+  if (colorMaterialInfo) {
+    prompt += ` The product is ${colorMaterialInfo} - this is MANDATORY, do not change these attributes.`
   }
 
-  // Add style consistency guidance if existing images
+  // Add product details
+  const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 150)
+  if (existingDesc) {
+    prompt += ` Description: ${existingDesc}.`
+  }
+
+  // STRICT matching instructions when existing images exist
   if (product.existingImages && product.existingImages.length > 0) {
-    prompt += " Create a complementary image that matches the visual style and quality of existing product photography."
+    prompt += `
+
+STRICT REQUIREMENTS - FOLLOW EXACTLY:
+1. This product already has ${product.existingImages.length} photo(s). Your image MUST show the EXACT SAME product.
+2. COLOR: Match the EXACT color shown in existing photos. If copper/rose gold, generate copper/rose gold. If white, generate white. NO EXCEPTIONS.
+3. MATERIAL: Match the exact material - metal, wood, fabric, glass, etc. Do not substitute materials.
+4. STYLE: Match the product's design style - modern, rustic, industrial, minimalist, etc.
+5. LIGHTING: Use similar lighting style - soft, dramatic, natural, studio, etc.
+6. ANGLE: Generate a complementary angle that would fit in the same product gallery.
+7. BACKGROUND: Use a clean, professional background appropriate for e-commerce.
+
+FORBIDDEN:
+- Do NOT change the product's color
+- Do NOT change the material
+- Do NOT add decorations or modifications not present in the original
+- Do NOT generate a different product variant
+- Do NOT "improve" or "enhance" the product design
+
+The final image must be indistinguishable from the original product photos - same product, different angle.`
   }
 
   // Add custom prompt if provided
   if (product.customPrompt?.trim()) {
-    prompt += ` Additional style preferences: ${product.customPrompt.trim()}`
+    prompt += `\n\nUser instructions (follow if they don't conflict with above): ${product.customPrompt.trim()}`
   }
 
   return prompt
+}
+
+/**
+ * Extract color and material information from product data
+ */
+function extractColorAndMaterial(
+  title: string,
+  descriptionHtml?: string | null,
+  tags?: string[],
+  altTextContext?: string
+): string | null {
+  const colors = [
+    "red", "blue", "green", "yellow", "orange", "purple", "pink", "black", "white", "gray", "grey",
+    "brown", "beige", "cream", "ivory", "navy", "teal", "coral", "gold", "silver", "bronze", "copper",
+    "burgundy", "maroon", "olive", "mint", "lavender", "turquoise", "rose", "blush", "charcoal",
+    "tan", "khaki", "nude", "champagne", "emerald", "ruby", "sapphire", "amber", "crimson",
+    "mustard", "rust", "peach", "mauve", "plum", "indigo", "cobalt", "slate", "taupe", "natural",
+    "weathered", "distressed", "aged", "rustic", "painted", "stained", "varnished", "polished"
+  ]
+  
+  const materials = [
+    "cotton", "wool", "silk", "linen", "leather", "suede", "velvet", "denim", "canvas",
+    "polyester", "nylon", "fleece", "cashmere", "satin", "chiffon", "tweed", "corduroy",
+    "wood", "wooden", "metal", "steel", "aluminum", "brass", "copper", "glass", "ceramic", "porcelain",
+    "plastic", "rubber", "bamboo", "rattan", "wicker", "marble", "granite", "stone",
+    "knit", "knitted", "woven", "crochet", "embroidered", "quilted", "faux", "vegan",
+    "cedar", "pine", "oak", "teak", "mahogany", "walnut", "birch", "maple"
+  ]
+  
+  const patterns = [
+    "striped", "plaid", "checkered", "polka dot", "floral", "paisley", "geometric",
+    "solid", "printed", "tie-dye", "ombre", "textured", "ribbed", "cable-knit"
+  ]
+
+  const found: string[] = []
+  // Prioritize alt text (which describes actual images) over title
+  const textToSearch = `${altTextContext || ""} ${title} ${stripHtml(descriptionHtml || "")} ${(tags || []).join(" ")}`.toLowerCase()
+
+  // Find colors
+  for (const color of colors) {
+    if (textToSearch.includes(color)) {
+      found.push(color)
+      break // Only take first color match
+    }
+  }
+
+  // Find materials
+  for (const material of materials) {
+    if (textToSearch.includes(material)) {
+      found.push(material)
+      break // Only take first material match
+    }
+  }
+
+  // Find patterns
+  for (const pattern of patterns) {
+    if (textToSearch.includes(pattern)) {
+      found.push(pattern)
+      break
+    }
+  }
+
+  return found.length > 0 ? found.join(", ") : null
 }
 
 export function buildAltTextPrompt(

@@ -1,5 +1,20 @@
 // Shared constants that can be used on both client and server
 
+// Shopify App Store URL - set this when your app is listed
+export const getAppStoreUrl = () => {
+  return import.meta.env.VITE_SHOPIFY_APP_STORE_URL || null
+}
+
+// Redirect to app store listing if available
+export const redirectToAppStore = () => {
+  const url = getAppStoreUrl()
+  if (url) {
+    window.open(url, "_blank")
+    return true
+  }
+  return false
+}
+
 export const BRAND_VOICE_PRESETS = ["minimal", "premium", "fun", "technical", "bold"] as const
 
 export type BrandVoicePreset = (typeof BRAND_VOICE_PRESETS)[number]

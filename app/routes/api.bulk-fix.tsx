@@ -90,6 +90,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  console.log("[Bulk Fix] Request:", { intent, productIds: productIds.length, selectedFields, fieldOptions })
+
   if (!Array.isArray(productIds) || productIds.length === 0) {
     return Response.json({ error: "No products selected" }, { status: 400 })
   }
@@ -718,15 +720,16 @@ async function generateBulkAll(
   }
   
   // Ensure selectedFields is an array for iteration
-  const fieldsToProcess = selectedFields || []
+  const fieldsToProcess = [...(selectedFields || [])]
   // If we have fieldOptions but no selectedFields, add the keys from fieldOptions
-  if (hasFieldOptions && fieldsToProcess.length === 0) {
+  if (hasFieldOptions) {
     for (const key of Object.keys(fieldOptions!)) {
       if (fieldOptions![key].length > 0 && !fieldsToProcess.includes(key)) {
         fieldsToProcess.push(key)
       }
     }
   }
+  console.log("[generateBulkAll] fieldsToProcess:", fieldsToProcess, "fieldOptions:", fieldOptions)
 
   try {
     const updates: Record<string, any> = {}
@@ -831,16 +834,19 @@ async function generateBulkAll(
 
           case "images":
             const imageOptions = fieldOptions?.images || []
+            console.log("[Bulk Images] imageOptions:", imageOptions)
             // Handle image generation - generate up to 3 images per product
             if (imageOptions.includes("image")) {
               const currentImageCount = product.media?.nodes?.filter((m) => m.mediaContentType === "IMAGE").length || 0
               const imagesToGenerate = Math.max(0, 3 - currentImageCount)
+              console.log("[Bulk Images] currentImageCount:", currentImageCount, "imagesToGenerate:", imagesToGenerate)
               
               if (imagesToGenerate > 0) {
                 let generatedCount = 0
                 for (let imgIdx = 0; imgIdx < imagesToGenerate; imgIdx++) {
                   try {
-                    // Generate image URL from DALL-E
+                    console.log("[Bulk Images] Generating image", imgIdx + 1, "for product:", product.title)
+                    // Generate image URL
                     const imageUrl = await generateProductImage(
                       {
                         title: product.title,

@@ -1,14 +1,9 @@
 import { useAppBridge } from "@shopify/app-bridge-react"
 import { boundary } from "@shopify/shopify-app-react-router/server"
-import { useEffect, useMemo, useState } from "react"
+import confetti from "canvas-confetti"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router"
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from "@tanstack/react-table"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist"
 import { auditProduct, getDashboardStats, getShopAudits } from "../lib/services"
@@ -205,6 +200,132 @@ function _CircularProgress({
           />
         </>
       )}
+    </div>
+  )
+}
+
+// ============================================
+// Bulk Progress Modal Component
+// ============================================
+
+function BulkProgressModal({
+  isOpen,
+  actionType,
+  totalCount,
+  completedCount,
+  currentProductTitle,
+  onStop,
+}: {
+  isOpen: boolean
+  actionType: string
+  totalCount: number
+  completedCount: number
+  currentProductTitle: string | null
+  onStop: () => void
+}) {
+  if (!isOpen) return null
+
+  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+  const remainingCount = totalCount - completedCount
+
+  const actionLabels: Record<string, string> = {
+    generate_tags: "Generating tags",
+    generate_seo_desc: "Generating SEO",
+    apply_collection: "Adding to collection",
+    autofix: "Running autofix",
+    generate_all: "Generating all fields",
+  }
+  const label = actionLabels[actionType] || "Processing"
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(15, 23, 42, 0.35)",
+        backdropFilter: "blur(4px)",
+      }}
+    >
+      <div
+        style={{
+          background: "#ffffff",
+          borderRadius: "20px",
+          padding: "28px 32px",
+          width: "min(460px, 90%)",
+          boxShadow: "0 30px 70px rgba(15, 23, 42, 0.15)",
+          border: "1px solid rgba(15, 23, 42, 0.08)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "18px",
+        }}
+      >
+        <div>
+          <p style={{ margin: 0, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.2em", color: "#6b7280" }}>
+            {label}
+          </p>
+          <h3 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 600, color: "#111827" }}>
+            {completedCount} of {totalCount} products
+          </h3>
+        </div>
+
+        <div
+          style={{
+            height: "8px",
+            borderRadius: "999px",
+            background: "#e5e7eb",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${progress}%`,
+              height: "100%",
+              background: "#111827",
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
+
+        {currentProductTitle && (
+          <div style={{ fontSize: "14px", color: "#374151" }}>
+            <strong style={{ color: "#111827" }}>Processing</strong> · {currentProductTitle}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#6b7280" }}>
+          <span>Remaining</span>
+          <span>{remainingCount} in queue</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={onStop}
+          style={{
+            width: "100%",
+            padding: "12px 18px",
+            borderRadius: "10px",
+            border: "1px solid rgba(15, 23, 42, 0.1)",
+            background: "#fafafa",
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "#111827",
+            cursor: "pointer",
+            transition: "background 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#f3f4f6"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#fafafa"
+          }}
+        >
+          Stop processing
+        </button>
+      </div>
     </div>
   )
 }
@@ -1629,26 +1750,11 @@ function DashboardTour({
 }
 
 // ============================================
-// TanStack Table Column Definitions
-// ============================================
-
-type AuditRow = {
-  id: string
-  productId: string
-  productTitle: string
-  productImage: string | null
-  status: string
-  passedCount: number
-  failedCount: number
-  totalCount: number
-}
-
-// ============================================
 // Main Dashboard Component
 // ============================================
 
 export default function Dashboard() {
-  const { stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>()
+  const { shop, stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>()
   const fetcher = useFetcher<typeof action>()
   const autofixFetcher = useFetcher()
   const navigate = useNavigate()
@@ -1683,6 +1789,21 @@ export default function Dashboard() {
   const [generatingProductIds, setGeneratingProductIds] = useState<Set<string>>(new Set())
   const [currentlyProcessingId, setCurrentlyProcessingId] = useState<string | null>(null)
   const [completedProductIds, setCompletedProductIds] = useState<Set<string>>(new Set())
+  
+  // Bulk action progress modal state
+  const [showBulkProgressModal, setShowBulkProgressModal] = useState(false)
+  const [bulkActionType, setBulkActionType] = useState<string>("")
+  const [bulkActionStopped, setBulkActionStopped] = useState(false)
+
+  // Image generation alert state
+  const [showImageAlert, setShowImageAlert] = useState(false)
+  const [skippedImageProducts, setSkippedImageProducts] = useState<string[]>([])
+  const [eligibleImageProductIds, setEligibleImageProductIds] = useState<string[]>([])
+
+  // Autofix alert state
+  const [showAutofixAlert, setShowAutofixAlert] = useState(false)
+  const [skippedAutofixProducts, setSkippedAutofixProducts] = useState<string[]>([])
+  const [eligibleAutofixProductIds, setEligibleAutofixProductIds] = useState<string[]>([])
 
   // Autofix state
   const [fixingProductId, setFixingProductId] = useState<string | null>(null)
@@ -1691,7 +1812,6 @@ export default function Dashboard() {
   const [showMonitoringModal, setShowMonitoringModal] = useState(false)
 
   // Bulk actions dropdown state
-  const [showBulkDropdown, setShowBulkDropdown] = useState(false)
 
   // Expandable rows state
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
@@ -1752,6 +1872,69 @@ export default function Dashboard() {
     requestAnimationFrame(animate)
   }, [stats.readyCount, stats.totalAudited])
 
+  // Confetti celebration when reaching 100% product health
+  const hasTriggeredConfetti = useRef(false)
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false)
+  
+  const triggerConfetti = useCallback(() => {
+    // Fire confetti from the top of the screen
+    const duration = 3000
+    const end = Date.now() + duration
+
+    const frame = () => {
+      // Launch from left side
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0 },
+        colors: ["#465A54", "#22c55e", "#10b981", "#059669", "#fbbf24"],
+        zIndex: 1002,
+      })
+      // Launch from right side
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0 },
+        colors: ["#465A54", "#22c55e", "#10b981", "#059669", "#fbbf24"],
+        zIndex: 1002,
+      })
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame)
+      }
+    }
+
+    frame()
+  }, [])
+
+  useEffect(() => {
+    const currentPercent = stats.totalAudited > 0 ? Math.round((stats.readyCount / stats.totalAudited) * 100) : 0
+    
+    // Check if we've reached 100% and haven't triggered confetti yet
+    if (currentPercent === 100 && stats.totalAudited > 0 && !hasTriggeredConfetti.current) {
+      // Check if this is the first time reaching 100% in this session
+      const confettiKey = `confetti_celebrated_${shop}`
+      const alreadyCelebrated = sessionStorage.getItem(confettiKey)
+      
+      if (!alreadyCelebrated) {
+        // Delay slightly to let the animation complete
+        setTimeout(() => {
+          triggerConfetti()
+          setShowCelebrationModal(true)
+          sessionStorage.setItem(confettiKey, "true")
+        }, 1200)
+      }
+      hasTriggeredConfetti.current = true
+    } else if (currentPercent < 100) {
+      // Reset the flag if we drop below 100% so it can trigger again
+      hasTriggeredConfetti.current = false
+      const confettiKey = `confetti_celebrated_${shop}`
+      sessionStorage.removeItem(confettiKey)
+    }
+  }, [stats.readyCount, stats.totalAudited, shop, triggerConfetti])
+
   // Handle autofix completion
   useEffect(() => {
     if (autofixFetcher.state === "idle" && autofixFetcher.data && fixingProductId) {
@@ -1793,10 +1976,12 @@ export default function Dashboard() {
     if (selectedProducts.size === 0) return
 
     setBulkAction(action)
+    setBulkActionType(action)
     setBulkProgress({ current: 0, total: selectedProducts.size })
     setGeneratingProductIds(new Set(selectedProducts))
-    setShowBulkDropdown(false)
     setIsGeneratingBulk(true)
+    setShowBulkProgressModal(true)
+    setBulkActionStopped(false)
 
     const formData = new FormData()
     formData.append("intent", action)
@@ -1836,15 +2021,7 @@ export default function Dashboard() {
             setCurrentlyProcessingId(null)
           } else if (data.type === "complete") {
             shopify.toast.show(`Bulk fix complete: ${data.successCount} succeeded, ${data.errorCount} failed`)
-            setSelectedProducts(new Set())
-            setShowBulkModal(false)
-            setBulkProgress(null)
-            setIsGeneratingBulk(false)
-            setSelectedBulkFields([])
-            setBulkFieldOptions({})
-            setGeneratingProductIds(new Set())
-            setCurrentlyProcessingId(null)
-            setCompletedProductIds(new Set())
+            closeBulkProgressModal()
             revalidator.revalidate()
           }
         }
@@ -1852,12 +2029,63 @@ export default function Dashboard() {
     } catch (e) {
       console.error("Bulk action error:", e)
       shopify.toast.show("Bulk action failed")
-      setBulkProgress(null)
-      setIsGeneratingBulk(false)
-      setGeneratingProductIds(new Set())
-      setCurrentlyProcessingId(null)
-      setCompletedProductIds(new Set())
+      closeBulkProgressModal()
     }
+  }
+
+  const closeBulkProgressModal = () => {
+    setSelectedProducts(new Set())
+    setShowBulkModal(false)
+    setBulkProgress(null)
+    setIsGeneratingBulk(false)
+    setSelectedBulkFields([])
+    setBulkFieldOptions({})
+    setGeneratingProductIds(new Set())
+    setCurrentlyProcessingId(null)
+    setCompletedProductIds(new Set())
+    setShowBulkProgressModal(false)
+    setBulkActionType("")
+  }
+
+  const stopBulkAction = () => {
+    setBulkActionStopped(true)
+    shopify.toast.show("Stopping after current item...")
+    // The stream will complete naturally, we just won't process more
+    closeBulkProgressModal()
+  }
+
+  // Run autofix on a list of product IDs
+  const runAutofixOnProducts = async (productIds: string[]) => {
+    console.log("[Autofix Action] Starting autofix for products:", productIds)
+    setBulkActionType("autofix")
+    setGeneratingProductIds(new Set(productIds))
+    setCompletedProductIds(new Set())
+    setIsGeneratingBulk(true)
+    setShowBulkProgressModal(true)
+
+    for (const productId of productIds) {
+      if (bulkActionStopped) break
+      setCurrentlyProcessingId(productId)
+      const productIdShort = productId.split("/").pop()
+      console.log("[Autofix Action] Processing:", { productId, productIdShort })
+      try {
+        const response = await fetch(`/api/products/${productIdShort}/autofix`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ intent: "fix_all" }),
+        })
+        const data = await response.json()
+        console.log("[Autofix Action] Response:", { productIdShort, data })
+        setCompletedProductIds((prev) => new Set([...prev, productId]))
+      } catch (e) {
+        console.error("[Autofix Action] Error:", e)
+      }
+    }
+
+    console.log("[Autofix Action] Complete")
+    shopify.toast.show(`Autofix complete for ${productIds.length} products`)
+    closeBulkProgressModal()
+    revalidator.revalidate()
   }
 
   const filteredAudits = useMemo(() => {
@@ -3398,7 +3626,7 @@ export default function Dashboard() {
               <div
                 style={{
                   display: "flex",
-                  gap: "8px",
+                  gap: "16px",
                   width: "100%",
                   justifyContent: "space-between",
                   paddingTop: "16px",
@@ -3412,12 +3640,12 @@ export default function Dashboard() {
                     color: "#059669",
                   },
                   {
-                    label: "Needs attention",
+                    label: "Needs Attention",
                     value: stats.incompleteCount,
                     color: "#f97316",
                   },
                   {
-                    label: "Avg",
+                    label: "Average Score",
                     value: `${stats.avgCompletion}%`,
                     color: "#465A54",
                   },
@@ -3429,22 +3657,24 @@ export default function Dashboard() {
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      gap: "2px",
+                      gap: "8px",
                     }}
                   >
                     <span
                       style={{
-                        fontSize: "var(--text-xs)",
-                        color: "#94a3b8",
-                        fontWeight: 500,
+                        fontSize: "11px",
+                        color: "#a1a1aa",
+                        fontWeight: 600,
+                        letterSpacing: "0.05em",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      {item.label}
+                      {item.label.toUpperCase()}
                     </span>
                     <span
                       style={{
-                        fontSize: "16px",
-                        fontWeight: 600,
+                        fontSize: "20px",
+                        fontWeight: 700,
                         color: item.color,
                       }}
                     >
@@ -3519,350 +3749,300 @@ export default function Dashboard() {
               </div>
 
               {/* Action buttons */}
-              <button
-                type="button"
-                onClick={() => executeBulkAction("generate_tags")}
-                disabled={isGeneratingBulk}
-                style={{
-                  padding: "8px 16px",
-                  background: isGeneratingBulk ? "#f4f4f5" : "#465A54",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: isGeneratingBulk ? "#a1a1aa" : "#fff",
-                  cursor: isGeneratingBulk ? "not-allowed" : "pointer",
-                  transition: "all 0.15s ease",
-                  whiteSpace: "nowrap",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isGeneratingBulk) {
-                    e.currentTarget.style.background = "#3d4e49"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isGeneratingBulk) {
-                    e.currentTarget.style.background = "#465A54"
-                  }
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                  <line x1="7" y1="7" x2="7.01" y2="7" />
-                </svg>
-                Tags
-              </button>
-
-              <button
-                type="button"
-                onClick={() => executeBulkAction("generate_seo_desc")}
-                disabled={isGeneratingBulk}
-                style={{
-                  padding: "8px 16px",
-                  background: "transparent",
-                  border: "1px solid #e4e4e7",
-                  borderRadius: "6px",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: isGeneratingBulk ? "#a1a1aa" : "#252F2C",
-                  cursor: isGeneratingBulk ? "not-allowed" : "pointer",
-                  transition: "all 0.15s ease",
-                  whiteSpace: "nowrap",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isGeneratingBulk) {
-                    e.currentTarget.style.background = "#f4f4f5"
-                    e.currentTarget.style.borderColor = "#d4d4d8"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent"
-                  e.currentTarget.style.borderColor = "#e4e4e7"
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
-                </svg>
-                SEO
-              </button>
-
-
-              {/* More Actions Dropdown */}
-              <div style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowBulkDropdown(!showBulkDropdown)}
+              {isGeneratingBulk ? (
+                <div
                   style={{
-                    width: "32px",
-                    height: "32px",
-                    padding: 0,
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "10px",
-                    color: "var(--color-text)",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    gap: "10px",
+                    padding: "8px 16px",
+                    background: "#465A54",
+                    borderRadius: "6px",
+                    color: "#fff",
+                    fontSize: "13px",
+                    fontWeight: 500,
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(0, 0, 0, 0.04)"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent"
-                  }}
-                  title="More actions"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="1" />
-                    <circle cx="19" cy="12" r="1" />
-                    <circle cx="5" cy="12" r="1" />
-                  </svg>
-                </button>
-
-                {/* Dropdown Menu */}
-                {showBulkDropdown && (
                   <div
                     style={{
-                      position: "absolute",
-                      bottom: "100%",
-                      right: "0",
-                      marginBottom: "12px",
-                      background: "#fff",
-                      border: "1px solid rgba(17, 24, 39, 0.1)",
-                      borderRadius: "12px",
-                      boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5) inset",
-                      zIndex: 1001,
-                      minWidth: "200px",
-                      overflow: "hidden",
+                      width: "14px",
+                      height: "14px",
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderTopColor: "#fff",
+                      borderRadius: "50%",
+                      animation: "spin 1s linear infinite",
                     }}
-                    onClick={(e) => e.stopPropagation()}
+                  />
+                  Processing...
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => executeBulkAction("generate_tags")}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#465A54",
+                      border: "none",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#fff",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#3d4e49"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#465A54"
+                    }}
                   >
-                    {/* Section: AI Actions */}
-                    <div
-                      style={{
-                        padding: "8px 12px 4px",
-                        fontSize: "10px",
-                        fontWeight: 600,
-                        color: "#8B8B8B",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
-                      Generate
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        executeBulkAction("generate_seo_desc")
-                        setShowBulkDropdown(false)
-                      }}
-                      disabled={isGeneratingBulk}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#252F2C",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
-                        textAlign: "left",
-                        transition: "background 0.15s",
-                        opacity: isGeneratingBulk ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      SEO Description
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        executeBulkAction("generate_seo_title")
-                        setShowBulkDropdown(false)
-                      }}
-                      disabled={isGeneratingBulk}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#252F2C",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
-                        textAlign: "left",
-                        transition: "background 0.15s",
-                        opacity: isGeneratingBulk ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      SEO Title
-                    </button>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                      <line x1="7" y1="7" x2="7.01" y2="7" />
+                    </svg>
+                    Tags
+                  </button>
 
-                    {/* Section: Auto Fix Actions */}
-                    <div
-                      style={{
-                        borderTop: "1px solid #e4e4e7",
-                        marginTop: "4px",
-                        padding: "6px 12px 4px",
-                        fontSize: "10px",
-                        fontWeight: 600,
-                        color: "#8B8B8B",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
-                      Actions
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        executeBulkAction("generate_tags")
-                        setShowBulkDropdown(false)
-                      }}
-                      disabled={isGeneratingBulk}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#252F2C",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
-                        textAlign: "left",
-                        transition: "background 0.15s",
-                        opacity: isGeneratingBulk ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      Apply Tags
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        executeBulkAction("apply_collection")
-                        setShowBulkDropdown(false)
-                      }}
-                      disabled={isGeneratingBulk}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#252F2C",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
-                        textAlign: "left",
-                        transition: "background 0.15s",
-                        opacity: isGeneratingBulk ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      Add to Collection
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => executeBulkAction("apply_collection")}
+                    style={{
+                      padding: "8px 16px",
+                      background: "transparent",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#252F2C",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#f4f4f5"
+                      e.currentTarget.style.borderColor = "#d4d4d8"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                      e.currentTarget.style.borderColor = "#e4e4e7"
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    Collection
+                  </button>
 
-                    {/* Generate All */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowGenerateAllModal(true)
-                        setShowBulkDropdown(false)
-                      }}
-                      disabled={isGeneratingBulk}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#252F2C",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        cursor: isGeneratingBulk ? "not-allowed" : "pointer",
-                        textAlign: "left",
-                        transition: "background 0.15s",
-                        opacity: isGeneratingBulk ? 0.5 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isGeneratingBulk) e.currentTarget.style.background = "#f4f4f5"
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent"
-                      }}
-                    >
-                      Generate All
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Check which products have 3+ images already
+                      const selectedProductIds = Array.from(selectedProducts)
+                      const skipped: string[] = []
+                      const eligible: string[] = []
+                      
+                      for (const productId of selectedProductIds) {
+                        const audit = audits.find((a) => a.productId === productId)
+                        // Check min_images item details to extract current image count
+                        const imageItem = audit?.items?.find((i) => i.key === "min_images")
+                        let imageCount = 0
+                        if (imageItem?.details) {
+                          // Parse "Found X image(s)" from details
+                          const match = imageItem.details.match(/Found (\d+) image/)
+                          if (match) {
+                            imageCount = parseInt(match[1], 10)
+                          }
+                        }
+                        
+                        if (imageCount >= 3) {
+                          skipped.push(audit?.productTitle || productId)
+                        } else {
+                          eligible.push(productId)
+                        }
+                      }
+                      
+                      if (skipped.length > 0) {
+                        setSkippedImageProducts(skipped)
+                        setEligibleImageProductIds(eligible)
+                        setShowImageAlert(true)
+                      } else if (eligible.length > 0) {
+                        // All products eligible, proceed directly
+                        executeBulkAction("generate_all", {
+                          selectedFields: [],
+                          fieldOptions: { images: ["image"] },
+                        })
+                      }
+                    }}
+                    style={{
+                      padding: "8px 16px",
+                      background: "transparent",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#252F2C",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#f4f4f5"
+                      e.currentTarget.style.borderColor = "#d4d4d8"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                      e.currentTarget.style.borderColor = "#e4e4e7"
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    Images
+                  </button>
 
-                    {/* Divider + Clear */}
-                    <div
-                      style={{
-                        borderTop: "1px solid #e4e4e7",
-                        marginTop: "4px",
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          clearSelection()
-                          setShowBulkDropdown(false)
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          border: "none",
-                          background: "transparent",
-                          color: "#a1a1aa",
-                          fontSize: "13px",
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          textAlign: "left",
-                          transition: "background 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "#f4f4f5"
-                          e.currentTarget.style.color = "#252F2C"
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "transparent"
-                          e.currentTarget.style.color = "#a1a1aa"
-                        }}
-                      >
-                        Clear Selection
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => executeBulkAction("generate_seo_desc")}
+                    style={{
+                      padding: "8px 16px",
+                      background: "transparent",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#252F2C",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#f4f4f5"
+                      e.currentTarget.style.borderColor = "#d4d4d8"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                      e.currentTarget.style.borderColor = "#e4e4e7"
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.35-4.35" />
+                    </svg>
+                    SEO
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Check which products are already 100% ready
+                      const selectedProductIds = Array.from(selectedProducts)
+                      const skipped: string[] = []
+                      const eligible: string[] = []
+                      
+                      for (const productId of selectedProductIds) {
+                        const audit = audits.find((a) => a.productId === productId)
+                        if (audit?.status === "ready") {
+                          skipped.push(audit.productTitle)
+                        } else {
+                          eligible.push(productId)
+                        }
+                      }
+                      
+                      if (skipped.length > 0 && eligible.length > 0) {
+                        // Some ready, some need fixing - show alert
+                        setSkippedAutofixProducts(skipped)
+                        setEligibleAutofixProductIds(eligible)
+                        setShowAutofixAlert(true)
+                      } else if (skipped.length > 0 && eligible.length === 0) {
+                        // All already ready
+                        shopify.toast.show("All selected products are already 100% ready!")
+                      } else if (eligible.length > 0) {
+                        // All need fixing, proceed directly
+                        runAutofixOnProducts(eligible)
+                      }
+                    }}
+                    style={{
+                      padding: "8px 16px",
+                      background: "transparent",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#252F2C",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#f4f4f5"
+                      e.currentTarget.style.borderColor = "#d4d4d8"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                      e.currentTarget.style.borderColor = "#e4e4e7"
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                    </svg>
+                    Autofix
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowGenerateAllModal(true)}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#465A54",
+                      border: "none",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#fff",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#3d4e49"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#465A54"
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    Generate All
+                  </button>
+                </>
+              )}
 
               {/* Close/Clear Button */}
               <button
@@ -4318,12 +4498,281 @@ export default function Dashboard() {
         <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
       </div>
 
+      {/* Bulk Progress Modal */}
+      <BulkProgressModal
+        isOpen={showBulkProgressModal}
+        actionType={bulkActionType}
+        totalCount={generatingProductIds.size}
+        completedCount={completedProductIds.size}
+        currentProductTitle={
+          currentlyProcessingId
+            ? audits.find((a) => a.productId === currentlyProcessingId)?.productTitle || "Processing..."
+            : null
+        }
+        onStop={stopBulkAction}
+      />
+
+      {/* Image Generation Alert Dialog */}
+      {showImageAlert && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15, 23, 42, 0.35)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "16px",
+              padding: "24px",
+              width: "min(480px, 90%)",
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 25px 50px rgba(15, 23, 42, 0.15)",
+              border: "1px solid rgba(15, 23, 42, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  background: "#fef3c7",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#111827" }}>
+                  Some products will be skipped
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b7280" }}>
+                  {skippedImageProducts.length} product{skippedImageProducts.length !== 1 ? "s have" : " has"} 3+ images already
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#f9fafb",
+                borderRadius: "8px",
+                padding: "12px",
+                marginBottom: "16px",
+                maxHeight: "150px",
+                overflow: "auto",
+              }}
+            >
+              <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 500, color: "#6b7280", textTransform: "uppercase" }}>
+                Will be skipped:
+              </p>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: "13px", color: "#374151" }}>
+                {skippedImageProducts.map((name, i) => (
+                  <li key={i} style={{ marginBottom: "4px" }}>{name}</li>
+                ))}
+              </ul>
+            </div>
+
+            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 20px" }}>
+              To generate more images for these products, go to each product's detail page.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImageAlert(false)
+                  setSkippedImageProducts([])
+                  setEligibleImageProductIds([])
+                }}
+                style={{
+                  padding: "10px 16px",
+                  background: "#f3f4f6",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              {eligibleImageProductIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImageAlert(false)
+                    // Update selected products to only eligible ones
+                    setSelectedProducts(new Set(eligibleImageProductIds))
+                    executeBulkAction("generate_all", {
+                      selectedFields: [],
+                      fieldOptions: { images: ["image"] },
+                    })
+                    setSkippedImageProducts([])
+                    setEligibleImageProductIds([])
+                  }}
+                  style={{
+                    padding: "10px 16px",
+                    background: "#465A54",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  Continue with {eligibleImageProductIds.length} product{eligibleImageProductIds.length !== 1 ? "s" : ""}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Autofix Alert Dialog */}
+      {showAutofixAlert && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15, 23, 42, 0.35)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "16px",
+              padding: "24px",
+              width: "min(480px, 90%)",
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 25px 50px rgba(15, 23, 42, 0.15)",
+              border: "1px solid rgba(15, 23, 42, 0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  background: "#d1fae5",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#111827" }}>
+                  Some products already ready
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b7280" }}>
+                  {skippedAutofixProducts.length} product{skippedAutofixProducts.length !== 1 ? "s are" : " is"} already at 100%
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#f0fdf4",
+                borderRadius: "8px",
+                padding: "12px",
+                marginBottom: "16px",
+                maxHeight: "150px",
+                overflow: "auto",
+              }}
+            >
+              <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 500, color: "#059669", textTransform: "uppercase" }}>
+                Already ready (will skip):
+              </p>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: "13px", color: "#374151" }}>
+                {skippedAutofixProducts.map((name, i) => (
+                  <li key={i} style={{ marginBottom: "4px" }}>{name}</li>
+                ))}
+              </ul>
+            </div>
+
+            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 20px" }}>
+              These products don't need autofix. Only products with issues will be processed.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAutofixAlert(false)
+                  setSkippedAutofixProducts([])
+                  setEligibleAutofixProductIds([])
+                }}
+                style={{
+                  padding: "10px 16px",
+                  background: "#f3f4f6",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#374151",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAutofixAlert(false)
+                  runAutofixOnProducts(eligibleAutofixProductIds)
+                  setSkippedAutofixProducts([])
+                  setEligibleAutofixProductIds([])
+                }}
+                style={{
+                  padding: "10px 16px",
+                  background: "#465A54",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                Autofix {eligibleAutofixProductIds.length} product{eligibleAutofixProductIds.length !== 1 ? "s" : ""}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bulk Generate All Modal - Outside main container to avoid overflow clipping */}
       <BulkGenerateAllModal
         isOpen={showGenerateAllModal}
         onClose={() => {
           setShowGenerateAllModal(false)
-          setShowBulkDropdown(false)
         }}
         selectedFields={selectedBulkFields}
         onFieldToggle={(field) => {
@@ -4343,6 +4792,98 @@ export default function Dashboard() {
         fieldOptions={bulkFieldOptions}
         setFieldOptions={setBulkFieldOptions}
       />
+
+      {/* 100% Celebration Modal */}
+      {showCelebrationModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1001,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15, 23, 42, 0.4)",
+            backdropFilter: "blur(2px)",
+          }}
+          onClick={() => setShowCelebrationModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#ffffff",
+              borderRadius: "20px",
+              padding: "40px 48px",
+              textAlign: "center",
+              maxWidth: "420px",
+              boxShadow: "0 25px 60px rgba(15, 23, 42, 0.2)",
+              border: "1px solid rgba(15, 23, 42, 0.08)",
+              animation: "celebrationPop 0.4s ease-out",
+            }}
+          >
+            <div
+              style={{
+                width: "80px",
+                height: "80px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #22c55e 0%, #10b981 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 24px",
+                boxShadow: "0 8px 24px rgba(34, 197, 94, 0.3)",
+              }}
+            >
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+            <h2 style={{ margin: "0 0 12px", fontSize: "28px", fontWeight: 700, color: "#111827" }}>
+              You did it!
+            </h2>
+            <p style={{ margin: "0 0 8px", fontSize: "18px", color: "#465A54", fontWeight: 600 }}>
+              100% Product Health
+            </p>
+            <p style={{ margin: "0 0 28px", fontSize: "14px", color: "#6b7280", lineHeight: 1.5 }}>
+              All your products are launch-ready. Your catalog is in perfect shape!
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowCelebrationModal(false)}
+              style={{
+                padding: "14px 32px",
+                background: "linear-gradient(135deg, #465A54 0%, #3d4e49 100%)",
+                border: "none",
+                borderRadius: "10px",
+                fontSize: "15px",
+                fontWeight: 600,
+                color: "#fff",
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(70, 90, 84, 0.3)",
+                transition: "transform 0.15s, box-shadow 0.15s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "translateY(-1px)"
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(70, 90, 84, 0.35)"
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)"
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(70, 90, 84, 0.3)"
+              }}
+            >
+              Awesome!
+            </button>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes celebrationPop {
+          0% { transform: scale(0.8); opacity: 0; }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
     </>
   )
 }

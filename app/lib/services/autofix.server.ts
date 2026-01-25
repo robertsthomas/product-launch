@@ -239,7 +239,13 @@ const autoFixMap: Record<string, AutoFixFn> = {
   seo_title: fixSeoTitle,
   seo_description: fixSeoDescription,
   images_have_alt_text: fixImageAltText,
-  has_collections: (product, admin, config) => fixAddToCollection(product, admin, config?.collectionId as string),
+  has_collections: (product, admin, config) => {
+    const collectionId = config?.collectionId as string | undefined
+    if (!collectionId) {
+      return Promise.resolve({ success: false, message: "No default collection configured" })
+    }
+    return fixAddToCollection(product, admin, collectionId)
+  },
 }
 
 /**
@@ -252,6 +258,8 @@ export async function applyAutoFix(
   admin: AdminGraphQL,
   config?: Record<string, unknown>
 ): Promise<{ success: boolean; message: string }> {
+  console.log("[applyAutoFix] Starting:", { shopDomain, productId, itemKey })
+  
   // Get the product data
   const response = await admin.graphql(PRODUCT_QUERY, {
     variables: { id: productId },
@@ -261,21 +269,41 @@ export async function applyAutoFix(
   const product = json.data?.product as Product | null
 
   if (!product) {
+    console.log("[applyAutoFix] Product not found:", productId)
     return { success: false, message: "Product not found" }
   }
+
+  console.log("[applyAutoFix] Product found:", product.id)
 
   // Get the auto-fix function
   const fixFn = autoFixMap[itemKey]
 
   if (!fixFn) {
+    console.log("[applyAutoFix] No fix function for:", itemKey)
     return { success: false, message: `No auto-fix available for "${itemKey}"` }
   }
 
+  // Build config from shop settings if not provided
+  let fixConfig = config || {}
+  if (itemKey === "has_collections" && !fixConfig.collectionId) {
+    const shop = await db.query.shops.findFirst({
+      where: eq(shops.shopDomain, shopDomain),
+    })
+    if (shop?.defaultCollectionId) {
+      fixConfig = { ...fixConfig, collectionId: shop.defaultCollectionId }
+      console.log("[applyAutoFix] Using default collection:", shop.defaultCollectionId)
+    }
+  }
+
+  console.log("[applyAutoFix] Applying fix function:", itemKey, "config:", fixConfig)
+  
   // Apply the fix
-  const result = await fixFn(product, admin, config)
+  const result = await fixFn(product, admin, fixConfig)
+  console.log("[applyAutoFix] Fix result:", { itemKey, ...result })
 
   // Re-run audit to update status
   if (result.success) {
+    console.log("[applyAutoFix] Re-auditing product:", productId)
     await auditProduct(shopDomain, productId, admin)
   }
 
@@ -286,13 +314,18 @@ export async function applyAutoFix(
  * Get available auto-fixes for a product
  */
 export async function getAvailableAutoFixes(shopDomain: string, productId: string) {
+  console.log("[getAvailableAutoFixes] Looking for fixes:", { shopDomain, productId })
+  
   const shop = await db.query.shops.findFirst({
     where: eq(shops.shopDomain, shopDomain),
   })
 
   if (!shop) {
+    console.log("[getAvailableAutoFixes] Shop not found:", shopDomain)
     return []
   }
+
+  console.log("[getAvailableAutoFixes] Shop found:", shop.id)
 
   const audit = await db.query.productAudits.findFirst({
     where: and(eq(productAudits.shopId, shop.id), eq(productAudits.productId, productId)),
@@ -306,5 +339,13 @@ export async function getAvailableAutoFixes(shopDomain: string, productId: strin
     },
   })
 
-  return audit?.items ?? []
+  if (!audit) {
+    console.log("[getAvailableAutoFixes] No audit found")
+    return []
+  }
+
+  console.log("[getAvailableAutoFixes] Found audit with items:", audit.items?.length || 0)
+  console.log("[getAvailableAutoFixes] Items:", audit.items)
+
+  return audit.items || []
 }
