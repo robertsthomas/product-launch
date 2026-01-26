@@ -1380,7 +1380,7 @@ function DashboardTour({
       title: "Your Product Catalog",
       description:
         "This is your product dashboard. Each row shows a product's launch readiness with status badges and completion scores.",
-      position: "bottom",
+      position: "right",
     },
     {
       target: "data-tour-expand-row",
@@ -1843,7 +1843,28 @@ export default function Dashboard() {
     setTourCompleted(true)
     localStorage.setItem("dashboardTourCompleted", "true")
     setIsTourOpen(false)
+    // Clear any expanded dummy rows
+    setExpandedRows((prev) => {
+      const cleaned = new Set(prev)
+      cleaned.delete("tour-dummy-1")
+      cleaned.delete("tour-dummy-2")
+      cleaned.delete("tour-dummy-3")
+      return cleaned
+    })
   }
+
+  // Clear dummy data expanded rows when real data arrives or tour closes
+  useEffect(() => {
+    if (audits.length > 0 || !isTourOpen) {
+      setExpandedRows((prev) => {
+        const cleaned = new Set(prev)
+        cleaned.delete("tour-dummy-1")
+        cleaned.delete("tour-dummy-2")
+        cleaned.delete("tour-dummy-3")
+        return cleaned
+      })
+    }
+  }, [audits.length, isTourOpen])
 
   // Track scanning state
   useEffect(() => {
@@ -2132,12 +2153,58 @@ export default function Dashboard() {
     })
   }, [audits, filter, searchQuery, sortBy])
 
-  // Pagination
-  const totalPages = Math.ceil(filteredAudits.length / ITEMS_PER_PAGE)
+  // Dummy data for tour when no products exist
+  const dummyAudits = useMemo(() => {
+    // Only show dummy data if tour is open AND no real products exist
+    if (!isTourOpen || audits.length > 0) return []
+    
+    return [
+      {
+        id: "tour-dummy-1",
+        productId: "gid://shopify/Product/tour-dummy-1",
+        productTitle: "Premium Cotton T-Shirt",
+        productImage: null,
+        status: "ready" as const,
+        passedCount: 10,
+        failedCount: 0,
+        totalCount: 10,
+        updatedAt: new Date().toISOString(),
+        items: [],
+      },
+      {
+        id: "tour-dummy-2",
+        productId: "gid://shopify/Product/tour-dummy-2",
+        productTitle: "Classic Denim Jeans",
+        productImage: null,
+        status: "incomplete" as const,
+        passedCount: 6,
+        failedCount: 4,
+        totalCount: 10,
+        updatedAt: new Date().toISOString(),
+        items: [],
+      },
+      {
+        id: "tour-dummy-3",
+        productId: "gid://shopify/Product/tour-dummy-3",
+        productTitle: "Leather Backpack",
+        productImage: null,
+        status: "incomplete" as const,
+        passedCount: 4,
+        failedCount: 6,
+        totalCount: 10,
+        updatedAt: new Date().toISOString(),
+        items: [],
+      },
+    ]
+  }, [isTourOpen, audits.length])
+
+  // Pagination - only use dummy data if tour is open AND no real products exist
+  const auditsForPagination = isTourOpen && audits.length === 0 ? dummyAudits : filteredAudits
+  const totalPages = Math.ceil(auditsForPagination.length / ITEMS_PER_PAGE)
   const paginatedAudits = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE
-    return filteredAudits.slice(start, start + ITEMS_PER_PAGE)
-  }, [filteredAudits, currentPage, ITEMS_PER_PAGE])
+    return auditsForPagination.slice(start, start + ITEMS_PER_PAGE)
+  }, [auditsForPagination, currentPage, ITEMS_PER_PAGE])
 
   // Reset to page 1 when filter/search changes
   useEffect(() => {
@@ -2367,6 +2434,41 @@ export default function Dashboard() {
                   )}
                 </div>
 
+                {/* Collapse All Button */}
+                {expandedRows.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedRows(new Set())}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      padding: "6px 12px",
+                      background: "transparent",
+                      color: "#52525b",
+                      border: "1px solid #e4e4e7",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#fafafa"
+                      e.currentTarget.style.borderColor = "#c4c4c7"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent"
+                      e.currentTarget.style.borderColor = "#e4e4e7"
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M18 15l-6-6-6 6" />
+                    </svg>
+                    Collapse All
+                  </button>
+                )}
+
                 {/* Sync Button */}
                 <button
                   type="button"
@@ -2423,7 +2525,7 @@ export default function Dashboard() {
               <div className="col-checkbox" style={{ display: "flex", alignItems: "center" }}>
                 <input
                   type="checkbox"
-                  checked={selectedProducts.size > 0 && selectedProducts.size === filteredAudits.length}
+                  checked={selectedProducts.size > 0 && selectedProducts.size === paginatedAudits.length}
                   onChange={(e) => {
                     if (e.target.checked) {
                       selectAllVisible()
@@ -2501,8 +2603,17 @@ export default function Dashboard() {
                 flexDirection: "column",
               }}
             >
-              {paginatedAudits.length === 0 ? (
-                <div style={{ padding: "80px 20px", textAlign: "center" }}>
+              {paginatedAudits.length === 0 && !isTourOpen ? (
+                <div
+                  style={{
+                    padding: "80px 20px",
+                    textAlign: "center",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <div style={{ marginBottom: "12px" }}>
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d4d4d8" strokeWidth="1.5">
                       <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -3513,7 +3624,7 @@ export default function Dashboard() {
               >
                 <span style={{ fontSize: "13px", color: "#71717a" }}>
                   Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–
-                  {Math.min(currentPage * ITEMS_PER_PAGE, filteredAudits.length)} of {filteredAudits.length}
+                  {Math.min(currentPage * ITEMS_PER_PAGE, auditsForPagination.length)} of {auditsForPagination.length}
                 </span>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
