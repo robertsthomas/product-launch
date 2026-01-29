@@ -238,31 +238,8 @@ function BulkProgressModal({
   const label = actionLabels[actionType] || "Processing"
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(15, 23, 42, 0.35)",
-        backdropFilter: "blur(4px)",
-      }}
-    >
-      <div
-        style={{
-          background: "#ffffff",
-          borderRadius: "20px",
-          padding: "28px 32px",
-          width: "min(460px, 90%)",
-          boxShadow: "0 30px 70px rgba(15, 23, 42, 0.15)",
-          border: "1px solid rgba(15, 23, 42, 0.08)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "18px",
-        }}
-      >
+    <div className="modal-backdrop">
+      <div className="modal-container" style={{ width: "min(460px, 90%)", gap: "18px" }}>
         <div>
           <p
             style={{
@@ -395,52 +372,10 @@ function BulkGenerateAllModal({
   const canGenerate = hasSelectedFields || hasFieldOptions
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-        padding: "20px",
-        backdropFilter: "blur(4px)",
-      }}
-      onClick={onClose}
-      tabIndex={-1}
-      role="presentation"
-    >
-      <div
-        className="animate-scale-in"
-        style={{
-          backgroundColor: "#ffffff",
-          borderRadius: "16px",
-          width: "100%",
-          maxWidth: "500px",
-          maxHeight: "70vh",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-          border: "1px solid #e5e7eb",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-backdrop" onClick={onClose} tabIndex={-1} role="presentation">
+      <div className="modal-container animate-scale-in" style={{ maxWidth: "500px", maxHeight: "70vh" }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div
-          style={{
-            padding: "24px",
-            borderBottom: "1px solid #f3f4f6",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            backgroundColor: "#ffffff",
-          }}
-        >
+        <div className="modal-header" style={{ padding: "24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <h2
             style={{
               margin: 0,
@@ -461,7 +396,7 @@ function BulkGenerateAllModal({
               border: "none",
               cursor: "pointer",
               padding: "8px",
-              borderRadius: "8px",
+              borderRadius: "var(--radius-md)",
               color: "#6b7280",
               display: "flex",
               alignItems: "center",
@@ -4242,23 +4177,8 @@ export default function Dashboard() {
 
         {/* Monitoring Modal (Pro only) */}
         {showMonitoringModal && monitoring && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "rgba(0, 0, 0, 0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000,
-            }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowMonitoringModal(false)
-            }}
-          >
+          <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowMonitoringModal(false) }}>
+
             <div
               className="animate-fade-in-up"
               style={{
@@ -4692,29 +4612,8 @@ export default function Dashboard() {
 
       {/* Image Generation Alert Dialog */}
       {showImageAlert && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1000,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(15, 23, 42, 0.35)",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          <div
-            style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              padding: "24px",
-              width: "min(480px, 90%)",
-              maxHeight: "80vh",
-              overflow: "auto",
-              boxShadow: "0 25px 50px rgba(15, 23, 42, 0.15)",
-              border: "1px solid rgba(15, 23, 42, 0.08)",
-            }}
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ width: "min(480px, 90%)", padding: "24px" }}>
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <div
@@ -4836,29 +4735,8 @@ export default function Dashboard() {
 
       {/* Autofix Alert Dialog */}
       {showAutofixAlert && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1000,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(15, 23, 42, 0.35)",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          <div
-            style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              padding: "24px",
-              width: "min(480px, 90%)",
-              maxHeight: "80vh",
-              overflow: "auto",
-              boxShadow: "0 25px 50px rgba(15, 23, 42, 0.15)",
-              border: "1px solid rgba(15, 23, 42, 0.08)",
-            }}
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ width: "min(480px, 90%)", padding: "24px" }}>
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <div
@@ -4996,31 +4874,8 @@ export default function Dashboard() {
 
       {/* 100% Celebration Modal */}
       {showCelebrationModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1001,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(15, 23, 42, 0.4)",
-            backdropFilter: "blur(2px)",
-          }}
-          onClick={() => setShowCelebrationModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#ffffff",
-              borderRadius: "20px",
-              padding: "40px 48px",
-              textAlign: "center",
-              maxWidth: "420px",
-              boxShadow: "0 25px 60px rgba(15, 23, 42, 0.2)",
-              border: "1px solid rgba(15, 23, 42, 0.08)",
-              animation: "celebrationPop 0.4s ease-out",
-            }}
+        <div className="modal-backdrop" onClick={() => setShowCelebrationModal(false)}>
+          <div className="modal-container" style={{ maxWidth: "420px", padding: "40px 48px", textAlign: "center", animation: "celebrationPop 0.4s ease-out" }} onClick={(e) => e.stopPropagation()}>
           >
             <div
               style={{

@@ -62,7 +62,10 @@
   --color-ai-soft: rgba(94, 234, 212, 0.12);
 
   /* Modal & Overlay Backdrops */
-  --color-backdrop: rgba(17, 24, 39, 0.4);
+  --color-backdrop: rgba(255, 255, 255, 0.85);
+  --backdrop-blur: blur(12px);
+  --modal-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  --modal-radius: var(--radius-xl);
 
   /* Typography - Clean system-first, with fallback to Plus Jakarta Sans */
   --font-heading: "Inter", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
@@ -159,6 +162,34 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --color-primary: #7aa2ff;
+    /* Keep dark mode backdrop subtle but frosted */
+    --color-backdrop: rgba(17, 24, 39, 0.6);
+    --backdrop-blur: blur(12px);
+    --modal-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.03);
+
+/* Polaris modal overrides */
+.Polaris-Backdrop, .Polaris-Modal__Backdrop {
+  background: var(--color-backdrop) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+}
+.Polaris-Modal__Dialog, .Polaris-Modal__Modal {
+  border-radius: var(--modal-radius) !important;
+  box-shadow: var(--modal-shadow) !important;
+  background: var(--color-surface) !important;
+  overflow: hidden !important;
+}
+.Polaris-Modal__HeaderTitle {
+  color: #1e293b !important;
+}
+.Polaris-Modal__Section p,
+.Polaris-Modal__Section .Polaris-Text--subdued {
+  color: #64748b !important;
+}
+.Polaris-Modal__Footer .Polaris-Button {
+  border-radius: var(--radius-md) !important;
+}
+
+
     --color-primary-strong: #5c8af5;
     --color-primary-light: #99b8ff;
     --color-primary-soft: rgba(122, 162, 255, 0.12);
@@ -255,6 +286,96 @@ h6 {
   min-height: 0;
   scrollbar-gutter: stable;
 }
+
+/* Dashboard: allow page scroll for sticky to work */
+
+/* Modal system - frosted glass backdrop, unified container, buttons */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-backdrop);
+  backdrop-filter: var(--backdrop-blur);
+  padding: var(--space-4);
+}
+.modal-container {
+  background: var(--color-surface);
+  border-radius: var(--modal-radius);
+  box-shadow: var(--modal-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-8);
+  width: 100%;
+  max-width: 720px;
+  max-height: 80vh;
+}
+.modal-header {
+  color: #1e293b;
+  margin-bottom: var(--space-3);
+}
+.modal-header h2,
+.modal-header h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  color: #1e293b;
+}
+.modal-header p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+.modal-subtitle {
+  color: #64748b;
+  margin-top: 8px;
+}
+.modal-footer {
+  display: flex;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: none;
+  align-items: center;
+}
+.btn-modal {
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.btn-modal.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+.btn-modal.btn-primary:hover {
+  filter: brightness(0.98);
+}
+.btn-modal.btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  color: #374151;
+}
+.btn-modal.btn-secondary:hover {
+  background: rgba(15, 23, 42, 0.03);
+}
+
+/* Polaris modal overrides (light) */
+.Polaris-Backdrop, .Polaris-Modal__Backdrop {
+  background: var(--color-backdrop) !important;
+  backdrop-filter: var(--backdrop-blur) !important;
+}
+.Polaris-Modal__Dialog, .Polaris-Modal__Modal {
+  border-radius: var(--modal-radius) !important;
+  box-shadow: var(--modal-shadow) !important;
+  background: var(--color-surface) !important;
+  overflow: hidden !important;
+}
+.Polaris-Modal__HeaderTitle { color: #1e293b !important; }
+.Polaris-Modal__Section p,
+.Polaris-Modal__Section .Polaris-Text--subdued { color: #64748b !important; }
+.Polaris-Modal__Footer .Polaris-Button { border-radius: var(--radius-md) !important; }
 
 /* Dashboard: allow page scroll for sticky to work */
 @media (max-width: 900px) {

@@ -859,42 +859,13 @@ function AIUpsellModal({
   const isCreditLimit = errorCode === "AI_LIMIT_REACHED"
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(255, 255, 255, 0.8)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: "20px",
-        backdropFilter: "blur(8px)",
-      }}
-      onClick={onClose}
-      onKeyDown={(e) => {
+    <div className="modal-backdrop" onClick={onClose} onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
           onClose()
         }
-      }}
-      tabIndex={-1}
-      role="presentation"
-    >
-      <div
-        className="animate-scale-in"
-        style={{
-          backgroundColor: "#ffffff",
-          borderRadius: "24px",
-          width: "100%",
-          maxWidth: "480px",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--color-border)",
-          overflow: "hidden",
-        }}
+      }} tabIndex={-1} role="presentation">
+      <div className="modal-container animate-scale-in" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -1164,25 +1135,7 @@ function GenerateAllModal({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(255, 255, 255, 0.8)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: "20px",
-        backdropFilter: "blur(8px)",
-      }}
-      onClick={onClose}
-      tabIndex={-1}
-      role="presentation"
-    >
+    <div className="modal-backdrop" onClick={onClose} tabIndex={-1} role="presentation">
       <div
         className="animate-scale-in"
         style={{
@@ -4407,26 +4360,11 @@ export default function ProductEditor() {
 
       {/* Image Prompt Modal */}
       {imagePromptModal.isOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(45, 42, 38, 0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-            backdropFilter: "blur(4px)",
-          }}
-          onClick={(e) => {
+        <div className="modal-backdrop" onClick={(e) => {
             if (e.target === e.currentTarget) {
               closeImagePromptModal()
             }
-          }}
+          }}>
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               e.preventDefault()
@@ -4670,23 +4608,8 @@ export default function ProductEditor() {
 
       {/* Collection Picker Modal */}
       {collectionPickerOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(45, 42, 38, 0.4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-            backdropFilter: "blur(4px)",
-          }}
-          onClick={() => setCollectionPickerOpen(false)}
-        >
+        <div className="modal-backdrop" onClick={() => setCollectionPickerOpen(false)}>
+
           <div
             className="animate-scale-in"
             style={{

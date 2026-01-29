@@ -531,10 +531,10 @@ export default function Settings() {
         <div
           style={{
             display: "flex",
-            gap: "4px",
-            padding: "4px",
-            background: "#f4f4f5",
-            borderRadius: "10px",
+            gap: "8px",
+            padding: "6px",
+            background: "transparent",
+            borderRadius: "12px",
             marginBottom: "32px",
             width: "fit-content",
           }}
@@ -547,32 +547,34 @@ export default function Settings() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
+                gap: "8px",
+                padding: "10px 18px",
                 fontSize: "13px",
-                fontWeight: 500,
-                color: activeTab === tab.key ? "#18181b" : "#71717a",
-                background: activeTab === tab.key ? "#fff" : "transparent",
+                fontWeight: 600,
+                color: activeTab === tab.key ? "#1e293b" : "#64748b",
+                background: activeTab === tab.key ? "rgba(255,255,255,0.85)" : "transparent",
                 border: "none",
-                borderRadius: "6px",
+                borderRadius: "var(--radius-md)",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
-                boxShadow: activeTab === tab.key ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+                boxShadow: activeTab === tab.key ? "var(--shadow-sm)" : "none",
+                backdropFilter: activeTab === tab.key ? "var(--backdrop-blur)" : "none",
               }}
               onMouseEnter={(e) => {
                 if (activeTab !== tab.key) {
-                  e.currentTarget.style.color = "#18181b"
+                  e.currentTarget.style.color = "#1e293b"
                   e.currentTarget.style.background = "rgba(255,255,255,0.5)"
+                  e.currentTarget.style.backdropFilter = "blur(8px)"
                 }
               }}
               onMouseLeave={(e) => {
                 if (activeTab !== tab.key) {
-                  e.currentTarget.style.color = "#71717a"
+                  e.currentTarget.style.color = "#64748b"
                   e.currentTarget.style.background = "transparent"
                 }
               }}
             >
-              <span style={{ color: activeTab === tab.key ? "#18181b" : "#a1a1aa", transition: "color 0.15s ease" }}>
+              <span style={{ color: activeTab === tab.key ? "#1e293b" : "#64748b", transition: "color 0.15s ease" }}>
                 {tab.icon}
               </span>
               {tab.label}
@@ -2418,47 +2420,10 @@ function ProductHistoryModal({
   if (!isOpen) return null
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(255, 255, 255, 0.85)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: "20px",
-        backdropFilter: "blur(12px)",
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="animate-scale-in"
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "24px",
-          width: "100%",
-          maxWidth: "600px",
-          maxHeight: "80vh",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-container animate-scale-in" style={{ maxWidth: "600px", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div
-          style={{
-            padding: "24px 28px",
-            borderBottom: "1px solid #f1f5f9",
-            background: "transparent",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+        <div className="modal-header" style={{ padding: "24px 28px", display: "flex", alignItems: "center" }}>            justifyContent: "space-between",
           }}
         >
           <div>
