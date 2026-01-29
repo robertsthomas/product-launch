@@ -2254,6 +2254,7 @@ export default function Dashboard() {
               flexDirection: "column",
               overflow: "hidden",
               minHeight: 0,
+              height: "100%",
             }}
           >
             {/* Card Header with Title, Search, Sync */}

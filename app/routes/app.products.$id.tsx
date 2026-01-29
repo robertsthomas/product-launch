@@ -3,13 +3,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server"
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { useBlocker, useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router"
-import {
-  ProductChecklistCard,
-  ProductHeader,
-  ProductInfoCard,
-  ProductMediaCard,
-  ProductSeoCard,
-} from "../components/product"
+import { ProductChecklistCard, ProductInfoCard, ProductMediaCard, ProductSeoCard } from "../components/product"
 import { isAIAvailable } from "../lib/ai"
 import { PRODUCT_QUERY, type Product } from "../lib/checklist"
 import {
@@ -872,13 +866,13 @@ function AIUpsellModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(45, 42, 38, 0.4)",
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
         padding: "20px",
-        backdropFilter: "blur(4px)",
+        backdropFilter: "blur(8px)",
       }}
       onClick={onClose}
       onKeyDown={(e) => {
@@ -893,11 +887,11 @@ function AIUpsellModal({
       <div
         className="animate-scale-in"
         style={{
-          backgroundColor: "var(--color-surface)",
-          borderRadius: "var(--radius-xl)",
+          backgroundColor: "#ffffff",
+          borderRadius: "24px",
           width: "100%",
           maxWidth: "480px",
-          boxShadow: "var(--shadow-elevated)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
           border: "1px solid var(--color-border)",
           overflow: "hidden",
         }}
@@ -1177,13 +1171,13 @@ function GenerateAllModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(45, 42, 38, 0.4)",
+        backgroundColor: "rgba(255, 255, 255, 0.8)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
         padding: "20px",
-        backdropFilter: "blur(4px)",
+        backdropFilter: "blur(8px)",
       }}
       onClick={onClose}
       tabIndex={-1}
@@ -1192,13 +1186,12 @@ function GenerateAllModal({
       <div
         className="animate-scale-in"
         style={{
-          backgroundColor: "var(--color-surface)",
-          borderRadius: "var(--radius-xl)",
+          backgroundColor: "#ffffff",
+          borderRadius: "24px",
           width: "100%",
-          maxWidth: "500px",
+          maxWidth: "520px",
           maxHeight: "70vh",
-          boxShadow: "var(--shadow-elevated)",
-          border: "1px solid var(--color-border)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -1208,22 +1201,21 @@ function GenerateAllModal({
         {/* Header */}
         <div
           style={{
-            padding: "24px",
-            borderBottom: "1px solid var(--color-border-subtle)",
+            padding: "28px 28px 24px",
+            borderBottom: "1px solid #f1f5f9",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "transparent",
+            background: "#ffffff",
           }}
         >
           <h2
             style={{
               margin: 0,
-              fontFamily: "var(--font-heading)",
-              fontSize: "var(--text-xl)",
+              fontSize: "20px",
               fontWeight: 600,
-              color: "var(--color-text)",
-              letterSpacing: "-0.01em",
+              color: "#0f172a",
+              letterSpacing: "-0.025em",
             }}
           >
             Generate All Fields
@@ -1236,12 +1228,20 @@ function GenerateAllModal({
               border: "none",
               cursor: "pointer",
               padding: "8px",
-              borderRadius: "var(--radius-md)",
-              color: "var(--color-muted)",
+              borderRadius: "10px",
+              color: "#94a3b8",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all var(--transition-fast)",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f1f5f9"
+              e.currentTarget.style.color = "#64748b"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "none"
+              e.currentTarget.style.color = "#94a3b8"
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -3989,6 +3989,21 @@ export default function ProductEditor() {
     }
   }
 
+  const handleOpenInShopify = useCallback(async () => {
+    try {
+      if (shopify && "intents" in shopify) {
+        await (shopify as any).intents.invoke("edit:shopify/Product", {
+          value: product.id,
+        })
+      }
+    } catch (error) {
+      // Fallback to opening in new tab if intents API fails
+      const numericId = product.id.split("/").pop()
+      const shop = (shopify as any)?.config?.shop || ""
+      window.open(`https://${shop}/admin/products/${numericId}`, "_blank")
+    }
+  }, [shopify, product.id])
+
   const isSaving = fetcher.state !== "idle"
   const isRescanning = fetcher.state !== "idle" && fetcher.formData?.get("intent") === "rescan"
 
@@ -3996,24 +4011,29 @@ export default function ProductEditor() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#fafbfc",
+        background: "#f8f9fa",
       }}
     >
-      {/* Page Header */}
-      <ProductHeader title={product.title} audit={audit as { status: string } | null} productId={product.id} />
+      {/* Page Header removed - logo now in sidebar navigation */}
 
       {/* Bento Grid Dashboard */}
-      <div style={{ padding: "20px 40px", maxWidth: "1400px", margin: "0 auto" }}>
+      <div
+        style={{
+          padding: "24px 48px 24px",
+          maxWidth: "1400px",
+          margin: "0 auto",
+        }}
+      >
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 320px",
-            gap: "20px",
+            gridTemplateColumns: "1fr 340px",
+            gap: "24px",
             alignItems: "start",
           }}
         >
           {/* Left Column: Content Cards */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {/* Product Info Card */}
             <ProductInfoCard
               product={product}
@@ -4076,7 +4096,7 @@ export default function ProductEditor() {
               top: "90px",
               display: "flex",
               flexDirection: "column",
-              gap: "16px",
+              gap: "20px",
             }}
           >
             {/* Checklist */}
@@ -4104,6 +4124,7 @@ export default function ProductEditor() {
                 }
               }}
               onChooseCollection={() => setCollectionPickerOpen(true)}
+              onOpenInShopify={handleOpenInShopify}
             />
           </div>
         </div>
@@ -4119,58 +4140,62 @@ export default function ProductEditor() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(255, 255, 255, 0.6)",
+            backgroundColor: "rgba(255, 255, 255, 0.85)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1100,
             padding: "20px",
-            backdropFilter: "blur(8px)",
+            backdropFilter: "blur(12px)",
           }}
         >
           <div
             className="animate-scale-in"
             style={{
-              background: "linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)",
-              borderRadius: "var(--radius-xl)",
-              maxWidth: "400px",
+              background: "#ffffff",
+              borderRadius: "24px",
+              maxWidth: "420px",
               width: "100%",
-              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.06)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
               overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ padding: "24px" }}>
+            <div style={{ padding: "32px" }}>
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  marginBottom: "16px",
+                  alignItems: "flex-start",
+                  gap: "16px",
+                  marginBottom: "24px",
                 }}
               >
                 <div
                   style={{
-                    width: "32px",
-                    height: "32px",
+                    width: "48px",
+                    height: "48px",
                     borderRadius: "50%",
-                    background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    background: "#fef3c7",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
-                  <span style={{ fontSize: "14px", color: "#d97706" }}>⚠️</span>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
                 </div>
                 <div>
                   <h3
                     style={{
-                      fontSize: "var(--text-lg)",
+                      fontSize: "18px",
                       fontWeight: 600,
-                      color: "var(--color-text)",
-                      margin: "0 0 4px",
+                      color: "#0f172a",
+                      margin: "0 0 6px",
+                      letterSpacing: "-0.025em",
                     }}
                   >
                     Unsaved changes
@@ -4178,9 +4203,9 @@ export default function ProductEditor() {
                   <p
                     style={{
                       margin: 0,
-                      fontSize: "var(--text-sm)",
-                      color: "var(--color-muted)",
-                      lineHeight: 1.5,
+                      fontSize: "14px",
+                      color: "#64748b",
+                      lineHeight: 1.6,
                     }}
                   >
                     You have unsaved changes that will be lost if you leave this page.
@@ -4191,9 +4216,8 @@ export default function ProductEditor() {
               <div
                 style={{
                   display: "flex",
-                  gap: "10px",
+                  gap: "12px",
                   justifyContent: "flex-end",
-                  marginTop: "20px",
                 }}
               >
                 <button
@@ -4252,95 +4276,97 @@ export default function ProductEditor() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(255, 255, 255, 0.6)",
+            backgroundColor: "rgba(255, 255, 255, 0.85)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1100,
             padding: "20px",
-            backdropFilter: "blur(8px)",
+            backdropFilter: "blur(12px)",
           }}
         >
           <div
             className="animate-scale-in"
             style={{
-              background: "linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)",
-              borderRadius: "var(--radius-xl)",
-              maxWidth: "400px",
+              background: "#fff",
+              borderRadius: "24px",
+              maxWidth: "420px",
               width: "100%",
-              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.06)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: "24px" }}>
+            <div style={{ padding: "32px", textAlign: "center" }}>
+              {/* Warning Icon */}
               <div
                 style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "12px",
-                  marginBottom: "16px",
+                  justifyContent: "center",
+                  margin: "0 auto 20px",
                 }}
               >
-                <div
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#d97706"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <span style={{ fontSize: "14px", color: "#d97706" }}>⚠️</span>
-                </div>
-                <div>
-                  <h3
-                    style={{
-                      fontSize: "var(--text-lg)",
-                      fontWeight: 600,
-                      color: "var(--color-text)",
-                      margin: "0 0 4px",
-                    }}
-                  >
-                    Unsaved changes
-                  </h3>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "var(--text-sm)",
-                      color: "var(--color-muted)",
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    You have unsaved changes that will be lost when rescanning.
-                  </p>
-                </div>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
               </div>
+
+              <h3
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 600,
+                  color: "#1e293b",
+                  margin: "0 0 8px",
+                }}
+              >
+                Unsaved changes
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 24px",
+                  fontSize: "14px",
+                  color: "#64748b",
+                  lineHeight: 1.6,
+                }}
+              >
+                You have unsaved changes that will be lost when rescanning.
+              </p>
 
               <div
                 style={{
                   display: "flex",
-                  gap: "10px",
-                  justifyContent: "flex-end",
-                  marginTop: "20px",
+                  gap: "12px",
+                  justifyContent: "center",
                 }}
               >
                 <button
                   type="button"
                   onClick={() => setShowRescanConfirmDialog(false)}
                   style={{
-                    padding: "8px 18px",
-                    fontSize: "var(--text-sm)",
+                    padding: "12px 24px",
+                    fontSize: "14px",
                     fontWeight: 500,
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid rgba(148, 163, 184, 0.3)",
-                    background: "rgba(255, 255, 255, 0.8)",
-                    color: "var(--color-text)",
+                    borderRadius: "12px",
+                    border: "1px solid #e2e8f0",
+                    background: "#fff",
+                    color: "#475569",
                     cursor: "pointer",
-                    transition: "all var(--transition-fast)",
+                    transition: "all 0.2s ease",
                   }}
                 >
                   Cancel
@@ -4352,16 +4378,15 @@ export default function ProductEditor() {
                     fetcher.submit({ intent: "rescan" }, { method: "POST" })
                   }}
                   style={{
-                    padding: "8px 18px",
-                    fontSize: "var(--text-sm)",
+                    padding: "12px 24px",
+                    fontSize: "14px",
                     fontWeight: 500,
-                    borderRadius: "var(--radius-md)",
+                    borderRadius: "12px",
                     border: "none",
-                    background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    background: "#ef4444",
                     color: "#fff",
                     cursor: "pointer",
-                    transition: "all var(--transition-fast)",
-                    boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)",
+                    transition: "all 0.2s ease",
                   }}
                 >
                   Rescan without saving

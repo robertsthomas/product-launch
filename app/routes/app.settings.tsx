@@ -2425,26 +2425,25 @@ function ProductHistoryModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(17, 24, 39, 0.4)",
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
         padding: "20px",
-        backdropFilter: "blur(4px)",
+        backdropFilter: "blur(12px)",
       }}
       onClick={onClose}
     >
       <div
         className="animate-scale-in"
         style={{
-          backgroundColor: "var(--color-surface)",
-          borderRadius: "var(--radius-xl)",
+          backgroundColor: "#fff",
+          borderRadius: "24px",
           width: "100%",
           maxWidth: "600px",
           maxHeight: "80vh",
-          boxShadow: "var(--shadow-elevated)",
-          border: "1px solid var(--color-border)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -2454,8 +2453,8 @@ function ProductHistoryModal({
         {/* Header */}
         <div
           style={{
-            padding: "24px",
-            borderBottom: "1px solid var(--color-border-subtle)",
+            padding: "24px 28px",
+            borderBottom: "1px solid #f1f5f9",
             background: "transparent",
             display: "flex",
             alignItems: "center",
@@ -2467,15 +2466,15 @@ function ProductHistoryModal({
               style={{
                 margin: 0,
                 fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)",
+                fontSize: "20px",
                 fontWeight: 600,
-                color: "var(--color-text)",
+                color: "#1e293b",
                 letterSpacing: "-0.01em",
               }}
             >
               {productTitle}
             </h2>
-            <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
               Version history for this product
             </p>
           </div>
@@ -2487,18 +2486,20 @@ function ProductHistoryModal({
               border: "none",
               cursor: "pointer",
               padding: "8px",
-              borderRadius: "var(--radius-md)",
-              color: "var(--color-muted)",
+              borderRadius: "10px",
+              color: "#94a3b8",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all var(--transition-fast)",
+              transition: "all 0.2s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--color-surface-strong)"
+              e.currentTarget.style.background = "#f1f5f9"
+              e.currentTarget.style.color = "#64748b"
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent"
+              e.currentTarget.style.color = "#94a3b8"
             }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -2508,9 +2509,9 @@ function ProductHistoryModal({
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 28px" }}>
           {versions.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-muted)" }}>
+            <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
               <svg
                 width="32"
                 height="32"
@@ -2532,9 +2533,9 @@ function ProductHistoryModal({
                   key={version.id}
                   style={{
                     padding: "16px 20px",
-                    borderRadius: "var(--radius-lg)",
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
+                    borderRadius: "16px",
+                    background: "#f8fafc",
+                    border: "1px solid #f1f5f9",
                     display: "flex",
                     alignItems: "flex-start",
                     justifyContent: "space-between",
@@ -2588,27 +2589,27 @@ function ProductHistoryModal({
                     disabled={revertingId === version.id}
                     style={{
                       padding: "10px 18px",
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 600,
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-surface)",
-                      color: "var(--color-text)",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      borderRadius: "10px",
+                      border: "1px solid #e2e8f0",
+                      background: "#fff",
+                      color: "#475569",
                       cursor: revertingId === version.id ? "not-allowed" : "pointer",
                       opacity: revertingId === version.id ? 0.5 : 1,
-                      transition: "all var(--transition-fast)",
+                      transition: "all 0.2s ease",
                       flexShrink: 0,
                       whiteSpace: "nowrap",
                     }}
                     onMouseEnter={(e) => {
                       if (revertingId !== version.id) {
-                        e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"
-                        e.currentTarget.style.borderColor = "var(--color-primary)"
+                        e.currentTarget.style.backgroundColor = "#f8fafc"
+                        e.currentTarget.style.borderColor = "#3b82f6"
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "var(--color-surface)"
-                      e.currentTarget.style.borderColor = "var(--color-border)"
+                      e.currentTarget.style.backgroundColor = "#fff"
+                      e.currentTarget.style.borderColor = "#e2e8f0"
                     }}
                   >
                     {revertingId === version.id ? "Reverting..." : "Revert"}
@@ -2622,8 +2623,8 @@ function ProductHistoryModal({
         {/* Footer */}
         <div
           style={{
-            padding: "20px 24px",
-            borderTop: "1px solid var(--color-border-subtle)",
+            padding: "20px 28px",
+            borderTop: "1px solid #f1f5f9",
             display: "flex",
             justifyContent: "flex-end",
             background: "transparent",
@@ -2633,15 +2634,15 @@ function ProductHistoryModal({
             type="button"
             onClick={onClose}
             style={{
-              padding: "10px 20px",
-              fontSize: "var(--text-sm)",
+              padding: "12px 24px",
+              fontSize: "14px",
               fontWeight: 500,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text)",
+              border: "1px solid #e2e8f0",
+              borderRadius: "12px",
+              backgroundColor: "#fff",
+              color: "#475569",
               cursor: "pointer",
-              transition: "all var(--transition-fast)",
+              transition: "all 0.2s ease",
             }}
           >
             Close

@@ -77,7 +77,9 @@ export const shops = sqliteTable("shops", {
   versionHistoryEnabled: integer("version_history_enabled", { mode: "boolean" }).default(true).notNull(),
   // Tour completion tracking
   tourCompletedAt: integer("tour_completed_at", { mode: "timestamp" }),
-  dashboardTourCompletedAt: integer("dashboard_tour_completed_at", { mode: "timestamp" }),
+  dashboardTourCompletedAt: integer("dashboard_tour_completed_at", {
+    mode: "timestamp",
+  }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => new Date())
     .notNull(),
@@ -95,6 +97,7 @@ export const shopsRelations = relations(shops, ({ many }) => ({
   catalogRules: many(catalogRules),
   scheduledAudits: many(scheduledAudits),
   catalogReports: many(catalogReports),
+  facebookConnections: many(facebookConnections),
 }))
 
 // ============================================
@@ -255,7 +258,9 @@ export const productAuditItems = sqliteTable("product_audit_items", {
   itemId: text("item_id")
     .notNull()
     .references(() => checklistItems.id, { onDelete: "cascade" }),
-  status: text("status", { enum: ["passed", "failed", "auto_fixed"] }).notNull(),
+  status: text("status", {
+    enum: ["passed", "failed", "auto_fixed"],
+  }).notNull(),
   details: text("details"),
   // Fix capabilities from rule result
   canAutoFix: integer("can_auto_fix", { mode: "boolean" }).default(false).notNull(),
@@ -287,7 +292,9 @@ export const productFieldVersions = sqliteTable("product_field_versions", {
   field: text("field").notNull(), // 'title', 'description', 'seoTitle', 'seoDescription', 'tags'
   value: text("value").notNull(), // The field value (JSON string for arrays like tags)
   version: integer("version").default(1).notNull(), // Version number for ordering
-  source: text("source", { enum: ["manual", "ai_generate", "ai_expand", "ai_improve", "ai_replace"] }).notNull(),
+  source: text("source", {
+    enum: ["manual", "ai_generate", "ai_expand", "ai_improve", "ai_replace"],
+  }).notNull(),
   aiModel: text("ai_model"), // The AI model used (e.g. "anthropic/claude-sonnet-4.5", "openai/gpt-4o-mini")
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => new Date())
@@ -401,7 +408,9 @@ export const complianceDrifts = sqliteTable("compliance_drifts", {
   // What changed
   previousValue: text("previous_value"), // JSON stringified
   currentValue: text("current_value"), // JSON stringified
-  ruleId: text("rule_id").references(() => catalogRules.id, { onDelete: "set null" }), // If from custom rule
+  ruleId: text("rule_id").references(() => catalogRules.id, {
+    onDelete: "set null",
+  }), // If from custom rule
   // Resolution
   isResolved: integer("is_resolved", { mode: "boolean" }).default(false).notNull(),
   resolvedAt: integer("resolved_at", { mode: "timestamp" }),
@@ -525,7 +534,9 @@ export const scheduledAudits = sqliteTable("scheduled_audits", {
   notificationEmail: text("notification_email"), // Override default shop email
   // Last run info
   lastRunAt: integer("last_run_at", { mode: "timestamp" }),
-  lastRunStatus: text("last_run_status", { enum: ["success", "failed", "partial"] }),
+  lastRunStatus: text("last_run_status", {
+    enum: ["success", "failed", "partial"],
+  }),
   lastRunProductCount: integer("last_run_product_count"),
   lastRunDriftCount: integer("last_run_drift_count"),
   nextRunAt: integer("next_run_at", { mode: "timestamp" }),
@@ -596,6 +607,53 @@ export const catalogReportsRelations = relations(catalogReports, ({ one }) => ({
   }),
 }))
 
+// ============================================
+// Facebook Connections (for Meta Business API)
+// ============================================
+export const facebookConnections = sqliteTable("facebook_connections", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  shopId: text("shop_id")
+    .notNull()
+    .references(() => shops.id, { onDelete: "cascade" }),
+  // Facebook user info
+  facebookUserId: text("facebook_user_id").notNull(),
+  facebookUserName: text("facebook_user_name"),
+  facebookUserEmail: text("facebook_user_email"),
+  // Access tokens
+  accessToken: text("access_token").notNull(),
+  tokenExpiresAt: integer("token_expires_at", { mode: "timestamp" }),
+  // Long-lived page token (for page access)
+  pageAccessToken: text("page_access_token"),
+  pageId: text("page_id"),
+  pageName: text("page_name"),
+  // Business account info
+  businessAccountId: text("business_account_id"),
+  businessAccountName: text("business_account_name"),
+  // Ad account for accessing ad comments
+  adAccountId: text("ad_account_id"),
+  adAccountName: text("ad_account_name"),
+  // Permissions granted
+  grantedScopes: text("granted_scopes"), // JSON array of scopes
+  // Status
+  isActive: integer("is_active", { mode: "boolean" }).default(true).notNull(),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+})
+
+export const facebookConnectionsRelations = relations(facebookConnections, ({ one }) => ({
+  shop: one(shops, {
+    fields: [facebookConnections.shopId],
+    references: [shops.id],
+  }),
+}))
+
 // Type exports for convenience
 export type Shop = typeof shops.$inferSelect
 export type NewShop = typeof shops.$inferInsert
@@ -619,3 +677,5 @@ export type ScheduledAudit = typeof scheduledAudits.$inferSelect
 export type NewScheduledAudit = typeof scheduledAudits.$inferInsert
 export type CatalogReport = typeof catalogReports.$inferSelect
 export type NewCatalogReport = typeof catalogReports.$inferInsert
+export type FacebookConnection = typeof facebookConnections.$inferSelect
+export type NewFacebookConnection = typeof facebookConnections.$inferInsert

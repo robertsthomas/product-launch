@@ -7,19 +7,45 @@ interface ProductHeaderProps {
   productId: string
 }
 
+function LogoIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
+      <defs>
+        <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#465A54" />
+          <stop offset="100%" stopColor="#3d4e49" />
+        </linearGradient>
+      </defs>
+      {/* Hexagon */}
+      <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" fill="url(#hexGradient)" />
+      {/* Checkmark */}
+      <path
+        d="M12 20L17 25L28 14"
+        stroke="white"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  )
+}
+
 export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
   const navigate = useNavigate()
   const shopify = useAppBridge()
 
   const handleOpenInShopify = async () => {
     try {
-      await shopify.intents.invoke("edit:shopify/Product", {
-        value: productId,
-      })
+      if (shopify && "intents" in shopify) {
+        await (shopify as any).intents.invoke("edit:shopify/Product", {
+          value: productId,
+        })
+      }
     } catch (error) {
       // Fallback to opening in new tab if intents API fails
       const numericId = productId.split("/").pop()
-      const shop = shopify.config?.shop || ""
+      const shop = (shopify as any)?.config?.shop || ""
       window.open(`https://${shop}/admin/products/${numericId}`, "_blank")
     }
   }
@@ -33,12 +59,43 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "16px 32px",
-        borderBottom: "1px solid #e4e4e7",
-        background: "#fff",
+        padding: "8px 24px",
+        borderBottom: "1px solid #f0f4f8",
+        background: "#ffffff",
+        gap: "12px",
+        height: "auto",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          minWidth: 0,
+          flex: 1,
+        }}
+      >
+        {/* Bigger Logo */}
+        <svg width="28" height="28" viewBox="0 0 40 40" fill="none" style={{ flexShrink: 0 }}>
+          <defs>
+            <linearGradient id="hexGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#465A54" />
+              <stop offset="100%" stopColor="#3d4e49" />
+            </linearGradient>
+          </defs>
+          {/* Hexagon */}
+          <path d="M20 2L36 11V29L20 38L4 29V11L20 2Z" fill="url(#hexGradient)" />
+          {/* Checkmark */}
+          <path
+            d="M12 20L17 25L28 14"
+            stroke="white"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </svg>
+
         <button
           type="button"
           onClick={() => navigate("/app")}
@@ -46,53 +103,65 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: "36px",
-            height: "36px",
-            borderRadius: "6px",
-            border: "1px solid #e4e4e7",
-            background: "#fff",
+            width: "28px",
+            height: "28px",
+            borderRadius: "4px",
+            border: "none",
+            background: "transparent",
             cursor: "pointer",
-            color: "#71717a",
+            color: "#475569",
             transition: "all 0.15s",
+            flexShrink: 0,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#f4f4f5"
-            e.currentTarget.style.borderColor = "#d4d4d8"
+            e.currentTarget.style.background = "#f1f5f9"
+            e.currentTarget.style.color = "#1e293b"
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#fff"
-            e.currentTarget.style.borderColor = "#e4e4e7"
+            e.currentTarget.style.background = "transparent"
+            e.currentTarget.style.color = "#475569"
           }}
           aria-label="Back to dashboard"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
 
-        <div>
-          <h1
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
             style={{
-              fontSize: "20px",
-              fontWeight: 600,
-              color: "#18181b",
-              margin: "0 0 2px 0",
               display: "flex",
               alignItems: "center",
-              gap: "10px",
+              gap: "6px",
+              lineHeight: 1.2,
             }}
           >
-            {title}
+            <h1
+              style={{
+                fontSize: "15px",
+                fontWeight: 600,
+                color: "#0f172a",
+                margin: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {title}
+            </h1>
             {audit?.status === "ready" ? (
               <span
                 style={{
-                  padding: "2px 8px",
-                  borderRadius: "4px",
+                  padding: "1px 6px",
+                  borderRadius: "2px",
                   background: "#ecfdf5",
                   color: "#059669",
-                  fontSize: "11px",
+                  fontSize: "10px",
                   fontWeight: 500,
                   border: "1px solid #a7f3d0",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 Ready
@@ -100,20 +169,21 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
             ) : (
               <span
                 style={{
-                  padding: "2px 8px",
-                  borderRadius: "4px",
+                  padding: "1px 6px",
+                  borderRadius: "2px",
                   background: "#fef9e7",
                   color: "#8B7500",
-                  fontSize: "11px",
+                  fontSize: "10px",
                   fontWeight: 500,
                   border: "1px solid #fde68a",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 Needs Work
               </span>
             )}
-          </h1>
-          <p style={{ margin: 0, fontSize: "13px", color: "#71717a" }}>Product details and optimization</p>
+          </div>
         </div>
       </div>
 
@@ -121,29 +191,31 @@ export function ProductHeader({ title, audit, productId }: ProductHeaderProps) {
         type="button"
         onClick={handleOpenInShopify}
         style={{
-          padding: "8px 14px",
-          fontSize: "13px",
+          padding: "5px 10px",
+          fontSize: "12px",
           fontWeight: 500,
-          border: "1px solid #e4e4e7",
-          borderRadius: "6px",
+          border: "1px solid #e2e8f0",
+          borderRadius: "4px",
           background: "#fff",
-          color: "#18181b",
+          color: "#0f172a",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          gap: "6px",
+          gap: "4px",
           transition: "all 0.15s",
+          flexShrink: 0,
+          whiteSpace: "nowrap",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "#f4f4f5"
-          e.currentTarget.style.borderColor = "#d4d4d8"
+          e.currentTarget.style.background = "#f8fafc"
+          e.currentTarget.style.borderColor = "#cbd5e1"
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = "#fff"
-          e.currentTarget.style.borderColor = "#e4e4e7"
+          e.currentTarget.style.borderColor = "#e2e8f0"
         }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
           <polyline points="15 3 21 3 21 9" />
           <line x1="10" y1="14" x2="21" y2="3" />

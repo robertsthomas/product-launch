@@ -34,11 +34,11 @@ export function ProductMediaCard({
     <div
       id="section-images"
       style={{
-        padding: "16px",
-        border: "1px solid #e4e4e7",
-        borderRadius: "12px",
+        padding: "24px",
+        border: "1px solid #e5e7eb",
+        borderRadius: "16px",
         backgroundColor: "#fff",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
       }}
     >
       <div style={{ marginBottom: "12px" }}>

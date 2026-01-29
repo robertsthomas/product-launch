@@ -29,6 +29,7 @@ interface ProductChecklistCardProps {
   onItemClick: (key: string) => void
   onAutoFixCollection: () => void
   onChooseCollection: () => void
+  onOpenInShopify?: () => void
 }
 
 // Group checklist items by category
@@ -65,6 +66,7 @@ export function ProductChecklistCard({
   onItemClick,
   onAutoFixCollection,
   onChooseCollection,
+  onOpenInShopify,
 }: ProductChecklistCardProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
     // Auto-expand categories with failed items
@@ -132,11 +134,11 @@ export function ProductChecklistCard({
   return (
     <div
       style={{
-        border: "1px solid #e4e4e7",
-        borderRadius: "12px",
+        border: "1px solid #e5e7eb",
+        borderRadius: "16px",
         backgroundColor: "#fff",
         overflow: "hidden",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
       }}
     >
       {/* Action Buttons */}
@@ -144,9 +146,9 @@ export function ProductChecklistCard({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "8px",
-          padding: "16px",
-          borderBottom: "1px solid #e4e4e7",
+          gap: "10px",
+          padding: "20px",
+          borderBottom: "1px solid #e5e7eb",
         }}
       >
         <button
@@ -232,7 +234,14 @@ export function ProductChecklistCard({
       <div style={{ padding: "20px", borderBottom: "1px solid #e4e4e7" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           {/* Circular Progress */}
-          <div style={{ position: "relative", width: "64px", height: "64px", flexShrink: 0 }}>
+          <div
+            style={{
+              position: "relative",
+              width: "64px",
+              height: "64px",
+              flexShrink: 0,
+            }}
+          >
             <svg width="64" height="64" style={{ transform: "rotate(-90deg)" }}>
               <circle cx="32" cy="32" r="28" fill="none" stroke="#e4e4e7" strokeWidth="6" />
               <circle
@@ -264,7 +273,14 @@ export function ProductChecklistCard({
 
           {/* Score Label */}
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "#18181b", marginBottom: "2px" }}>
+            <div
+              style={{
+                fontSize: "14px",
+                fontWeight: 600,
+                color: "#18181b",
+                marginBottom: "2px",
+              }}
+            >
               Product Health
             </div>
             <div style={{ fontSize: "12px", color: "#71717a" }}>
@@ -297,12 +313,19 @@ export function ProductChecklistCard({
                   alignItems: "center",
                   justifyContent: "space-between",
                   width: "100%",
-                  padding: "8px 10px",
-                  borderRadius: "6px",
-                  background: "transparent",
+                  padding: "12px 16px",
+                  borderRadius: "10px",
+                  background: isExpanded ? "var(--color-surface-strong)" : "transparent",
                   border: "none",
                   cursor: "pointer",
-                  transition: "all 0.15s",
+                  transition: "all 0.2s ease",
+                  marginBottom: "4px",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isExpanded) e.currentTarget.style.background = "var(--color-surface-strong)"
+                }}
+                onMouseLeave={(e) => {
+                  if (!isExpanded) e.currentTarget.style.background = "transparent"
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -313,7 +336,10 @@ export function ProductChecklistCard({
                     fill="none"
                     stroke="#71717a"
                     strokeWidth="2"
-                    style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                    style={{
+                      transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s",
+                    }}
                   >
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
@@ -367,11 +393,18 @@ export function ProductChecklistCard({
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
-                          padding: "6px 8px",
-                          borderRadius: "6px",
+                          gap: "10px",
+                          padding: "10px 12px",
+                          borderRadius: "8px",
                           background: "transparent",
                           width: "100%",
+                          transition: "background 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "var(--color-surface-strong)"
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "transparent"
                         }}
                       >
                         <button
@@ -491,12 +524,54 @@ export function ProductChecklistCard({
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            style={{ animation: isRescanning ? "spin 1s linear infinite" : "none" }}
+            style={{
+              animation: isRescanning ? "spin 1s linear infinite" : "none",
+            }}
           >
             <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
           </svg>
           {isRescanning ? "Rescanning..." : "Rescan"}
         </button>
+
+        {/* Open in Shopify Button */}
+        {onOpenInShopify && (
+          <button
+            type="button"
+            onClick={onOpenInShopify}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              fontSize: "12px",
+              fontWeight: 500,
+              border: "1px solid #e4e4e7",
+              borderRadius: "6px",
+              background: "#fff",
+              color: "#71717a",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              marginTop: "8px",
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#d4d4d8"
+              e.currentTarget.style.color = "#18181b"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#e4e4e7"
+              e.currentTarget.style.color = "#71717a"
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Open in Shopify
+          </button>
+        )}
       </div>
     </div>
   )

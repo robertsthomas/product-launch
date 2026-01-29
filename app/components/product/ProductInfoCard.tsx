@@ -44,12 +44,12 @@ export function ProductInfoCard({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "16px",
-        padding: "16px",
-        border: "1px solid #e4e4e7",
-        borderRadius: "12px",
+        gap: "20px",
+        padding: "24px",
+        border: "1px solid #e5e7eb",
+        borderRadius: "16px",
         backgroundColor: "#fff",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
       }}
     >
       {/* Header with thumbnail */}
@@ -59,11 +59,11 @@ export function ProductInfoCard({
           style={{
             width: "64px",
             height: "64px",
-            borderRadius: "8px",
+            borderRadius: "12px",
             overflow: "hidden",
-            backgroundColor: "#f4f4f5",
+            backgroundColor: "#f9fafb",
             flexShrink: 0,
-            border: "1px solid #e4e4e7",
+            border: "1px solid #e5e7eb",
           }}
         >
           {product.featuredImage ? (
