@@ -1,15 +1,22 @@
+import { eq } from "drizzle-orm"
 import { useAppBridge } from "@shopify/app-bridge-react"
 import { boundary } from "@shopify/shopify-app-react-router/server"
 import confetti from "canvas-confetti"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
-import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router"
+import { useFetcher, useLoaderData, useNavigate, useOutletContext, useRevalidator } from "react-router"
+import { db } from "../db"
+import { shops } from "../db/schema"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { PRODUCTS_LIST_QUERY } from "../lib/checklist"
 import { auditProduct, getDashboardStats, getShopAudits } from "../lib/services"
 import { getDriftSummary } from "../lib/services/monitoring.server"
 import { initializeShop } from "../lib/services/shop.server"
 import { authenticate } from "../shopify.server"
+import { CircularProgress } from "../components/dashboard/CircularProgress"
+import { DashboardTour } from "../components/dashboard/DashboardTour"
+import { BulkGenerateAllModal } from "../components/modals/BulkGenerateAllModal"
+import { BulkProgressModal } from "../components/modals/BulkProgressModal"
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request)
@@ -52,6 +59,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     stats,
     plan,
     monitoring,
+    celebratedAt: shopRecord.celebratedAt ? shopRecord.celebratedAt.toISOString() : null,
     audits: audits.map((audit) => ({
       id: audit.id,
       productId: audit.productId,
@@ -120,1579 +128,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { success: true, scanned }
   }
 
+  if (intent === "mark_celebrated") {
+    await db.update(shops).set({ celebratedAt: new Date() }).where(eq(shops.shopDomain, shop))
+    return { success: true }
+  }
+
   return { success: false }
-}
-
-// ============================================
-// Circular Progress Component
-// ============================================
-
-function _CircularProgress({
-  percent,
-  size = 140,
-  strokeWidth = 8,
-}: {
-  percent: number
-  size?: number
-  strokeWidth?: number
-}) {
-  const radius = (size - strokeWidth) / 2
-  const circumference = radius * 2 * Math.PI
-  const offset = circumference - (percent / 100) * circumference
-  const isComplete = percent === 100
-
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      {/* Main progress ring */}
-      <svg width={size} height={size} className="-rotate-90 transform-gpu" aria-hidden="true">
-        {/* Track - subtle gray */}
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={strokeWidth} />
-        {/* Progress fill */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={isComplete ? "#10b981" : "#3b82f6"}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          className="transition-all duration-1000 ease-out"
-        />
-      </svg>
-
-      {/* Center content */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
-        <span
-          className="font-bold tabular-nums"
-          style={{
-            fontSize: size * 0.22,
-            color: isComplete ? "#10b981" : "#1f2937",
-            letterSpacing: "-0.03em",
-            lineHeight: 1,
-          }}
-        >
-          {percent}%
-        </span>
-      </div>
-
-      {/* Elegant completion celebration */}
-      {isComplete && (
-        <>
-          {/* Subtle pulsing ring */}
-          <div
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              border: "2px solid #10b981",
-              animation: "pulse-ring 2s ease-out infinite",
-              opacity: 0.5,
-            }}
-          />
-
-          {/* Soft glow effect */}
-          <div
-            className="absolute inset-0 rounded-full pointer-events-none"
-            style={{
-              boxShadow: "0 0 0 2px rgba(16, 185, 129, 0.15)",
-              animation: "pulse-glow 2s ease-in-out infinite",
-            }}
-          />
-        </>
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// Bulk Progress Modal Component
-// ============================================
-
-function BulkProgressModal({
-  isOpen,
-  actionType,
-  totalCount,
-  completedCount,
-  currentProductTitle,
-  onStop,
-}: {
-  isOpen: boolean
-  actionType: string
-  totalCount: number
-  completedCount: number
-  currentProductTitle: string | null
-  onStop: () => void
-}) {
-  if (!isOpen) return null
-
-  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-  const remainingCount = totalCount - completedCount
-
-  const actionLabels: Record<string, string> = {
-    generate_tags: "Generating tags",
-    generate_seo_desc: "Generating SEO",
-    apply_collection: "Adding to collection",
-    autofix: "Running autofix",
-    generate_all: "Generating all fields",
-  }
-  const label = actionLabels[actionType] || "Processing"
-
-  return (
-    <div className="modal-backdrop">
-      <div className="modal-container" style={{ width: "min(460px, 90%)", gap: "18px" }}>
-        <div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "12px",
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              color: "#6b7280",
-            }}
-          >
-            {label}
-          </p>
-          <h3 style={{ margin: "6px 0 0", fontSize: "20px", fontWeight: 600, color: "#111827" }}>
-            {completedCount} of {totalCount} products
-          </h3>
-        </div>
-
-        <div
-          style={{
-            height: "8px",
-            borderRadius: "999px",
-            background: "#e5e7eb",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${progress}%`,
-              height: "100%",
-              background: "#111827",
-              transition: "width 0.3s ease",
-            }}
-          />
-        </div>
-
-        {currentProductTitle && (
-          <div style={{ fontSize: "14px", color: "#374151" }}>
-            <strong style={{ color: "#111827" }}>Processing</strong> · {currentProductTitle}
-          </div>
-        )}
-
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#6b7280" }}>
-          <span>Remaining</span>
-          <span>{remainingCount} in queue</span>
-        </div>
-
-        <button
-          type="button"
-          onClick={onStop}
-          style={{
-            width: "100%",
-            padding: "12px 18px",
-            borderRadius: "10px",
-            border: "1px solid rgba(15, 23, 42, 0.1)",
-            background: "#fafafa",
-            fontSize: "14px",
-            fontWeight: 600,
-            color: "#111827",
-            cursor: "pointer",
-            transition: "background 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#f3f4f6"
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#fafafa"
-          }}
-        >
-          Stop processing
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// Bulk Generate All Modal Component
-// ============================================
-
-function BulkGenerateAllModal({
-  isOpen,
-  onClose,
-  selectedFields,
-  onFieldToggle,
-  onGenerate,
-  isGenerating,
-  fieldOptions,
-  setFieldOptions,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  selectedFields: string[]
-  onFieldToggle: (field: string) => void
-  onGenerate: () => void
-  isGenerating: boolean
-  fieldOptions: Record<string, string[]>
-  setFieldOptions: React.Dispatch<React.SetStateAction<Record<string, string[]>>>
-}) {
-  const [expandedFields, setExpandedFields] = useState<Record<string, boolean>>({})
-
-  if (!isOpen) return null
-
-  const fields = [
-    { key: "title", label: "Title" },
-    { key: "description", label: "Description" },
-    { key: "tags", label: "Tags" },
-    { key: "seoTitle", label: "SEO Title" },
-    { key: "seoDescription", label: "Meta Description" },
-    {
-      key: "images",
-      label: "Images",
-      hasOptions: true,
-      options: [
-        { key: "image", label: "Generate Image" },
-        { key: "alt", label: "Generate Alt Text" },
-      ],
-    },
-  ]
-
-  const toggleExpand = (fieldKey: string) => {
-    setExpandedFields((prev) => ({
-      ...prev,
-      [fieldKey]: !prev[fieldKey],
-    }))
-  }
-
-  // Check if any fields are selected (either in selectedFields or fieldOptions)
-  const hasSelectedFields = selectedFields.length > 0
-  const hasFieldOptions = Object.values(fieldOptions).some((options) => options.length > 0)
-  const canGenerate = hasSelectedFields || hasFieldOptions
-
-  return (
-    <div className="modal-backdrop" onClick={onClose} tabIndex={-1} role="presentation">
-      <div className="modal-container animate-scale-in" style={{ maxWidth: "500px", maxHeight: "70vh" }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="modal-header" style={{ padding: "24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-              fontSize: "18px",
-              fontWeight: 600,
-              color: "#111827",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Generate All Fields
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "8px",
-              borderRadius: "var(--radius-md)",
-              color: "#6b7280",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content - Scrollable list */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "0",
-            backgroundColor: "#ffffff",
-          }}
-        >
-          {fields.map((field, idx) => (
-            <div key={field.key}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (field.hasOptions) {
-                    toggleExpand(field.key)
-                    if (!fieldOptions[field.key] && field.options) {
-                      setFieldOptions((prev) => ({
-                        ...prev,
-                        [field.key]: field.options?.map((opt) => opt.key) || [],
-                      }))
-                    }
-                  } else {
-                    onFieldToggle(field.key)
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "16px 20px",
-                  border: "none",
-                  borderBottom: idx < fields.length - 1 ? "1px solid #e5e7eb" : "none",
-                  background: (
-                    field.hasOptions
-                      ? (fieldOptions[field.key]?.length || 0) > 0
-                      : selectedFields.includes(field.key)
-                  )
-                    ? "rgba(31, 79, 216, 0.08)"
-                    : "#ffffff",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  const isSelected = field.hasOptions
-                    ? (fieldOptions[field.key]?.length || 0) > 0
-                    : selectedFields.includes(field.key)
-                  if (!isSelected) {
-                    e.currentTarget.style.background = "#f9fafb"
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const isSelected = field.hasOptions
-                    ? (fieldOptions[field.key]?.length || 0) > 0
-                    : selectedFields.includes(field.key)
-                  e.currentTarget.style.background = isSelected ? "rgba(31, 79, 216, 0.08)" : "#ffffff"
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    flex: 1,
-                    textAlign: "left",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={
-                      field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)
-                    }
-                    onChange={(e) => {
-                      e.stopPropagation()
-                      if (field.hasOptions) {
-                        const currentOptions = fieldOptions[field.key] || []
-                        const allOptions = field.options?.map((opt) => opt.key) || []
-                        if (currentOptions.length > 0) {
-                          setFieldOptions((prev) => ({
-                            ...prev,
-                            [field.key]: [],
-                          }))
-                        } else {
-                          setFieldOptions((prev) => ({
-                            ...prev,
-                            [field.key]: allOptions,
-                          }))
-                        }
-                      } else {
-                        onFieldToggle(field.key)
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      width: "16px",
-                      height: "16px",
-                      accentColor: "#1f4fd8",
-                      cursor: "pointer",
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 500,
-                      color: "#111827",
-                    }}
-                  >
-                    {field.label}
-                  </span>
-                </div>
-                {field.hasOptions && (
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    style={{
-                      transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.15s ease",
-                      color: "#6b7280",
-                    }}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Expanded options for fields with multiple choices */}
-              {expandedFields[field.key] && field.hasOptions && field.options && (
-                <div
-                  style={{
-                    padding: "12px 20px 16px 48px",
-                    backgroundColor: "#f9fafb",
-                    borderBottom: "1px solid #e5e7eb",
-                  }}
-                >
-                  <div
-                    style={{
-                      marginBottom: "8px",
-                      fontSize: "12px",
-                      fontWeight: 500,
-                      color: "#6b7280",
-                    }}
-                  >
-                    Choose what to generate:
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {field.options.map((option) => (
-                      <label
-                        key={option.key}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          color: "#111827",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={fieldOptions[field.key]?.includes(option.key) || false}
-                          onChange={(e) => {
-                            const currentOptions = fieldOptions[field.key] || []
-                            if (e.target.checked) {
-                              setFieldOptions((prev) => ({
-                                ...prev,
-                                [field.key]: [...currentOptions, option.key],
-                              }))
-                            } else {
-                              setFieldOptions((prev) => ({
-                                ...prev,
-                                [field.key]: currentOptions.filter((opt) => opt !== option.key),
-                              }))
-                            }
-                          }}
-                          style={{
-                            width: "14px",
-                            height: "14px",
-                            accentColor: "#1f4fd8",
-                            cursor: "pointer",
-                          }}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: "20px 24px",
-            borderTop: "1px solid #f3f4f6",
-            display: "flex",
-            gap: "12px",
-            justifyContent: "space-between",
-            alignItems: "center",
-            backgroundColor: "#ffffff",
-          }}
-        >
-          {/* Select All / Deselect All */}
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedFields.length === fields.length) {
-                selectedFields.forEach((key) => onFieldToggle(key))
-              } else {
-                fields.forEach((field) => {
-                  if (!selectedFields.includes(field.key)) {
-                    onFieldToggle(field.key)
-                  }
-                })
-              }
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 16px",
-              fontSize: "14px",
-              fontWeight: 500,
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              backgroundColor: "#ffffff",
-              color: "#111827",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#f9fafb"
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#ffffff"
-            }}
-          >
-            {selectedFields.length === fields.length ? "Deselect All" : "Select All"}
-          </button>
-
-          <div style={{ display: "flex", gap: "12px" }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isGenerating}
-              style={{
-                padding: "10px 20px",
-                fontSize: "14px",
-                fontWeight: 500,
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                backgroundColor: "#ffffff",
-                color: "#111827",
-                cursor: isGenerating ? "not-allowed" : "pointer",
-                opacity: isGenerating ? 0.5 : 1,
-                transition: "all 0.15s ease",
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={isGenerating || !canGenerate}
-              style={{
-                padding: "10px 20px",
-                fontSize: "14px",
-                fontWeight: 500,
-                border: "none",
-                borderRadius: "8px",
-                backgroundColor: isGenerating || !canGenerate ? "#f3f4f6" : "#1f4fd8",
-                color: isGenerating || !canGenerate ? "#9ca3af" : "#ffffff",
-                cursor: isGenerating || !canGenerate ? "not-allowed" : "pointer",
-                opacity: isGenerating ? 0.7 : 1,
-                transition: "all 0.15s ease",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-              onMouseEnter={(e) => {
-                if (!isGenerating && canGenerate) {
-                  e.currentTarget.style.backgroundColor = "#1a43b8"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (canGenerate && !isGenerating) {
-                  e.currentTarget.style.backgroundColor = "#1f4fd8"
-                }
-              }}
-            >
-              {isGenerating ? (
-                <>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    style={{ animation: "spin 1s linear infinite" }}
-                  >
-                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                  </svg>
-                  Generating...
-                </>
-              ) : (
-                "Generate"
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// Stat Card Component
-// ============================================
-
-function _StatCard({
-  icon,
-  label,
-  value,
-  variant = "default",
-  delay = 0,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number
-  variant?: "default" | "success" | "warning"
-  delay?: number
-}) {
-  const colors = {
-    default: {
-      iconBg: "var(--color-surface-strong)",
-      iconColor: "var(--color-text-secondary)",
-      valueColor: "var(--color-text)",
-    },
-    success: {
-      iconBg: "var(--color-success-soft)",
-      iconColor: "var(--color-success)",
-      valueColor: "var(--color-success)",
-    },
-    warning: {
-      iconBg: "var(--color-warning-soft)",
-      iconColor: "var(--color-warning)",
-      valueColor: "var(--color-warning)",
-    },
-  }
-
-  const c = colors[variant]
-
-  return (
-    <div
-      className="card animate-fade-in-up"
-      style={{
-        padding: "16px",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-        animationDelay: `${delay}ms`,
-        animationFillMode: "both",
-      }}
-    >
-      <div
-        style={{
-          width: "40px",
-          height: "40px",
-          borderRadius: "var(--radius-sm)",
-          background: c.iconBg,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: c.iconColor,
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div
-          style={{
-            fontSize: "var(--text-xs)",
-            color: "var(--color-muted)",
-            marginBottom: "2px",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            fontWeight: 500,
-          }}
-        >
-          {label}
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-heading)",
-            fontSize: "var(--text-2xl)",
-            fontWeight: 600,
-            color: c.valueColor,
-          }}
-        >
-          {value}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// Product Row Component
-// ============================================
-
-function _ProductRow({
-  audit,
-  onClick,
-  delay = 0,
-  isSelected = false,
-  onToggleSelect,
-  isGenerating = false,
-}: {
-  audit: {
-    id: string
-    productId: string
-    productTitle: string
-    productImage: string | null
-    status: string
-    passedCount: number
-    failedCount: number
-    totalCount: number
-  }
-  onClick: () => void
-  delay?: number
-  isSelected?: boolean
-  onToggleSelect?: () => void
-  isGenerating?: boolean
-}) {
-  const [isHovered, setIsHovered] = useState(false)
-  const [showDropdown, setShowDropdown] = useState(false)
-  const progressPercent = Math.round((audit.passedCount / audit.totalCount) * 100)
-
-  return (
-    <div
-      className="animate-fade-in-up"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        animationDelay: `${delay}ms`,
-        animationFillMode: "both",
-      }}
-    >
-      {/* Selection Checkbox - always takes space, fades in/out */}
-      {onToggleSelect && (
-        <div
-          style={{
-            width: "20px",
-            height: "20px",
-            flexShrink: 0,
-            opacity: isHovered || isSelected ? 1 : 0,
-            transition: "opacity 0.15s ease",
-          }}
-        >
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              width: "20px",
-              height: "20px",
-              borderRadius: "5px",
-              background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
-              border: isSelected ? "none" : "1.5px solid var(--color-border)",
-              transition: "all 0.15s ease",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={onToggleSelect}
-              style={{
-                position: "absolute",
-                opacity: 0,
-                width: 0,
-                height: 0,
-              }}
-            />
-            {isSelected && (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            )}
-          </label>
-        </div>
-      )}
-      <button
-        type="button"
-        onClick={onClick}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "14px",
-          padding: "12px 16px",
-          cursor: "pointer",
-          background: isSelected
-            ? "var(--color-primary-soft)"
-            : isHovered
-              ? "var(--color-surface-elevated)"
-              : "var(--color-surface)",
-          border: isSelected ? "1px solid rgba(31, 79, 216, 0.25)" : "1px solid var(--color-border)",
-          borderRadius: "12px",
-          transition: "all 0.15s ease",
-          boxShadow: isHovered && !isSelected ? "0 2px 8px rgba(0,0,0,0.04)" : "none",
-          flex: 1,
-          textAlign: "left",
-          fontFamily: "inherit",
-        }}
-      >
-        {/* Product Image */}
-        <div
-          style={{
-            width: "44px",
-            height: "44px",
-            borderRadius: "8px",
-            overflow: "hidden",
-            backgroundColor: "var(--color-surface-strong)",
-            flexShrink: 0,
-          }}
-        >
-          {audit.productImage ? (
-            <img
-              src={audit.productImage}
-              alt={audit.productTitle}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-subtle)",
-                fontSize: "20px",
-              }}
-            >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                aria-hidden="true"
-              >
-                <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            </div>
-          )}
-        </div>
-
-        {/* Product Info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              marginBottom: "4px",
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 500,
-                fontSize: "14px",
-                color: "var(--color-text)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {audit.productTitle}
-            </div>
-            {isGenerating && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <div
-                  style={{
-                    width: "16px",
-                    height: "16px",
-                    border: "2px solid #1f4fd8",
-                    borderRightColor: "transparent",
-                    borderRadius: "50%",
-                    animation: "spin 1s linear infinite",
-                  }}
-                />
-              </div>
-            )}
-          </div>
-          {/* Mini progress bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div
-              className="hide-on-mobile"
-              style={{
-                width: "80px",
-                height: "3px",
-                background: "var(--color-surface-strong)",
-                borderRadius: "2px",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${progressPercent}%`,
-                  height: "100%",
-                  background: audit.status === "ready" ? "var(--color-success)" : "var(--color-primary)",
-                  borderRadius: "2px",
-                  transition: "width 0.3s ease",
-                }}
-              />
-            </div>
-            <span
-              className="hide-on-mobile"
-              style={{
-                fontSize: "12px",
-                color: "var(--color-muted)",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {audit.passedCount}/{audit.totalCount}
-            </span>
-          </div>
-        </div>
-
-        {/* Status Badge */}
-        <div
-          className="hide-on-tablet"
-          style={{
-            padding: "5px 10px",
-            borderRadius: "6px",
-            fontSize: "12px",
-            fontWeight: 500,
-            backgroundColor: audit.status === "ready" ? "rgba(34, 197, 94, 0.1)" : "rgba(251, 191, 36, 0.1)",
-            color: audit.status === "ready" ? "#16a34a" : "#d97706",
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          {audit.status === "ready" ? (
-            <>
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-              <span className="hide-on-mobile">Ready</span>
-            </>
-          ) : (
-            <>
-              <span className="hide-on-mobile">{audit.failedCount} to fix</span>
-              <span className="show-on-mobile-only">{audit.failedCount}</span>
-            </>
-          )}
-        </div>
-
-        {/* Quick Actions Dropdown - Show when selected */}
-        {isSelected && (
-          <div style={{ position: "relative" }}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowDropdown(!showDropdown)
-              }}
-              style={{
-                width: "24px",
-                height: "24px",
-                padding: 0,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-text)",
-                flexShrink: 0,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-
-            {/* Dropdown Menu */}
-            {showDropdown && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "100%",
-                  right: "0",
-                  marginTop: "4px",
-                  background: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  zIndex: 1000,
-                  minWidth: "180px",
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClick()
-                    setShowDropdown(false)
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    border: "none",
-                    background: "transparent",
-                    color: "var(--color-text)",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "background var(--transition-fast)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--color-surface-strong)"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent"
-                  }}
-                >
-                  📝 View Details
-                </button>
-                {audit.failedCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Navigate to dashboard
-                      setShowDropdown(false)
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "10px 14px",
-                      border: "none",
-                      borderTop: "1px solid var(--color-border)",
-                      background: "transparent",
-                      color: "var(--color-primary)",
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition: "background var(--transition-fast)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--color-primary-soft)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    ⚡ Quick Fix
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Arrow */}
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          aria-hidden="true"
-          style={{
-            color: "var(--color-subtle)",
-            transition: "all 0.15s ease",
-            transform: isHovered ? "translateX(2px)" : "translateX(0)",
-            opacity: isHovered ? 1 : 0.5,
-            flexShrink: 0,
-          }}
-        >
-          <path d="M9 18l6-6-6-6" />
-        </svg>
-      </button>
-    </div>
-  )
-}
-
-// ============================================
-// Empty State Component
-// ============================================
-
-function _EmptyState({
-  title,
-  description,
-  action,
-}: {
-  title: string
-  description: string
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="empty-state">
-      <div
-        style={{
-          width: "80px",
-          height: "80px",
-          borderRadius: "50%",
-          background: "var(--color-surface-strong)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: "20px",
-        }}
-      >
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--color-muted)"
-          strokeWidth="1.5"
-          aria-hidden="true"
-        >
-          <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
-      </div>
-      <div className="empty-state-title">{title}</div>
-      <div className="empty-state-text">{description}</div>
-      {action && <div style={{ marginTop: "20px" }}>{action}</div>}
-    </div>
-  )
-}
-
-// ============================================
-// Main Dashboard Component
-// ============================================
-
-// ============================================
-// Dashboard Tour Component (Interactive inline tooltips)
-// ============================================
-
-function DashboardTour({
-  isOpen,
-  onClose,
-}: {
-  isOpen: boolean
-  onClose: () => void
-}) {
-  const [step, setStep] = useState(0)
-
-  const steps: Array<{
-    target: string
-    title: string
-    description: string
-    position: "top" | "bottom" | "left" | "right"
-  }> = [
-    {
-      target: "data-tour-products-table",
-      title: "Your Product Catalog",
-      description:
-        "This is your product dashboard. Each row shows a product's launch readiness with status badges and completion scores.",
-      position: "right",
-    },
-    {
-      target: "data-tour-expand-row",
-      title: "Expand for Details",
-      description: "Select a product to see detailed analytics, category breakdowns, and quick actions.",
-      position: "right",
-    },
-    {
-      target: "data-tour-status-score",
-      title: "Status & Scores",
-      description: "Green = Launch Ready. The percentage shows completion. Higher scores mean better optimization.",
-      position: "bottom",
-    },
-    {
-      target: "data-tour-sync-button",
-      title: "Keep Data Fresh",
-      description: "Click Sync to scan all products and update scores. Stays current with your Shopify changes.",
-      position: "bottom",
-    },
-  ]
-
-  const currentStep = steps[step]
-  const isLastStep = step === steps.length - 1
-
-  // Get target element position
-  const [tooltipPosition, setTooltipPosition] = useState({
-    top: 0,
-    left: 0,
-    show: false,
-    actualPosition: "bottom" as "top" | "bottom" | "left" | "right",
-  })
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const updatePosition = () => {
-      const element = document.querySelector(`[${currentStep.target}]`)
-      if (element) {
-        const rect = element.getBoundingClientRect()
-        const tooltipWidth = 360
-        const tooltipHeight = 200
-        const spacing = 16
-
-        let top = 0
-        let left = 0
-        let actualPosition = currentStep.position
-        const headerOffset = 140 // Account for sticky headers
-
-        switch (currentStep.position) {
-          case "bottom":
-            top = rect.bottom + spacing
-            left = rect.left + rect.width / 2 - tooltipWidth / 2
-            break
-          case "right":
-            top = rect.top + rect.height / 2 - tooltipHeight / 2
-            left = rect.right + spacing
-            break
-          case "top":
-            top = rect.top - tooltipHeight - spacing
-            left = rect.left + rect.width / 2 - tooltipWidth / 2
-            break
-          case "left":
-            top = rect.top + rect.height / 2 - tooltipHeight / 2
-            left = rect.left - tooltipWidth - spacing
-            break
-        }
-
-        // Keep within viewport horizontally
-        if (left < 10) left = 10
-        if (left + tooltipWidth > window.innerWidth - 10) {
-          left = window.innerWidth - tooltipWidth - 10
-        }
-
-        // Keep within viewport vertically (account for sticky header)
-        if (top < headerOffset) {
-          // If it goes off top, try bottom
-          if (currentStep.position === "top" || currentStep.position === "bottom") {
-            top = rect.bottom + spacing
-            actualPosition = "bottom"
-          } else {
-            top = headerOffset
-          }
-        }
-
-        if (top + tooltipHeight > window.innerHeight - 10) {
-          // If it goes off bottom, try top
-          if (currentStep.position === "bottom" || currentStep.position === "top") {
-            const newTop = rect.top - tooltipHeight - spacing
-            if (newTop >= headerOffset) {
-              top = newTop
-              actualPosition = "top"
-            } else {
-              top = window.innerHeight - tooltipHeight - 10
-            }
-          } else {
-            top = window.innerHeight - tooltipHeight - 10
-          }
-        }
-
-        // Final safety check
-        if (top < headerOffset) top = headerOffset
-
-        setTooltipPosition({ top, left, show: true, actualPosition })
-
-        // Highlight element
-        element.setAttribute("data-tour-active", "true")
-      } else {
-        setTooltipPosition({
-          top: 0,
-          left: 0,
-          show: false,
-          actualPosition: "bottom",
-        })
-      }
-    }
-
-    updatePosition()
-    window.addEventListener("resize", updatePosition)
-    window.addEventListener("scroll", updatePosition)
-
-    return () => {
-      window.removeEventListener("resize", updatePosition)
-      window.removeEventListener("scroll", updatePosition)
-      // Remove highlight
-      const elements = document.querySelectorAll("[data-tour-active]")
-      for (let i = 0; i < elements.length; i++) {
-        elements[i].removeAttribute("data-tour-active")
-      }
-    }
-  }, [isOpen, currentStep.target, currentStep.position])
-
-  if (!isOpen || !tooltipPosition.show) return null
-
-  return (
-    <>
-      {/* Tooltip */}
-      <div
-        style={{
-          position: "fixed",
-          top: tooltipPosition.top,
-          left: tooltipPosition.left,
-          width: "360px",
-          zIndex: 1001,
-          animation: "tooltipFadeIn 0.3s ease",
-        }}
-      >
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: "10px",
-            border: "2px solid #465A54",
-            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.15)",
-            overflow: "hidden",
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              padding: "16px",
-              background: "#fafbfc",
-              borderBottom: "1px solid #e4e4e7",
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 4px",
-                fontSize: "15px",
-                fontWeight: 600,
-                color: "#252F2C",
-              }}
-            >
-              {currentStep.title}
-            </h3>
-            <div style={{ fontSize: "11px", color: "#8B8B8B" }}>
-              Step {step + 1} of {steps.length}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div style={{ padding: "16px" }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "13px",
-                lineHeight: 1.5,
-                color: "#52525b",
-              }}
-            >
-              {currentStep.description}
-            </p>
-          </div>
-
-          {/* Footer */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "12px 16px",
-              borderTop: "1px solid #f4f4f5",
-              background: "#fafbfc",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem("dashboard", "true")
-                onClose()
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: "12px",
-                fontWeight: 500,
-                color: "#8B8B8B",
-                cursor: "pointer",
-                transition: "color 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#252F2C"
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#8B8B8B"
-              }}
-            >
-              Skip
-            </button>
-
-            <div style={{ display: "flex", gap: "6px" }}>
-              {step > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setStep((s) => s - 1)}
-                  style={{
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    border: "1px solid #e4e4e7",
-                    borderRadius: "5px",
-                    background: "#fff",
-                    color: "#252F2C",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#f4f4f5"
-                    e.currentTarget.style.borderColor = "#d4d4d8"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#fff"
-                    e.currentTarget.style.borderColor = "#e4e4e7"
-                  }}
-                >
-                  Back
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  if (isLastStep) {
-                    onClose()
-                  } else {
-                    setStep((s) => s + 1)
-                  }
-                }}
-                style={{
-                  padding: "6px 16px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  border: "none",
-                  borderRadius: "5px",
-                  background: "#465A54",
-                  color: "#fff",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#3d4e49"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "#465A54"
-                }}
-              >
-                {isLastStep ? "Done" : "Next"}
-              </button>
-            </div>
-          </div>
-
-          {/* Progress dots */}
-          <div
-            style={{
-              display: "flex",
-              gap: "4px",
-              padding: "8px 16px",
-              justifyContent: "center",
-              background: "#fafbfc",
-            }}
-          >
-            {steps.map((_, i) => (
-              <div
-                key={`dot-${i}`}
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "3px",
-                  background: i <= step ? "#465A54" : "#e4e4e7",
-                  transition: "all 0.3s",
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Arrow pointer - uses actualPosition for correct arrow direction */}
-        {tooltipPosition.actualPosition === "bottom" && (
-          <div
-            style={{
-              position: "absolute",
-              top: "-8px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0,
-              height: 0,
-              borderLeft: "8px solid transparent",
-              borderRight: "8px solid transparent",
-              borderBottom: "8px solid #465A54",
-            }}
-          />
-        )}
-        {tooltipPosition.actualPosition === "top" && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: "-8px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0,
-              height: 0,
-              borderLeft: "8px solid transparent",
-              borderRight: "8px solid transparent",
-              borderTop: "8px solid #465A54",
-            }}
-          />
-        )}
-        {tooltipPosition.actualPosition === "right" && (
-          <div
-            style={{
-              position: "absolute",
-              left: "-8px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: 0,
-              height: 0,
-              borderTop: "8px solid transparent",
-              borderBottom: "8px solid transparent",
-              borderRight: "8px solid #465A54",
-            }}
-          />
-        )}
-        {tooltipPosition.actualPosition === "left" && (
-          <div
-            style={{
-              position: "absolute",
-              right: "-8px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: 0,
-              height: 0,
-              borderTop: "8px solid transparent",
-              borderBottom: "8px solid transparent",
-              borderLeft: "8px solid #465A54",
-            }}
-          />
-        )}
-      </div>
-    </>
-  )
 }
 
 // ============================================
@@ -1700,7 +141,8 @@ function DashboardTour({
 // ============================================
 
 export default function Dashboard() {
-  const { shop, stats, audits, plan, monitoring, totalAudits } = useLoaderData<typeof loader>()
+  const { shop, stats, audits, plan, monitoring, totalAudits, celebratedAt } = useLoaderData<typeof loader>()
+  const { isNavTourOpen } = useOutletContext<{ isNavTourOpen: boolean }>()
   const isPro = plan === "pro"
   const fetcher = useFetcher<typeof action>()
   const autofixFetcher = useFetcher()
@@ -1765,14 +207,17 @@ export default function Dashboard() {
 
   // Show tour on first visit (user-level)
   useEffect(() => {
-    const completed = localStorage.getItem("dashboardTourCompleted") === "true"
-    setTourCompleted(completed)
+    const tourCompleted = localStorage.getItem("dashboardTourCompleted") === "true"
+    const navTourCompleted = localStorage.getItem("navigationTourCompleted") === "true"
 
-    if (!completed) {
-      const timer = setTimeout(() => setIsTourOpen(true), 1500)
+    setTourCompleted(tourCompleted)
+
+    // Only auto-open dashboard tour if Nav tour is done but Dashboard tour isn't
+    if (navTourCompleted && !tourCompleted && !isTourOpen) {
+      const timer = setTimeout(() => setIsTourOpen(true), 1000)
       return () => clearTimeout(timer)
     }
-  }, [])
+  }, [isNavTourOpen])
 
   const completeTour = async () => {
     setTourCompleted(true)
@@ -1880,27 +325,39 @@ export default function Dashboard() {
     const currentPercent = stats.totalAudited > 0 ? Math.round((stats.readyCount / stats.totalAudited) * 100) : 0
 
     // Check if we've reached 100% and haven't triggered confetti yet
-    if (currentPercent === 100 && stats.totalAudited > 0 && !hasTriggeredConfetti.current) {
-      // Check if this is the first time reaching 100% in this session
-      const confettiKey = `confetti_celebrated_${shop}`
-      const alreadyCelebrated = sessionStorage.getItem(confettiKey)
-
-      if (!alreadyCelebrated) {
-        // Delay slightly to let the animation complete
-        setTimeout(() => {
-          triggerConfetti()
-          setShowCelebrationModal(true)
-          sessionStorage.setItem(confettiKey, "true")
-        }, 1200)
-      }
+    // Don't trigger if any tour is currently active
+    if (
+      currentPercent === 100 &&
+      stats.totalAudited > 0 &&
+      !hasTriggeredConfetti.current &&
+      !isNavTourOpen &&
+      !isTourOpen &&
+      !celebratedAt &&
+      _tourCompleted
+    ) {
+      // Delay slightly to let the animation complete
+      setTimeout(() => {
+        triggerConfetti()
+        setShowCelebrationModal(true)
+        // Persist to DB
+        fetcher.submit({ intent: "mark_celebrated" }, { method: "POST" })
+      }, 1200)
       hasTriggeredConfetti.current = true
     } else if (currentPercent < 100) {
       // Reset the flag if we drop below 100% so it can trigger again
       hasTriggeredConfetti.current = false
-      const confettiKey = `confetti_celebrated_${shop}`
-      sessionStorage.removeItem(confettiKey)
     }
-  }, [stats.readyCount, stats.totalAudited, shop, triggerConfetti])
+  }, [
+    stats.readyCount,
+    stats.totalAudited,
+    shop,
+    triggerConfetti,
+    isNavTourOpen,
+    isTourOpen,
+    celebratedAt,
+    fetcher,
+    _tourCompleted,
+  ])
 
   // Handle autofix completion
   useEffect(() => {
@@ -2158,8 +615,8 @@ export default function Dashboard() {
           display: "flex",
           flexDirection: "column",
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif",
-          height: "calc(100vh - 60px)",
-          maxHeight: "calc(100vh - 60px)",
+          height: "100%",
+          maxHeight: "100%",
           overflow: "hidden",
         }}
       >
@@ -2797,17 +1254,18 @@ export default function Dashboard() {
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: "10px",
+                              gap: "12px",
                             }}
                           >
                             <div
                               className="hide-on-mobile"
                               style={{
                                 flex: 1,
-                                height: "6px",
-                                background: "#e4e4e7",
-                                borderRadius: "3px",
+                                height: "8px",
+                                background: "var(--color-surface-strong)",
+                                borderRadius: "10px",
                                 overflow: "hidden",
+                                border: "1px solid var(--color-border-subtle)",
                               }}
                             >
                               <div
@@ -2816,22 +1274,23 @@ export default function Dashboard() {
                                   height: "100%",
                                   background:
                                     audit.status === "ready"
-                                      ? "#465A54"
+                                      ? "var(--color-success)"
                                       : progressPercent >= 70
-                                        ? "#5A7C66"
-                                        : "#9B9860",
-                                  borderRadius: "3px",
-                                  transition: "width 0.3s ease",
+                                        ? "var(--color-primary)"
+                                        : "var(--color-accent)",
+                                  borderRadius: "10px",
+                                  transition: "width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)",
                                 }}
                               />
                             </div>
                             <span
                               style={{
                                 fontSize: "12px",
-                                fontWeight: 600,
-                                color: "#3f3f46",
-                                minWidth: "32px",
+                                fontWeight: 700,
+                                color: "var(--color-text)",
+                                minWidth: "36px",
                                 textAlign: "right",
+                                fontVariantNumeric: "tabular-nums",
                               }}
                             >
                               {progressPercent}%
@@ -3608,20 +2067,11 @@ export default function Dashboard() {
               display: "flex",
               flexDirection: "column",
               gap: "24px",
-              alignSelf: "start",
-              position: "sticky",
-              top: "24px",
+              overflow: "auto",
+              minHeight: 0,
+              height: "100%",
             }}
           >
-            <div
-              style={{
-                position: "sticky",
-                top: "24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "24px",
-              }}
-            >
               {/* Overall Score Card */}
               <div
                 style={{
@@ -3649,97 +2099,65 @@ export default function Dashboard() {
                   Products Health
                 </div>
 
-                {/* Circular Progress */}
+                {/* Circular Progress Container */}
                 <div
+                  onClick={() => animatedPercent === 100 && setShowCelebrationModal(true)}
                   style={{
-                    position: "relative",
-                    width: "120px",
-                    height: "120px",
-                    marginBottom: "20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "16px",
+                    cursor: animatedPercent === 100 ? "pointer" : "default",
                   }}
                 >
-                  <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="#e4e4e7" strokeWidth="8" />
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="50"
-                      fill="none"
-                      stroke={animatedPercent >= 80 ? "#059669" : animatedPercent >= 60 ? "#465A54" : "#B53D3D"}
-                      strokeWidth="8"
-                      strokeDasharray={`${(animatedPercent / 100) * 314.159} 314.159`}
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <CircularProgress 
+                    percent={animatedPercent} 
+                    size={160} 
+                    strokeWidth={12}
+                    color={animatedPercent >= 80 ? "var(--color-success)" : animatedPercent >= 60 ? "var(--color-primary)" : "var(--color-error)"}
+                  />
 
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      transform: "translate(-50%, -50%)",
-                      textAlign: "center",
-                    }}
-                  >
+                  {/* Label outside the circle */}
+                  <div style={{ textAlign: "center" }}>
                     <div
                       style={{
-                        fontSize: "28px",
+                        fontSize: "var(--text-sm)",
+                        color: "var(--color-muted)",
                         fontWeight: 600,
-                        color: "#252F2C",
                       }}
                     >
-                      {animatedPercent}%
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "var(--text-xs)",
-                        color: "#71717a",
-                        marginTop: "4px",
-                      }}
-                    >
-                      Ready
+                      {stats.totalAudited > 0
+                        ? `${stats.readyCount} of ${stats.totalAudited} products ready`
+                        : "No products synced yet"}
                     </div>
                   </div>
                 </div>
 
                 <div
                   style={{
-                    fontSize: "var(--text-sm)",
-                    color: "#71717a",
-                    textAlign: "center",
-                    marginBottom: "16px",
-                  }}
-                >
-                  {stats.totalAudited > 0
-                    ? `${stats.readyCount} of ${stats.totalAudited} products`
-                    : "No products synced yet"}
-                </div>
-
-                <div
-                  style={{
                     display: "flex",
-                    gap: "16px",
+                    gap: "12px",
                     width: "100%",
-                    justifyContent: "space-between",
-                    paddingTop: "16px",
-                    borderTop: "1px solid #f4f4f5",
+                    marginTop: "24px",
+                    paddingTop: "20px",
+                    borderTop: "1px solid var(--color-border-subtle)",
                   }}
                 >
                   {[
                     {
                       label: "Ready",
                       value: stats.readyCount,
-                      color: "#059669",
+                      color: "var(--color-success)",
                     },
                     {
-                      label: "Needs Attention",
+                      label: "Pending",
                       value: stats.incompleteCount,
-                      color: "#f97316",
+                      color: "var(--color-accent-strong)",
                     },
                     {
-                      label: "Average Score",
+                      label: "Avg. Score",
                       value: `${stats.avgCompletion}%`,
-                      color: "#465A54",
+                      color: "var(--color-primary)",
                     },
                   ].map((item) => (
                     <div
@@ -3749,23 +2167,23 @@ export default function Dashboard() {
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
-                        gap: "8px",
+                        gap: "6px",
                       }}
                     >
                       <span
                         style={{
-                          fontSize: "11px",
-                          color: "#a1a1aa",
-                          fontWeight: 600,
+                          fontSize: "10px",
+                          color: "var(--color-subtle)",
+                          fontWeight: 700,
                           letterSpacing: "0.05em",
-                          whiteSpace: "nowrap",
+                          textTransform: "uppercase",
                         }}
                       >
-                        {item.label.toUpperCase()}
+                        {item.label}
                       </span>
                       <span
                         style={{
-                          fontSize: "20px",
+                          fontSize: "18px",
                           fontWeight: 700,
                           color: item.color,
                         }}
@@ -4594,9 +3012,8 @@ export default function Dashboard() {
 
         {/* Dashboard Tour */}
         <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
-      </div>
 
-      {/* Bulk Progress Modal */}
+        {/* Bulk Progress Modal */}
       <BulkProgressModal
         isOpen={showBulkProgressModal}
         actionType={bulkActionType}
@@ -4614,7 +3031,6 @@ export default function Dashboard() {
       {showImageAlert && (
         <div className="modal-backdrop">
           <div className="modal-container" style={{ width: "min(480px, 90%)", padding: "24px" }}>
-          >
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <div
                 style={{
@@ -4737,7 +3153,6 @@ export default function Dashboard() {
       {showAutofixAlert && (
         <div className="modal-backdrop">
           <div className="modal-container" style={{ width: "min(480px, 90%)", padding: "24px" }}>
-          >
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <div
                 style={{
@@ -4874,70 +3289,97 @@ export default function Dashboard() {
 
       {/* 100% Celebration Modal */}
       {showCelebrationModal && (
-        <div className="modal-backdrop" onClick={() => setShowCelebrationModal(false)}>
-          <div className="modal-container" style={{ maxWidth: "420px", padding: "40px 48px", textAlign: "center", animation: "celebrationPop 0.4s ease-out" }} onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-backdrop" 
+          onClick={() => setShowCelebrationModal(false)}
+          style={{ 
+            zIndex: 10005,
+            background: "rgba(15, 23, 42, 0.4)",
+            backdropFilter: "blur(8px)"
+          }}
+        >
+          <div 
+            className="modal-container" 
+            style={{ 
+              maxWidth: "400px", 
+              padding: "40px 32px", 
+              textAlign: "center", 
+              background: "var(--color-surface)",
+              borderRadius: "12px",
+              border: "1px solid var(--color-border-subtle)",
+              boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.12)",
+              animation: "celebrationPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+            }} 
+            onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
-                width: "80px",
-                height: "80px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #22c55e 0%, #10b981 100%)",
+                width: "72px",
+                height: "72px",
+                borderRadius: "16px",
+                background: "var(--color-success-soft)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 margin: "0 auto 24px",
-                boxShadow: "0 8px 24px rgba(34, 197, 94, 0.3)",
               }}
             >
-              <svg
-                width="40"
-                height="40"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#fff"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              <div
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  background: "var(--color-success)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
             </div>
-            <h2 style={{ margin: "0 0 12px", fontSize: "28px", fontWeight: 700, color: "#111827" }}>You did it!</h2>
-            <p style={{ margin: "0 0 8px", fontSize: "18px", color: "#465A54", fontWeight: 600 }}>
+
+            <h2 style={{ margin: "0 0 8px", fontFamily: "var(--font-heading)", fontSize: "24px", fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.02em" }}>
+              You did it!
+            </h2>
+            <p style={{ margin: "0 0 12px", fontSize: "13px", color: "var(--color-success)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
               100% Product Health
             </p>
-            <p style={{ margin: "0 0 28px", fontSize: "14px", color: "#6b7280", lineHeight: 1.5 }}>
-              All your products are launch-ready. Your catalog is in perfect shape!
+            <p style={{ margin: "0 0 32px", fontSize: "15px", color: "var(--color-muted)", lineHeight: 1.6 }}>
+              All your products are launch-ready. Your catalog is in perfect shape.
             </p>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <button
                 type="button"
                 onClick={() => setShowCelebrationModal(false)}
                 style={{
-                  padding: "14px 32px",
-                  background: "linear-gradient(135deg, #465A54 0%, #3d4e49 100%)",
+                  padding: "14px 24px",
+                  background: "var(--color-text)",
                   border: "none",
-                  borderRadius: "10px",
-                  fontSize: "15px",
+                  borderRadius: "8px",
+                  fontSize: "14px",
                   fontWeight: 600,
                   color: "#fff",
                   cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(70, 90, 84, 0.3)",
-                  transition: "transform 0.15s, box-shadow 0.15s",
+                  transition: "all 0.2s ease",
+                  width: "100%",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = "translateY(-1px)"
-                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(70, 90, 84, 0.35)"
+                  e.currentTarget.style.opacity = "0.9"
                 }}
                 onMouseOut={(e) => {
                   e.currentTarget.style.transform = "translateY(0)"
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(70, 90, 84, 0.3)"
+                  e.currentTarget.style.opacity = "1"
                 }}
               >
-                Awesome!
+                Awesome
               </button>
+              
               {isPro && (
                 <button
                   type="button"
@@ -4948,19 +3390,20 @@ export default function Dashboard() {
                   style={{
                     padding: "14px 24px",
                     background: "transparent",
-                    border: "2px solid var(--color-primary)",
-                    borderRadius: "10px",
-                    fontSize: "15px",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px",
+                    fontSize: "14px",
                     fontWeight: 600,
-                    color: "var(--color-primary)",
+                    color: "var(--color-text-secondary)",
                     cursor: "pointer",
-                    transition: "all 0.15s",
+                    transition: "all 0.2s",
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: "center",
                     gap: "8px",
                   }}
                   onMouseOver={(e) => {
-                    e.currentTarget.style.background = "var(--color-primary-soft)"
+                    e.currentTarget.style.background = "var(--color-surface-strong)"
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.background = "transparent"

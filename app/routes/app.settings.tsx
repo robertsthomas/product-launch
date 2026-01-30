@@ -465,7 +465,7 @@ export default function Settings() {
     >
       <div
         style={{
-          maxWidth: "1000px",
+          maxWidth: "1200px",
           margin: "0 auto",
           padding: "32px",
           width: "100%",
@@ -2423,9 +2423,7 @@ function ProductHistoryModal({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-container animate-scale-in" style={{ maxWidth: "600px", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="modal-header" style={{ padding: "24px 28px", display: "flex", alignItems: "center" }}>            justifyContent: "space-between",
-          }}
-        >
+        <div className="modal-header" style={{ padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <h2
               style={{

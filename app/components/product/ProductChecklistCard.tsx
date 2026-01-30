@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { CircularProgress } from "../dashboard/CircularProgress"
 
 interface AuditItem {
   key: string
@@ -231,59 +232,24 @@ export function ProductChecklistCard({
       </div>
 
       {/* Health Score */}
-      <div style={{ padding: "20px", borderBottom: "1px solid #e4e4e7" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          {/* Circular Progress */}
-          <div
-            style={{
-              position: "relative",
-              width: "64px",
-              height: "64px",
-              flexShrink: 0,
-            }}
-          >
-            <svg width="64" height="64" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="32" cy="32" r="28" fill="none" stroke="#e4e4e7" strokeWidth="6" />
-              <circle
-                cx="32"
-                cy="32"
-                r="28"
-                fill="none"
-                stroke={statusColor}
-                strokeWidth="6"
-                strokeDasharray={`${(animatedPercent / 100) * 175.93} 175.93`}
-                strokeLinecap="round"
-                style={{ transition: "stroke 0.3s ease" }}
-              />
-            </svg>
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                fontSize: "16px",
-                fontWeight: 600,
-                color: "#18181b",
-              }}
-            >
-              {animatedPercent}%
-            </div>
-          </div>
+      <div style={{ padding: "24px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+          <CircularProgress percent={animatedPercent} size={72} strokeWidth={8} />
 
           {/* Score Label */}
           <div>
             <div
               style={{
-                fontSize: "14px",
+                fontSize: "15px",
                 fontWeight: 600,
-                color: "#18181b",
+                color: "var(--color-text)",
                 marginBottom: "2px",
+                letterSpacing: "-0.01em",
               }}
             >
               Product Health
             </div>
-            <div style={{ fontSize: "12px", color: "#71717a" }}>
+            <div style={{ fontSize: "13px", color: "var(--color-muted)" }}>
               {passedCount} of {totalCount} checks passed
             </div>
           </div>

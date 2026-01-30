@@ -24,10 +24,10 @@
   --color-accent-glow: rgba(251, 191, 36, 0.3);
 
   /* Backgrounds */
-  --color-bg: #F8F9FA;
-  --color-bg-warm: #f1f5f9;
+  --color-bg: #f6f7f9; /* slightly warmer, matching design */
+  --color-bg-warm: #eef2f6;
   --color-surface: #ffffff;
-  --color-surface-strong: #f1f5f9;
+  --color-surface-strong: #eef3f6; /* light gray panel used for framed content */
   --color-surface-elevated: #ffffff;
 
   /* Text - from brand assets */
@@ -120,8 +120,8 @@
   /* Radii - Smoother, modern curves */
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-lg: 18px; /* slightly larger for softer corners */
+  --radius-xl: 28px;
   --radius-full: 999px;
 
   /* Shadows - Layered, soft, diffused */
@@ -131,7 +131,7 @@
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
   
   --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.03);
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 5px 15px rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.02); /* softer, more diffused */
   --shadow-elevated: 0 10px 30px rgba(0, 0, 0, 0.04);
   
   --shadow-primary-glow: 0 4px 12px -2px rgba(31, 79, 216, 0.2);
@@ -384,6 +384,34 @@ h6 {
   }
 }
 
+/* Content stage - large framed panel to match the reference designs */
+.content-stage {
+  padding: 0 var(--space-6);
+  display: flex;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.content-stage-inner {
+  width: 100%;
+  max-width: 1400px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  display: block;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+/* Slightly increase page padding for more whitespace */
+.page-shell {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-12);
+}
+
+
 /* ============================================
    App Header
    ============================================ */
@@ -459,15 +487,16 @@ h6 {
 
 .card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border-strong); /* crisper border */
+  border-radius: var(--radius-sm); /* sharper corners */
+  box-shadow: var(--shadow-sm); /* subtle lift */
   transition: all var(--transition-base);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-card);
-  border-color: var(--color-border-strong);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  transform: translateY(-2px);
+  border-color: rgba(15,23,42,0.08);
 }
 
 .glass {
@@ -1432,14 +1461,11 @@ a:focus-visible {
 /* Dashboard grid layout */
 .dashboard-grid {
   align-items: stretch;
-  height: auto;
-  padding-bottom: 100px;
 }
 
 /* Make dashboard container scrollable */
 .dashboard-no-scroll {
   overflow: auto !important;
-  min-height: 100vh;
 }
 
 /* ============================================

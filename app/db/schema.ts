@@ -80,6 +80,7 @@ export const shops = sqliteTable("shops", {
   dashboardTourCompletedAt: integer("dashboard_tour_completed_at", {
     mode: "timestamp",
   }),
+  celebratedAt: integer("celebrated_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => new Date())
     .notNull(),

@@ -17,6 +17,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/index.mjs"
 import {
   SYSTEM_PROMPTS,
   buildAltTextPrompt,
+  buildImageOptimizerPrompt,
   buildImagePrompt,
   buildProductDescriptionPrompt,
   buildSeoDescriptionPrompt,
@@ -394,16 +395,31 @@ export async function generateProductImage(product: ProductContext, options?: Ge
   console.log("[AI Image Generation] Using DALL-E (OpenRouter not available)")
   console.log("[AI Image Generation] Using custom API key:", !!options?.apiKey)
 
-  const prompt = buildImagePrompt(product)
+  const defaultPrompt = buildImagePrompt(product)
+
+  // Step 1: Optimize the prompt using an LLM
+  console.log("[AI Image Generation] Optimizing image prompt...")
+  const { text: optimizedPrompt } = await generateText(
+    SYSTEM_PROMPTS.imageOptimizer,
+    buildImageOptimizerPrompt(defaultPrompt, product.customPrompt),
+    {
+      maxTokens: 500,
+      temperature: 0.3, // Lower temperature for more literal adherence to constraints
+      apiKey: options?.apiKey,
+      model: options?.textModel,
+      provider: options?.provider,
+    }
+  )
+
   const client = getOpenAIClient(options?.apiKey)
 
   console.log(`[AI Image Generation] Generating image for product: ${product.title}`)
-  console.log(`[AI Image Generation] Prompt: ${prompt.slice(0, 200)}...`)
+  console.log(`[AI Image Generation] Optimized Prompt: ${optimizedPrompt.slice(0, 200)}...`)
 
   try {
     const response = await client.images.generate({
       model: "dall-e-3",
-      prompt,
+      prompt: optimizedPrompt,
       n: 1,
       size: "1024x1024",
       quality: "standard", // Better quality than DALL-E 2: $0.080 vs $0.018
@@ -466,13 +482,26 @@ export async function generateProductImageWithOpenRouter(
     throw new Error("OPENROUTER_API_KEY not configured")
   }
 
-  const prompt = buildImagePrompt(product)
+  const defaultPrompt = buildImagePrompt(product)
+
+  // Step 1: Optimize the prompt using an LLM
+  console.log("[OpenRouter Image] Optimizing image prompt...")
+  const { text: optimizedPrompt } = await generateText(
+    SYSTEM_PROMPTS.imageOptimizer,
+    buildImageOptimizerPrompt(defaultPrompt, product.customPrompt),
+    {
+      maxTokens: 500,
+      temperature: 0.3,
+      apiKey: apiKey,
+    }
+  )
+
   const model = OPENROUTER_IMAGE_MODELS[quality]
 
   console.log(`[OpenRouter Image] Generating image for: ${product.title}`)
   console.log(`[OpenRouter Image] Using model: ${model} (${quality})`)
   console.log(`[OpenRouter Image] Existing images count: ${product.existingImages?.length || 0}`)
-  console.log(`[OpenRouter Image] Full prompt:`, prompt)
+  console.log(`[OpenRouter Image] Optimized prompt:`, optimizedPrompt)
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -487,7 +516,7 @@ export async function generateProductImageWithOpenRouter(
       messages: [
         {
           role: "user",
-          content: prompt,
+          content: optimizedPrompt,
         },
       ],
       // Enable image generation modality

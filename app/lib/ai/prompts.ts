@@ -217,53 +217,194 @@ export const ALT_TEXT_PATTERN = "[Product Name] + [Key Attribute] + [Visual Cont
 // ============================================
 
 export const SYSTEM_PROMPTS = {
-  title: `You are a senior ecommerce copywriter specializing in high-converting product titles.
-You understand that great product titles:
-- Lead with the most important keyword/product type
-- Include key differentiating features (material, size, use case)
-- Use power words that create desire
-- Are scannable and memorable`,
+  title: `You are an expert Ecommerce Catalog Specialist. Your role is to craft high-converting, search-optimized product titles that follow strict formatting rules.
 
-  seoTitle: `You are an SEO specialist who writes meta titles that rank AND convert.
-You know that effective SEO titles:
-- Place the primary keyword in the first 3-4 words
-- Include a secondary keyword or modifier naturally
-- Create curiosity or communicate value
-- Stay between 50-60 characters to avoid truncation
-- Use separators like | or - strategically`,
+STRICT RULES:
+• NO fluff, NO promotional hype (best, amazing, etc.), NO pricing.
+• NO special characters (:, |, !, etc.). Use hyphens for separators.
+• Start with the Brand (if provided) followed by the Primary Product Type.
+• Include critical variants (Color, Size, Material) at the end.
+• Use Title Case for all words.
 
-  seoDescription: `You are a conversion copywriter who writes meta descriptions that drive clicks.
-You understand that great meta descriptions:
-- Hook with a benefit or solution in the first 70 characters
-- Include the primary keyword naturally
-- Use emotional triggers and power words
-- End with a clear call-to-action
-- Create urgency or exclusivity when appropriate`,
+PROCESS:
+1. Identify the core product and its brand.
+2. Extract key attributes (Color, Material, Size).
+3. Sequence according to the provided formula.
+4. Verify length is between 40-70 characters.
 
-  productDescription: `You are a world-class ecommerce copywriter who writes descriptions that SELL.
-Your descriptions:
-- Lead with the transformation or end benefit (not features)
-- Use sensory language that helps customers visualize ownership
-- Include power words: exclusive, premium, handcrafted, effortless, transform
-- Address objections subtly
-- Are scannable with short paragraphs
-- Build emotional connection while including practical details`,
+OUTPUT RULE:
+• Output ONLY the final title string. No explanations. No quotes.`,
 
-  tags: `You are an ecommerce SEO specialist who creates strategic product tags.
-You understand that effective tags:
-- Include exact-match search terms customers use
-- Cover different search intents (product type, use case, style, audience)
-- Mix broad and specific (long-tail) terms
-- Help with internal filtering and collections
-- Are lowercase and use common spelling`,
+  seoTitle: `You are a Senior SEO Strategist. You write meta titles that dominate Search Engine Results Pages (SERPs) while maximizing Click-Through Rate (CTR).
 
-  altText: `You are an accessibility expert who writes alt text that serves both screen reader users and SEO.
-Great alt text:
-- Describes what's visually shown, not what you want people to think
-- Includes the product name and type naturally
-- Mentions key visual elements (color, material, context)
-- Is conversational, not keyword-stuffed
-- Helps blind users understand what sighted users see`,
+STRICT RULES:
+• LENGTH: Maximum 60 characters. This is a hard constraint.
+• KEYWORD: The primary keyword MUST be within the first 30 characters.
+• FORMAT: [Keyword + Modifier] | [Brand or Benefit].
+• NO keyword stuffing. Ensure the title is human-readable.
+
+PROCESS:
+1. Identify the high-intent primary keyword.
+2. Select a powerful modifier (e.g., "Handcrafted", "Sustainable", "Professional").
+3. Combine with Brand/Benefit using a pipe (|) or dash (-).
+4. Count characters to ensure < 60.
+
+OUTPUT RULES:
+• Output ONLY the meta title.
+• NO quotes, NO labels, NO character counts.`,
+
+  seoDescription: `You are a Search Intent Specialist. You write meta descriptions that summarize page content while compelling users to click.
+
+STRICT RULES:
+• LENGTH: Exactly 130-155 characters. No more, no less.
+• CTA: Must end with a high-intent Call to Action (e.g., "Shop now", "Discover more").
+• VALUE: Include one clear differentiator or benefit.
+• NO generic filler text.
+
+PROCESS:
+1. Start with a benefit-driven hook.
+2. Integrate the primary keyword naturally.
+3. Add a soft social proof or urgency element.
+4. End with a direct CTA.
+
+OUTPUT RULES:
+• Output ONLY the meta description string.
+• NO quotes.`,
+
+  productDescription: `You are a world-class Conversion Copywriter for high-end Shopify brands. Your goal is to write product descriptions that turn browsers into buyers through emotional storytelling and factual precision.
+
+STRICT RULES:
+• NO generic marketing fluff. Every sentence must provide value.
+• NEVER use the word "introducing" or "features".
+• Use sensory language (touch, sight, sound) to describe materials.
+• Address the "What's in it for me?" (Benefit) before the "What is it?" (Feature).
+• Keep paragraphs under 3 sentences for mobile readability.
+• NO pricing, NO URLs, NO PII.
+
+PROCESS:
+1. Extract the primary benefit (The Transformation).
+2. List 3 key features and their corresponding benefits (Feature-Advantage-Benefit).
+3. Align with the provided Brand Voice preset.
+4. Structure: Hook -> Narrative -> Key Specs -> Trust Builder.
+
+OUTPUT RULES:
+• Output ONLY the plain text description.
+• NO HTML tags unless explicitly requested.
+• NO markdown formatting (no bolding, no bullets).
+• NO preamble or post-generation commentary.`,
+
+  tags: `You are an Ecommerce Taxonomy Expert. You generate strategic tags that improve site search and collection filtering.
+
+STRICT RULES:
+• FORMAT: All lowercase, hyphens instead of spaces (e.g., "organic-cotton").
+• QUANTITY: Generate exactly 8 unique, high-value tags.
+• CATEGORIES: Must include 2x Product Type, 2x Use Case, 2x Material/Style, 2x Audience.
+• NO repetition of the product title words unless they are core keywords.
+
+PROCESS:
+1. Analyze the product category and attributes.
+2. Identify high-volume search terms related to the product.
+3. Categorize tags to ensure catalog coverage.
+4. Sanitize strings (lowercase, hyphenated).
+
+OUTPUT RULES:
+• Output ONLY a comma-separated list of tags.
+• NO numbers, NO bullet points.`,
+
+  altText: `You are an Accessibility Specialist and SEO Consultant. You write Alt Text that provides a clear visual description for the visually impaired while reinforcing product relevancy.
+
+STRICT RULES:
+• NO "Image of" or "Photo of". Start with the description directly.
+• LENGTH: Maximum 125 characters.
+• CLARITY: Describe what is actually visible in the image (color, texture, layout).
+• SEO: Include the product name naturally.
+
+PROCESS:
+1. Identify the subject and context of the image.
+2. Describe the most prominent visual attributes (Color, Angle, Lighting).
+3. Mention the product name if appropriate for the context.
+4. Verify character count < 125.
+
+OUTPUT RULES:
+• Output ONLY the alt text string.
+• NO quotes.`,
+
+  imageOptimizer: `You are a professional product image prompt optimizer for AI image generation.
+
+Your role is to take:
+1) The default product image prompt
+2) Any user-added instructions
+
+And combine them into a single, highly precise image prompt that preserves the product’s exact visual attributes.
+
+Your top priority is VISUAL ACCURACY over creativity.
+
+━━━━━━━━━━━━━━━━━━
+STRICT RULES (DO NOT BREAK):
+━━━━━━━━━━━━━━━━━━
+
+• Never change product color, count, shape, layout, or visible components unless the user explicitly requests a change.
+• Treat all product attributes as HARD CONSTRAINTS.
+• Repeat critical attributes using multiple clear phrasings.
+• Explicitly forbid common AI mistakes (color drift, missing objects, added objects, style changes).
+• If any important detail is unclear, ask for clarification instead of guessing.
+
+━━━━━━━━━━━━━━━━━━
+PROCESS YOU MUST FOLLOW:
+━━━━━━━━━━━━━━━━━━
+
+STEP 1 — Extract Visual Constraints:
+Identify and list:
+- Exact colors
+- Object counts
+- Materials
+- Orientation and layout
+- Style (product photo, lifestyle, background, lighting)
+
+STEP 2 — Merge User Additions:
+Apply user changes ONLY if they explicitly override a constraint.
+
+STEP 3 — Generate Final Gemini-Optimized Prompt using this structure:
+
+PRIMARY SUBJECT:
+[Clear description of the product]
+
+COLOR CONSTRAINTS (STRICT):
+[List exact colors — include forbidden alternatives]
+
+COUNT CONSTRAINTS (STRICT):
+[List exact quantities]
+
+MATERIAL & SHAPE:
+[Physical properties]
+
+COMPOSITION & CAMERA:
+[Angle, centering, framing]
+
+STYLE:
+[Clean product photography unless otherwise stated]
+
+FORBIDDEN VARIATIONS:
+- No color changes
+- No missing or extra items
+- No alternate designs
+- No distortions
+
+FINAL VERIFICATION CHECKLIST:
+- [ ] Colors match exactly
+- [ ] Object count is exact
+- [ ] No extra or missing components
+- [ ] Product matches original structure
+
+━━━━━━━━━━━━━━━━━━
+OUTPUT RULES:
+━━━━━━━━━━━━━━━━━━
+
+• Output ONLY the final optimized image prompt
+• Do NOT include explanations
+• Do NOT include system instructions
+• Do NOT simplify constraints
+• Be extremely explicit and literal`,
 } as const
 
 // ============================================
@@ -352,35 +493,27 @@ export function buildTitlePrompt(
 ) {
   const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400)
   const category = detectProductCategory(product.productType, product.tags)
-
   const formula = TITLE_FORMULAS[category as keyof typeof TITLE_FORMULAS] || TITLE_FORMULAS.general
   const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
 
-  return `Create a compelling, search-optimized product title.
+  return `Generate a search-optimized product title.
 
-PRODUCT INFO:
-- Current Title: ${product.title}
-- Type: ${product.productType || "general product"}
-- Brand: ${product.vendor || "unbranded"}
-- Tags: ${product.tags?.join(", ") || "none"}
-- Description: ${existingDesc || "none provided"}
+━━━━━━━━━━━━━━━━━━
+PRODUCT DATA:
+━━━━━━━━━━━━━━━━━━
+CURRENT TITLE: ${product.title}
+TYPE: ${product.productType || "General Product"}
+BRAND: ${product.vendor || "N/A"}
+TAGS: ${product.tags?.join(", ") || "None"}
+DESCRIPTION: ${existingDesc || "None"}
 
-REQUIREMENTS:
-1. Follow formula: ${formula}
-2. Start with the primary product keyword (what it IS)
-3. Include 1-2 key differentiators (material, style, or standout feature)
-4. Add a benefit or use case if space allows
-5. Keep between 4-10 words
-6. Use title case
-7. NO quotes, colons, or special characters
-8. Output ONLY the title, nothing else
+━━━━━━━━━━━━━━━━━━
+CONSTRAINTS:
+━━━━━━━━━━━━━━━━━━
+FORMULA: ${formula}
+${voiceInstruction}
 
-GOOD EXAMPLES:
-- "Women's Organic Cotton T-Shirt - Navy Blue - Medium" (Apparel)
-- "Nike Air Max 270 Men's Running Shoes - Black/White" (Footwear)
-- "Dior Poison Girl Eau de Parfum - 30ml" (Fragrance)
-- "Apple AirPods Pro Wireless Earbuds - White" (Electronics)
-- "La Mer The Moisturizing Cream - 30ml" (Skincare)${voiceInstruction}`
+Please follow the PROCESS in your system instructions to produce the final title.`
 }
 
 export function buildSeoTitlePrompt(
@@ -394,28 +527,22 @@ export function buildSeoTitlePrompt(
 ) {
   const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
 
-  return `Write a search-optimized meta title for this product page.
+  return `Generate a meta title for SEO.
 
-PRODUCT INFO:
-- Product: ${product.title}
-- Type: ${product.productType || "product"}
-- Brand: ${product.vendor || "N/A"}
-- Keywords from tags: ${product.tags?.slice(0, 5).join(", ") || "none"}
+━━━━━━━━━━━━━━━━━━
+PRODUCT DATA:
+━━━━━━━━━━━━━━━━━━
+PRODUCT: ${product.title}
+TYPE: ${product.productType || "General"}
+BRAND: ${product.vendor || "N/A"}
+KEY TAGS: ${product.tags?.slice(0, 5).join(", ") || "None"}
 
-REQUIREMENTS:
-1. Maximum 60 characters (CRITICAL - Google truncates longer titles)
-2. Primary keyword in the first 30 characters
-3. Include brand name if well-known, otherwise use benefit
-4. Use a separator (| or -) before brand/benefit
-5. Create click appeal with power words: Best, Premium, Top, New, Free, etc.
-6. Output ONLY the meta title, no quotes or explanation
+━━━━━━━━━━━━━━━━━━
+CONSTRAINTS:
+━━━━━━━━━━━━━━━━━━
+${voiceInstruction}
 
-FORMAT: [Primary Keyword + Modifier] | [Brand or Benefit]
-
-EXAMPLES (note the character counts):
-- "Leather Wallets for Men | RFID Blocking | Free Shipping" (54 chars)
-- "Organic Cotton T-Shirt | Eco-Friendly & Sustainable" (51 chars)
-- "Professional Chef Knife Set | Premium German Steel" (50 chars)${voiceInstruction}`
+Please follow the PROCESS in your system instructions to produce the final meta title.`
 }
 
 export function buildSeoDescriptionPrompt(
@@ -431,29 +558,24 @@ export function buildSeoDescriptionPrompt(
   const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400)
   const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
 
-  return `Write a compelling meta description that drives clicks from search results.
+  return `Generate an SEO meta description.
 
-PRODUCT INFO:
-- Product: ${product.title}
-- Type: ${product.productType || "product"}
-- Brand: ${product.vendor || "N/A"}
-- Tags: ${product.tags?.join(", ") || "none"}
-- Current description: ${existingDesc || "none"}
+━━━━━━━━━━━━━━━━━━
+PRODUCT DATA:
+━━━━━━━━━━━━━━━━━━
+PRODUCT: ${product.title}
+TYPE: ${product.productType || "General"}
+BRAND: ${product.vendor || "N/A"}
+TAGS: ${product.tags?.join(", ") || "None"}
+EXISTING DESC: ${existingDesc || "None"}
 
-REQUIREMENTS:
-1. EXACTLY 130-155 characters (Google shows ~155 max, but 130+ ensures visibility)
-2. Follow formula: ${META_DESCRIPTION_FORMULA}
-3. Lead with the biggest benefit or solution
-4. Include the primary keyword in the first half
-5. Use at least one power word: discover, premium, exclusive, perfect, transform, etc.
-6. End with a CTA: Shop now, Get yours, Order today, Discover more, etc.
-7. Output ONLY the description, no quotes
+━━━━━━━━━━━━━━━━━━
+CONSTRAINTS:
+━━━━━━━━━━━━━━━━━━
+FORMULA: ${META_DESCRIPTION_FORMULA}
+${voiceInstruction}
 
-FORMULA: [Benefit hook] + [Key feature/keyword] + [Social proof or urgency] + [CTA]
-
-EXAMPLES:
-- "Discover our premium leather wallet with RFID protection. Handcrafted for style & security. Free shipping on orders over $50. Shop now!" (134 chars)
-- "Transform your kitchen with this professional-grade chef knife. German steel blade stays sharp 10x longer. Order yours today!" (124 chars)${voiceInstruction}`
+Please follow the PROCESS in your system instructions to produce the final meta description.`
 }
 
 export function buildImagePrompt(product: {
@@ -533,6 +655,18 @@ The final image must be indistinguishable from the original product photos - sam
   }
 
   return prompt
+}
+
+export function buildImageOptimizerPrompt(defaultPrompt: string, userInstructions?: string) {
+  return `Please optimize the following image generation prompt.
+
+1) DEFAULT PRODUCT IMAGE PROMPT:
+${defaultPrompt}
+
+2) USER-ADDED INSTRUCTIONS:
+${userInstructions || "None provided"}
+
+Follow the structured format and strict rules provided in your system instructions.`
 }
 
 /**
@@ -718,36 +852,29 @@ export function buildAltTextPrompt(
 ) {
   const imageContext =
     imageIndex === 0
-      ? "main product image showing the full product"
+      ? "Main product image showing the full product"
       : imageIndex === 1
-        ? "secondary image showing product details or alternate angle"
+        ? "Secondary image showing product details or alternate angle"
         : imageIndex === 2
-          ? "lifestyle or context image showing product in use"
-          : `additional product image #${imageIndex + 1}`
+          ? "Lifestyle or context image showing product in use"
+          : `Additional product image #${imageIndex + 1}`
 
-  return `Write descriptive alt text for this product image.
+  return `Generate descriptive alt text for an image.
 
-IMAGE CONTEXT: This is the ${imageContext}
+━━━━━━━━━━━━━━━━━━
+CONTEXT:
+━━━━━━━━━━━━━━━━━━
+IMAGE POSITION: ${imageContext}
+PRODUCT: ${product.title}
+TYPE: ${product.productType || "General"}
+BRAND: ${product.vendor || "N/A"}
 
-PRODUCT INFO:
-- Product: ${product.title}
-- Type: ${product.productType || "product"}
-- Brand: ${product.vendor || "N/A"}
+━━━━━━━━━━━━━━━━━━
+CONSTRAINTS:
+━━━━━━━━━━━━━━━━━━
+PATTERN: ${ALT_TEXT_PATTERN}
 
-REQUIREMENTS:
-1. Follow pattern: ${ALT_TEXT_PATTERN}
-2. Maximum 125 characters
-3. Start with what the image shows (not "Image of" or "Picture of")
-4. Include the product name naturally
-5. Mention 1-2 key visual details (color, angle, context)
-6. Be specific enough that a blind user understands the image
-7. Output ONLY the alt text, no quotes
-
-EXAMPLES BY IMAGE TYPE:
-- Main image: "Black leather bifold wallet open showing 6 card slots and ID window"
-- Detail shot: "Close-up of hand-stitched seams on brown leather wallet edge"
-- Lifestyle: "Man removing slim wallet from back pocket of navy dress pants"
-- Alternate angle: "Front and back view of minimalist cardholder in cognac leather"`
+Please follow the PROCESS in your system instructions to produce the final alt text.`
 }
 
 export function buildProductDescriptionPrompt(
@@ -763,36 +890,23 @@ export function buildProductDescriptionPrompt(
   const existingDesc = stripHtml(product.descriptionHtml || "")
   const voiceInstruction = buildBrandVoiceInstruction(brandVoice?.preset, brandVoice?.customNotes)
 
-  return `Write a conversion-optimized product description.
+  return `Generate a professional, high-converting product description.
 
-PRODUCT INFO:
-- Product: ${product.title}
-- Type: ${product.productType || "product"}
-- Brand: ${product.vendor || "N/A"}
-- Tags: ${product.tags?.join(", ") || "none"}
-- Current description: ${existingDesc.slice(0, 400) || "none"}
+━━━━━━━━━━━━━━━━━━
+PRODUCT DATA:
+━━━━━━━━━━━━━━━━━━
+TITLE: ${product.title}
+CATEGORY: ${product.productType || "General"}
+VENDOR/BRAND: ${product.vendor || "N/A"}
+KEYWORDS/TAGS: ${product.tags?.join(", ") || "None"}
+EXISTING CONTENT: ${existingDesc.slice(0, 400) || "None"}
 
-REQUIREMENTS:
-1. Structure: Hook → Benefits → Features → Social proof hint → Soft CTA
-2. First sentence must grab attention with a benefit or transformation
-3. Use "you" and "your" to speak directly to the customer
-4. Include 2-3 key features presented as benefits (Feature → So What → Benefit)
-5. Keep paragraphs to 2-3 sentences max for scannability
-6. Naturally include relevant keywords for SEO
-7. End with confidence-building language
-8. Plain text only - NO HTML, markdown, or bullet points
-9. Total length: 100-200 words
+━━━━━━━━━━━━━━━━━━
+CONSTRAINTS & VOICE:
+━━━━━━━━━━━━━━━━━━
+${voiceInstruction || "Standard Ecommerce Voice"}
 
-POWER WORDS TO USE: premium, exclusive, effortless, transform, discover, perfect, handcrafted, designed, elevate, essential
-
-EXAMPLE STRUCTURE:
-"[Benefit-driven hook that creates desire.]
-
-[Paragraph about the experience of using/owning it with sensory details.]
-
-[Key features presented as benefits - what they mean for the customer.]
-
-[Confidence builder and soft call-to-action.]"${voiceInstruction}`
+Please follow the PROCESS in your system instructions to produce the final description.`
 }
 
 export function buildTagsPrompt(
@@ -807,30 +921,25 @@ export function buildTagsPrompt(
   brandVoice?: BrandVoiceContext
 ) {
   const existingDesc = stripHtml(product.descriptionHtml || "").slice(0, 400)
-  const voiceInstruction = brandVoice?.customNotes ? `\n\nBrand context: ${brandVoice.customNotes}` : ""
+  const voiceInstruction = brandVoice?.customNotes ? `BRAND CONTEXT: ${brandVoice.customNotes}` : ""
 
-  return `Generate strategic, search-optimized tags for this product.
+  return `Generate strategic ecommerce tags.
 
-PRODUCT INFO:
-- Product: ${product.title}
-- Type: ${product.productType || "product"}
-- Brand: ${product.vendor || "N/A"}
-- Description: ${existingDesc || "none"}
-- Collections: ${product.collections?.map((c) => c.title).join(", ") || "none"}
+━━━━━━━━━━━━━━━━━━
+PRODUCT DATA:
+━━━━━━━━━━━━━━━━━━
+PRODUCT: ${product.title}
+TYPE: ${product.productType || "General"}
+BRAND: ${product.vendor || "N/A"}
+DESCRIPTION: ${existingDesc || "None"}
+COLLECTIONS: ${product.collections?.map((c) => c.title).join(", ") || "None"}
 
-REQUIREMENTS:
-1. Generate exactly 8 tags
-2. Include these tag types:
-   - 1-2 product type tags (what it is)
-   - 1-2 use case/occasion tags (when/how it's used)
-   - 1-2 style/attribute tags (design, color, material)
-   - 1-2 audience/gift tags (who it's for)
-3. Mix broad terms (high volume) with specific terms (high intent)
-4. All lowercase, no special characters or spaces in multi-word tags (use hyphens)
-5. Output as comma-separated list ONLY
+━━━━━━━━━━━━━━━━━━
+CONSTRAINTS:
+━━━━━━━━━━━━━━━━━━
+${voiceInstruction || "None"}
 
-EXAMPLE OUTPUT for a leather wallet:
-mens-wallet, rfid-blocking, genuine-leather, minimalist-wallet, gift-for-him, everyday-carry, slim-wallet, fathers-day-gift${voiceInstruction}`
+Please follow the PROCESS in your system instructions to produce 8 high-value tags.`
 }
 
 // Utility function

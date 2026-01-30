@@ -1,0 +1,1 @@
+ALTER TABLE `shops` ADD `celebrated_at` integer;

@@ -866,8 +866,6 @@ function AIUpsellModal({
         }
       }} tabIndex={-1} role="presentation">
       <div className="modal-container animate-scale-in" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
-        onClick={(e) => e.stopPropagation()}
-      >
         {/* Header */}
         <div
           style={{
@@ -3963,7 +3961,8 @@ export default function ProductEditor() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        height: "100%",
+        overflow: "auto",
         background: "#f8f9fa",
       }}
     >
@@ -4364,7 +4363,7 @@ export default function ProductEditor() {
             if (e.target === e.currentTarget) {
               closeImagePromptModal()
             }
-          }}>
+          }}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               e.preventDefault()

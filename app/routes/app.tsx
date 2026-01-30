@@ -49,6 +49,7 @@ function AppNavigation({
   tourStep?: number
 }) {
   const location = useLocation()
+  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null)
   const isDashboard = location.pathname === "/app"
   const isMonitoring = location.pathname.startsWith("/app/monitoring")
   const isSettings = location.pathname.startsWith("/app/settings")
@@ -132,48 +133,93 @@ function AppNavigation({
       </Link>
       {navItems.map(({ to, label, isActive, dataAttr }, index) => {
         const isHighlighted = tourStep === index
+        const isHovered = hoveredLabel === label
+        
         return (
-          <Link
-            key={to}
-            to={to}
-            title={label}
-            data-tour={dataAttr}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
-              transition: "all 150ms ease",
-              textDecoration: "none",
-              cursor: "pointer",
-              backgroundColor: isHighlighted ? "#465A54" : isActive ? "#18181b" : "transparent",
-              color: isHighlighted || isActive ? "#ffffff" : "#71717a",
-              boxShadow: isHighlighted ? "0 0 0 3px rgba(70, 90, 84, 0.3)" : "none",
-              transform: isHighlighted ? "scale(1.1)" : "scale(1)",
-            }}
+          <div 
+            key={to} 
+            style={{ position: "relative" }}
+            onMouseEnter={() => setHoveredLabel(label)}
+            onMouseLeave={() => setHoveredLabel(null)}
           >
-            {label === "Dashboard" && (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-              </svg>
+            <Link
+              to={to}
+              data-tour={dataAttr}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "40px",
+                height: "40px",
+                borderRadius: "10px",
+                transition: "all 150ms ease",
+                textDecoration: "none",
+                cursor: "pointer",
+                backgroundColor: isHighlighted ? "#465A54" : isActive ? "#18181b" : "transparent",
+                color: isHighlighted || isActive ? "#ffffff" : "#71717a",
+                boxShadow: isHighlighted ? "0 0 0 3px rgba(70, 90, 84, 0.3)" : "none",
+                transform: isHighlighted ? "scale(1.1)" : "scale(1)",
+              }}
+            >
+              {label === "Dashboard" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                </svg>
+              )}
+              {label === "Monitoring" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              )}
+              {label === "Settings" && (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              )}
+            </Link>
+            
+            {/* Custom Tooltip */}
+            {isHovered && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: "100%",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  marginLeft: "12px",
+                  padding: "6px 12px",
+                  background: "#1f2937",
+                  color: "#ffffff",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  borderRadius: "6px",
+                  whiteSpace: "nowrap",
+                  zIndex: 1000,
+                  pointerEvents: "none",
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                  animation: "fadeIn 0.15s ease-out",
+                }}
+              >
+                {label}
+                {/* Arrow */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "-4px",
+                    top: "50%",
+                    transform: "translateY(-50%) rotate(45deg)",
+                    width: "8px",
+                    height: "8px",
+                    background: "#1f2937",
+                  }}
+                />
+              </div>
             )}
-            {label === "Monitoring" && (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            )}
-            {label === "Settings" && (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            )}
-          </Link>
+          </div>
         )
       })}
     </nav>
@@ -251,8 +297,16 @@ function NavigationTour({
 
   return (
     <>
-      {/* Overlay */}
-      <div className="modal-backdrop" onClick={onClose} />
+      {/* Overlay - Transparent to keep background visible */}
+      <div 
+        onClick={onClose} 
+        style={{ 
+          position: "fixed", 
+          inset: 0, 
+          zIndex: 10001,
+          background: "transparent"
+        }} 
+      />
 
       {/* Tooltip positioned next to nav */}
       <div
@@ -420,6 +474,8 @@ export default function App() {
             alignItems: "center",
             width: "88px",
             flexShrink: 0,
+            position: "relative",
+            zIndex: 9000,
           }}
         >
           {/* Minimal Logo */}
@@ -450,24 +506,21 @@ export default function App() {
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            padding: "0 24px 0 0",
-            width: "100%",
-            height: "100%",
+            height: "100vh",
           }}
         >
-          {/* Main content area */}
+          {/* Main content area - Scrollable */}
           <div
             style={{
               flex: 1,
-              borderRadius: "0",
               overflow: "auto",
+              width: "100%",
               height: "100%",
               display: "flex",
               flexDirection: "column",
-              position: "relative",
             }}
           >
-            <Outlet />
+            <Outlet context={{ isNavTourOpen }} />
           </div>
         </main>
       </div>
