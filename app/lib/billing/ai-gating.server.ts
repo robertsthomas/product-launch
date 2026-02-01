@@ -3,6 +3,7 @@ import { db } from "~/db"
 import { shops } from "~/db/schema"
 import { isUsingOwnOpenAIKey } from "../services/shop.server"
 import { isInTrial } from "./billing.server"
+import { isProStoreByEnv } from "./guards.server"
 import { BILLING_ERRORS, PLANS, PLAN_CONFIG, type PlanType } from "./constants"
 
 /**
@@ -49,9 +50,10 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
     }
   }
 
-  // Dev-only plan override to quickly test locked/unlocked states.
+  // Dev-only plan override + PRO_STORE_DOMAINS allowlist
   const forcedPlan = getDevPlanOverride()
-  const plan = (forcedPlan ?? shop.plan) as PlanType
+  const envPro = isProStoreByEnv(shopDomain) ? PLANS.PRO : null
+  const plan = (forcedPlan ?? envPro ?? shop.plan) as PlanType
 
   // Dev stores get unlimited Pro access (unless overridden for testing).
   if (!forcedPlan && shop.isDevStore) {
@@ -158,7 +160,8 @@ export async function consumeAICredit(shopDomain: string): Promise<{
   }
 
   const forcedPlan = getDevPlanOverride()
-  const plan = (forcedPlan ?? shop.plan) as PlanType
+  const envPro = isProStoreByEnv(shopDomain) ? PLANS.PRO : null
+  const plan = (forcedPlan ?? envPro ?? shop.plan) as PlanType
   const hasOwnKey = await isUsingOwnOpenAIKey(shopDomain)
   const inTrial = isInTrial(shop)
   const limit = inTrial ? PLAN_CONFIG[PLANS.PRO].trialAiCredits : PLAN_CONFIG[PLANS.PRO].aiCredits
@@ -257,7 +260,8 @@ export async function getAICreditStatus(shopDomain: string): Promise<{
   }
 
   const forcedPlan = getDevPlanOverride()
-  const plan = (forcedPlan ?? shop.plan) as PlanType
+  const envPro = isProStoreByEnv(shopDomain) ? PLANS.PRO : null
+  const plan = (forcedPlan ?? envPro ?? shop.plan) as PlanType
   const hasOwnKey = await isUsingOwnOpenAIKey(shopDomain)
   const inTrial = isInTrial(shop)
   const limit =
@@ -334,11 +338,9 @@ function getNextMonthReset(): Date {
 }
 
 function getDevPlanOverride(): PlanType | null {
-  console.log("ai-gating getDevPlanOverride - NODE_ENV:", process.env.NODE_ENV)
-  console.log("ai-gating getDevPlanOverride - BILLING_DEV_PLAN:", process.env.BILLING_DEV_PLAN)
   if (process.env.NODE_ENV === "production") return null
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim()
-  console.log("ai-gating getDevPlanOverride - raw:", raw)
   if (raw === "free" || raw === "pro") return raw as PlanType
-  return null
+  // Dev with no override: allow Pro so AI works without syncing plan first
+  return PLANS.PRO
 }

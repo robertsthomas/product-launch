@@ -842,6 +842,15 @@ function ImageAddDropdown({
 // AI Upsell Modal Component
 // ============================================
 
+const PRO_FEATURES = [
+  "AI content generation",
+  "100 credits per month",
+  "Bulk AI fixes",
+  "Brand voice settings",
+  "30-day version history",
+  "Priority support",
+]
+
 function AIUpsellModal({
   isOpen,
   onClose,
@@ -853,228 +862,275 @@ function AIUpsellModal({
   message?: string
   errorCode?: string
 }) {
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
+  const [upgrading, setUpgrading] = useState(false)
+  const navigate = useNavigate()
+
+  const handleUpgrade = async () => {
+    setUpgrading(true)
+    try {
+      const res = await fetch("/api/billing/upgrade?plan=pro", {
+        method: "POST",
+        credentials: "same-origin",
+      })
+      if (!res.ok) return
+      const data = (await res.json()) as { redirectUrl?: string }
+      if (data.redirectUrl) {
+        window.top!.location.href = data.redirectUrl
+        return
+      }
+      onClose()
+      navigate("/app/plans")
+    } finally {
+      setUpgrading(false)
+    }
+  }
+
   if (!isOpen) return null
 
   const isPlanLimit = errorCode === "AI_FEATURE_LOCKED"
-  const isCreditLimit = errorCode === "AI_LIMIT_REACHED"
 
   return (
-    <div className="modal-backdrop" onClick={onClose} onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+    <div
+      className="modal-backdrop"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
           e.preventDefault()
           onClose()
         }
-      }} tabIndex={-1} role="presentation">
-      <div className="modal-container animate-scale-in" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div
+      }}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ai-upsell-title"
+    >
+      <div
+        className="modal-container animate-scale-in"
+        style={{
+          maxWidth: "600px",
+          borderRadius: "var(--radius-lg)",
+          overflow: "hidden",
+          boxShadow: "0 30px 60px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+          backgroundColor: "var(--color-surface)",
+          position: "relative",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
           style={{
-            padding: "24px",
-            borderBottom: "1px solid var(--color-border-subtle)",
-            background: "transparent",
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: "16px",
+            position: "absolute",
+            top: "var(--space-6)",
+            right: "var(--space-6)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "var(--space-2)",
+            borderRadius: "var(--radius-md)",
+            color: "var(--color-muted)",
+            zIndex: 10,
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "var(--color-text)"
+            e.currentTarget.style.background = "var(--color-surface-strong)"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--color-muted)"
+            e.currentTarget.style.background = "transparent"
           }}
         >
-          <div>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-heading)",
-                fontSize: "var(--text-xl)",
-                fontWeight: 600,
-                color: "var(--color-text)",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {isPlanLimit ? "Upgrade to Pro" : "AI Credits Used"}
-            </h2>
-            <p
-              style={{
-                margin: "4px 0 0",
-                fontSize: "var(--text-sm)",
-                color: "var(--color-muted)",
-              }}
-            >
-              {isPlanLimit ? "Unlock AI-powered features" : "You've reached your monthly limit"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Header */}
+        <div style={{ padding: "var(--space-12) var(--space-12) var(--space-8)", textAlign: "center" }}>
+          {/* Logo/Icon */}
+          <div
             style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "8px",
-              borderRadius: "var(--radius-md)",
-              color: "var(--color-muted)",
+              width: "64px",
+              height: "64px",
+              margin: "0 auto var(--space-6)",
+              borderRadius: "20px",
+              background: "linear-gradient(135deg, #465A54 0%, #3d4e49 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "all var(--transition-fast)",
+              boxShadow: "0 12px 24px -6px rgba(70, 90, 84, 0.4)",
             }}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-label="Close modal"
-            >
-              <path d="M18 6L6 18M6 6l12 12" />
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
             </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div style={{ padding: "24px" }}>
-          <div
+          </div>
+          
+          <h2
+            id="ai-upsell-title"
             style={{
-              padding: "16px",
-              backgroundColor: "var(--color-surface-strong)",
-              borderRadius: "var(--radius-md)",
-              marginBottom: "20px",
-              border: "1px solid var(--color-border)",
+              margin: 0,
+              fontFamily: "var(--font-heading)",
+              fontSize: "32px",
+              fontWeight: 800,
+              color: "var(--color-text)",
+              letterSpacing: "-0.04em",
+              lineHeight: 1.1,
             }}
           >
-            <p
-              style={{
-                margin: 0,
-                fontSize: "var(--text-sm)",
-                color: "var(--color-text)",
-                lineHeight: 1.6,
-              }}
-            >
-              {isPlanLimit
-                ? "AI-powered suggestions like title generation, SEO optimization, and product descriptions are available with a Pro plan."
-                : "You've used all your AI credits for this month. Upgrade to Pro to get more credits and continue using AI features."}
-            </p>
-          </div>
+            {isPlanLimit ? "Upgrade to Pro!" : "AI credits used"}
+          </h2>
+          <p style={{ margin: "var(--space-4) 0 var(--space-8)", fontSize: "16px", color: "var(--color-muted)", maxWidth: "420px", marginInline: "auto", lineHeight: 1.6, fontWeight: 500, fontFamily: "var(--font-body)" }}>
+            {isPlanLimit
+              ? "Please upgrade your account to pro so as to continue using after your free trial ends."
+              : "You've reached your monthly limit. Upgrade to continue using AI features."}
+          </p>
 
-          {isPlanLimit && (
-            <div
-              style={{
-                backgroundColor: "var(--color-success-soft)",
-                border: "1px solid var(--color-success)",
-                borderRadius: "var(--radius-lg)",
-                padding: "16px",
-                marginBottom: "20px",
-              }}
-            >
-              <div
+          {/* Billing Toggle */}
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <div style={{ display: "inline-flex", background: "var(--color-surface-strong)", borderRadius: "12px", padding: "4px", border: "1px solid var(--color-border)" }}>
+              <button
+                type="button"
+                onClick={() => setBillingInterval("monthly")}
                 style={{
-                  display: "flex",
-                  gap: "12px",
-                  alignItems: "flex-start",
+                  padding: "8px 24px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: "8px",
+                  background: billingInterval === "monthly" ? "#465A54" : "transparent",
+                  color: billingInterval === "monthly" ? "#fff" : "var(--color-muted)",
+                  cursor: "pointer",
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  fontFamily: "var(--font-body)",
                 }}
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--color-success)"
-                  strokeWidth="2"
-                  style={{ flexShrink: 0, marginTop: "2px" }}
-                  aria-hidden="true"
-                >
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 500,
-                      fontSize: "var(--text-sm)",
-                      color: "var(--color-success-strong)",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    Pro Plan Includes:
-                  </div>
-                  <ul
-                    style={{
-                      margin: 0,
-                      paddingLeft: "20px",
-                      fontSize: "var(--text-xs)",
-                      color: "var(--color-success-strong)",
-                    }}
-                  >
-                    <li>Unlimited AI generations per month</li>
-                    <li>Advanced product optimization</li>
-                    <li>Priority support</li>
-                  </ul>
-                </div>
-              </div>
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingInterval("yearly")}
+                style={{
+                  padding: "8px 24px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: "8px",
+                  background: billingInterval === "yearly" ? "#465A54" : "transparent",
+                  color: billingInterval === "yearly" ? "#fff" : "var(--color-muted)",
+                  cursor: "pointer",
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  position: "relative",
+                  fontFamily: "var(--font-body)",
+                }}
+              >
+                Annually
+                <span style={{ position: "absolute", top: "-14px", right: "-10px", background: "#10b981", color: "#fff", fontSize: "10px", padding: "3px 8px", borderRadius: "20px", fontWeight: 800, border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>-17%</span>
+              </button>
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Features */}
+        <div style={{ padding: "0 var(--space-12) var(--space-12)" }}>
+          <p style={{ margin: "0 0 var(--space-5)", fontSize: "17px", fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.02em" }}>
+            What you will get
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "var(--space-4) var(--space-10)",
+            }}
+          >
+            {PRO_FEATURES.map((feature) => (
+              <div key={feature} style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                <div style={{ width: "22px", height: "22px", borderRadius: "50%", border: "2px solid var(--color-border-subtle)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "#fff" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#465A54" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <span style={{ fontSize: "15px", color: "var(--color-text-secondary)", fontWeight: 600, fontFamily: "var(--font-body)" }}>{feature}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Footer */}
         <div
           style={{
-            padding: "16px 24px",
-            borderTop: "1px solid var(--color-border)",
+            padding: "var(--space-6) var(--space-10)",
+            borderTop: "1px solid var(--color-border-subtle)",
             display: "flex",
-            gap: "12px",
-            justifyContent: "flex-end",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "var(--space-6)",
+            flexWrap: "wrap",
             background: "var(--color-surface-strong)",
           }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "10px 20px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 500,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text)",
-              cursor: "pointer",
-              transition: "all var(--transition-fast)",
-            }}
-          >
-            Maybe Later
-          </button>
-          <a
-            href="/app/plans"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 20px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              border: "none",
-              borderRadius: "var(--radius-md)",
-              background: "var(--gradient-primary)",
-              color: "#fff",
-              cursor: "pointer",
-              textDecoration: "none",
-              transition: "all var(--transition-fast)",
-              boxShadow: "var(--shadow-primary-glow)",
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
+          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+            <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.04em", fontFamily: "var(--font-heading)" }}>
+              ${billingInterval === "monthly" ? "19" : "15"}
+            </span>
+            <span style={{ fontSize: "14px", color: "var(--color-muted)", fontWeight: 500, fontFamily: "var(--font-body)" }}>/month</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--color-muted)",
+                cursor: "pointer",
+                padding: "4px 8px",
+                transition: "color 0.2s ease",
+                fontFamily: "var(--font-body)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)" }}
             >
-              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-              <polyline points="13 2 13 9 20 9" />
-            </svg>
-            View Plans
-          </a>
+              Maybe later
+            </button>
+            <button
+              type="button"
+              disabled={upgrading}
+              onClick={handleUpgrade}
+              style={{
+                padding: "8px 20px",
+                fontSize: "13px",
+                fontWeight: 600,
+                whiteSpace: "nowrap",
+                border: "none",
+                borderRadius: "var(--radius-md)",
+                background: "#465A54",
+                color: "#fff",
+                cursor: upgrading ? "wait" : "pointer",
+                boxShadow: "0 4px 12px -2px rgba(70, 90, 84, 0.25)",
+                transition: "all 0.2s ease",
+                fontFamily: "var(--font-body)",
+                opacity: upgrading ? 0.8 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (upgrading) return
+                e.currentTarget.style.background = "#3d4e49"
+                e.currentTarget.style.boxShadow = "0 6px 14px -2px rgba(70, 90, 84, 0.35)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#465A54"
+                e.currentTarget.style.boxShadow = "0 4px 12px -2px rgba(70, 90, 84, 0.25)"
+              }}
+            >
+              {upgrading ? "Redirecting…" : "Upgrade now"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

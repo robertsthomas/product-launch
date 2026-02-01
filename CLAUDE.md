@@ -124,7 +124,12 @@ Required:
 ```bash
 SHOPIFY_API_KEY           # From Partner Dashboard
 SHOPIFY_API_SECRET        # From Partner Dashboard
-SHOPIFY_APP_HANDLE        # App handle
+SHOPIFY_APP_HANDLE        # App handle (slug from shopify.app.toml)
+```
+
+Optional:
+```bash
+PRO_STORE_DOMAINS         # Comma-separated store handles or domains that get Pro (e.g. store1,store2 or store1.myshopify.com)
 ```
 
 AI Configuration (at least one required for AI features):

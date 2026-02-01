@@ -26,7 +26,22 @@ function getDevPlanOverride(): PlanType | null {
   if (process.env.NODE_ENV === "production") return null
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim()
   if (raw === "free" || raw === "pro") return raw as PlanType
-  return null
+  return PLANS.PRO
+}
+
+// Comma-separated list of store handles or domains (e.g. PRO_STORE_DOMAINS=store1,store2 or store1.myshopify.com)
+function getProStoreAllowlist(): Set<string> {
+  const raw = process.env.PRO_STORE_DOMAINS || ""
+  return new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean))
+}
+
+/** True if this shop is in the PRO_STORE_DOMAINS env allowlist. Only used in production; in dev, BILLING_DEV_PLAN takes precedence. */
+export function isProStoreByEnv(shopDomain: string): boolean {
+  if (process.env.NODE_ENV !== "production") return false
+  const normalized = shopDomain.trim().toLowerCase()
+  const handle = normalized.replace(".myshopify.com", "")
+  const allowlist = getProStoreAllowlist()
+  return allowlist.has(normalized) || allowlist.has(handle)
 }
 
 /**
@@ -45,7 +60,8 @@ export async function getShopPlanStatus(shopDomain: string): Promise<{
   }
 
   const forcedPlan = getDevPlanOverride()
-  const plan = (forcedPlan ?? shop.plan) as PlanType
+  const envPro = isProStoreByEnv(shopDomain) ? PLANS.PRO : null
+  const plan = (forcedPlan ?? envPro ?? shop.plan) as PlanType
   const inTrial = isInTrial(shop)
   const isDevStore = shop.isDevStore && !forcedPlan
 

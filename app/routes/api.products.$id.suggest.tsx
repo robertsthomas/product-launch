@@ -43,7 +43,9 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
   const formData = await request.formData()
   const type = formData.get("type") as SuggestionType
-  const mode = (formData.get("mode") as GenerationMode) || "generate"
+  const rawMode = formData.get("mode") as string | null
+  const mode: GenerationMode =
+    rawMode && modeToSource[rawMode as GenerationMode] ? (rawMode as GenerationMode) : "generate"
   const imageIndex = formData.get("imageIndex") ? Number.parseInt(formData.get("imageIndex") as string) : 0
   // Enforce Pro-plan + credit limits BEFORE calling OpenAI.
   const aiGate = await checkAIGate(session.shop)
@@ -130,7 +132,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         productId,
         dbField,
         currentValue,
-        modeToSource[mode]
+        modeToSource[mode] ?? "ai_generate"
       )
     }
 

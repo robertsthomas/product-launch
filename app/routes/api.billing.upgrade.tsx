@@ -1,5 +1,4 @@
 import type { ActionFunctionArgs } from "react-router"
-import { redirect } from "react-router"
 import { isDevStore, syncPlanFromShopify } from "~/lib/billing"
 import { PLANS } from "~/lib/billing/constants"
 import { authenticate } from "~/shopify.server"
@@ -7,9 +6,12 @@ import { authenticate } from "~/shopify.server"
 /**
  * POST /api/billing/upgrade?plan=pro
  *
- * With managed pricing, subscriptions are created through Shopify's hosted plan selection page.
- * This endpoint now redirects merchants to Shopify's hosted pricing page.
+ * Returns 200 JSON so fetch clients can read redirectUrl (302 Location is often opaque in embedded/fetch).
+ * - BILLING_USE_HOSTED_CHECKOUT=true: return redirectUrl to hosted pricing.
+ * - Otherwise: dev store → success + sync Pro; production store → redirectUrl to hosted pricing.
  */
+const useHostedCheckout = process.env.BILLING_USE_HOSTED_CHECKOUT === "true"
+
 export async function action({ request }: ActionFunctionArgs) {
   const { admin, session } = await authenticate.admin(request)
   const url = new URL(request.url)
@@ -20,9 +22,8 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    // Check if dev store - they get Pro free
     const isDev = await isDevStore(admin)
-    if (isDev) {
+    if (!useHostedCheckout && isDev) {
       await syncPlanFromShopify(admin, session.shop)
       return Response.json({
         success: true,
@@ -31,14 +32,11 @@ export async function action({ request }: ActionFunctionArgs) {
       })
     }
 
-    // Redirect to Shopify's hosted plan selection page
-    // URL pattern: https://admin.shopify.com/store/:store_handle/charges/:app_handle/pricing_plans
-    // IMPORTANT: Replace this with your actual app handle from Partner Dashboard
-    // Find it at: https://partners.shopify.com/[partner_id]/apps/[app_handle]
-    const appHandle = process.env.SHOPIFY_APP_HANDLE || "299712806913"
-    const pricingPlansUrl = `https://admin.shopify.com/store/${session.shop}/charges/${appHandle}/pricing_plans`
+    const storeHandle = session.shop.replace(".myshopify.com", "")
+    const appHandle = process.env.SHOPIFY_APP_HANDLE || "launch-ready"
+    const redirectUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans?plan=Pro`
 
-    return redirect(pricingPlansUrl)
+    return Response.json({ success: true, redirectUrl })
   } catch (error) {
     console.error("Billing redirect failed:", error)
     return Response.json(

@@ -1,47 +1,71 @@
 import { boundary } from "@shopify/shopify-app-react-router/server"
 import { useState } from "react"
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router"
-import { useLoaderData } from "react-router"
+import { useLoaderData, useRevalidator } from "react-router"
 import { getCurrentSubscription } from "../lib/billing/billing.server"
+import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { getOrCreateShop } from "../lib/services/shop.server"
 import { authenticate } from "../shopify.server"
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request)
   const shop = session.shop
-  const shopRecord = await getOrCreateShop(shop)
+  await getOrCreateShop(shop)
 
-  // Check current subscription
+  const { plan } = await getShopPlanStatus(shop)
   const subscription = await getCurrentSubscription(admin)
-  const isPro = shopRecord.plan === "pro"
+  const isPro = plan === "pro"
   const isYearly =
     subscription?.name?.toLowerCase().includes("yearly") || subscription?.name?.toLowerCase().includes("annual")
 
-  // Build redirect URL for Shopify's hosted plan selection
   const storeHandle = shop.replace(".myshopify.com", "")
   const appHandle = process.env.SHOPIFY_APP_HANDLE || "launch-ready"
   const pricingUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans`
 
   return {
-    currentPlan: shopRecord.plan,
+    currentPlan: plan,
     isPro,
     isYearly,
     pricingUrl,
   }
 }
 
+const Check = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
 export default function PlansPage() {
   const { isPro, isYearly: initialIsYearly, pricingUrl } = useLoaderData<typeof loader>()
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(initialIsYearly ? "yearly" : "monthly")
+  const [upgrading, setUpgrading] = useState(false)
+  const revalidate = useRevalidator()
 
   const handleSelectPlan = (planName: string) => {
     if (planName === "Free" && isPro) {
       if (confirm("Are you sure you want to downgrade? You'll lose access to Pro features.")) {
-        window.open(pricingUrl, "_top")
+        window.top!.location.href = pricingUrl
       }
-    } else if (planName === "Pro" && !isPro) {
-      // Redirect to Shopify's plan selection with Pro pre-selected
-      window.open(`${pricingUrl}?plan=Pro`, "_top")
+    }
+  }
+
+  const handleUpgrade = async () => {
+    setUpgrading(true)
+    try {
+      const res = await fetch("/api/billing/upgrade?plan=pro", {
+        method: "POST",
+        credentials: "same-origin",
+      })
+      if (!res.ok) return
+      const data = (await res.json()) as { redirectUrl?: string }
+      if (data.redirectUrl) {
+        window.top!.location.href = data.redirectUrl
+        return
+      }
+      revalidate.revalidate()
+    } finally {
+      setUpgrading(false)
     }
   }
 
@@ -49,85 +73,74 @@ export default function PlansPage() {
   const yearlyPrice = 190
   const yearlyMonthly = Math.round(yearlyPrice / 12)
 
+  const freeFeatures = ["Unlimited audits", "Readiness checklist", "One-click fixes", "Basic analytics"]
+  const proFeatures = ["AI content generation", "Brand voice settings", "Bulk AI fixes (up to 100)", "30-day version history", "Priority support"]
+
   return (
     <div
+      className="plans-page"
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%)",
-        padding: "40px 24px",
+        background: "var(--color-bg)",
+        padding: "var(--space-8) var(--space-6)",
       }}
     >
-      <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <span
-            style={{
-              display: "inline-block",
-              padding: "6px 14px",
-              fontSize: "12px",
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-              textTransform: "uppercase",
-              borderRadius: "20px",
-              background: "rgba(99, 102, 241, 0.1)",
-              color: "#6366f1",
-              marginBottom: "16px",
-            }}
-          >
-            Pricing
-          </span>
+      <div style={{ maxWidth: "880px", margin: "0 auto" }}>
+        <header style={{ textAlign: "center", marginBottom: "var(--space-10)" }}>
           <h1
             style={{
-              margin: "0 0 12px",
-              fontSize: "36px",
-              fontWeight: 700,
-              color: "#0f172a",
-              lineHeight: 1.2,
+              margin: 0,
+              fontSize: "var(--text-2xl)",
+              fontWeight: 600,
+              color: "var(--color-text)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.25,
             }}
           >
-            Simple, transparent pricing
+            Plans
           </h1>
           <p
             style={{
-              margin: 0,
-              fontSize: "16px",
-              color: "#64748b",
+              margin: "var(--space-2) 0 0",
+              fontSize: "var(--text-base)",
+              color: "var(--color-muted)",
             }}
           >
-            Start free, upgrade when you need more
+            Start free, upgrade when you need more.
           </p>
-        </div>
+        </header>
 
-        {/* Billing Toggle */}
         <div
           style={{
             display: "flex",
             justifyContent: "center",
-            marginBottom: "32px",
+            marginBottom: "var(--space-8)",
           }}
         >
           <div
+            role="group"
+            aria-label="Billing interval"
             style={{
               display: "inline-flex",
-              background: "#fff",
-              borderRadius: "10px",
-              padding: "4px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+              background: "var(--color-surface-strong)",
+              borderRadius: "var(--radius-lg)",
+              padding: "var(--space-1)",
             }}
           >
             <button
               type="button"
               onClick={() => setBillingInterval("monthly")}
               style={{
-                padding: "10px 24px",
-                fontSize: "14px",
+                padding: "var(--space-2) var(--space-5)",
+                fontSize: "var(--text-sm)",
                 fontWeight: 500,
                 border: "none",
-                borderRadius: "8px",
-                background: billingInterval === "monthly" ? "#0f172a" : "transparent",
-                color: billingInterval === "monthly" ? "#fff" : "#64748b",
+                borderRadius: "var(--radius-md)",
+                background: billingInterval === "monthly" ? "var(--color-surface)" : "transparent",
+                color: billingInterval === "monthly" ? "var(--color-text)" : "var(--color-muted)",
                 cursor: "pointer",
-                transition: "all 0.2s",
+                boxShadow: billingInterval === "monthly" ? "var(--shadow-sm)" : "none",
+                transition: "background 0.15s, color 0.15s, box-shadow 0.15s",
               }}
             >
               Monthly
@@ -136,223 +149,242 @@ export default function PlansPage() {
               type="button"
               onClick={() => setBillingInterval("yearly")}
               style={{
-                padding: "10px 24px",
-                fontSize: "14px",
+                padding: "var(--space-2) var(--space-5)",
+                fontSize: "var(--text-sm)",
                 fontWeight: 500,
                 border: "none",
-                borderRadius: "8px",
-                background: billingInterval === "yearly" ? "#0f172a" : "transparent",
-                color: billingInterval === "yearly" ? "#fff" : "#64748b",
+                borderRadius: "var(--radius-md)",
+                background: billingInterval === "yearly" ? "var(--color-surface)" : "transparent",
+                color: billingInterval === "yearly" ? "var(--color-text)" : "var(--color-muted)",
                 cursor: "pointer",
-                transition: "all 0.2s",
+                boxShadow: billingInterval === "yearly" ? "var(--shadow-sm)" : "none",
+                transition: "background 0.15s, color 0.15s, box-shadow 0.15s",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
+                gap: "var(--space-2)",
               }}
             >
               Yearly
               <span
                 style={{
-                  padding: "3px 8px",
-                  fontSize: "11px",
+                  padding: "2px 8px",
+                  fontSize: "var(--text-xs)",
                   fontWeight: 600,
-                  borderRadius: "6px",
-                  background: billingInterval === "yearly" ? "#22c55e" : "#dcfce7",
-                  color: billingInterval === "yearly" ? "#fff" : "#16a34a",
+                  borderRadius: "var(--radius-full)",
+                  background: "var(--color-success-soft)",
+                  color: "var(--color-success-strong)",
                 }}
               >
-                -17%
+                Save 17%
               </span>
             </button>
           </div>
         </div>
 
-        {/* Plans */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "20px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gap: "var(--space-6)",
+            alignItems: "stretch",
           }}
         >
-          {/* Free Plan */}
+          {/* Free */}
           <div
             style={{
-              background: "#fff",
-              borderRadius: "16px",
-              padding: "28px",
-              border: "1px solid #e2e8f0",
+              background: "var(--color-surface)",
+              borderRadius: "var(--radius-xl)",
+              padding: "var(--space-6)",
+              border: "1px solid var(--color-border)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <h3
-              style={{
-                margin: "0 0 8px",
-                fontSize: "18px",
-                fontWeight: 600,
-                color: "#0f172a",
-              }}
-            >
-              Free
-            </h3>
-            <p
-              style={{
-                margin: "0 0 20px",
-                fontSize: "13px",
-                color: "#64748b",
-                lineHeight: 1.5,
-              }}
-            >
-              Get started with the basics
-            </p>
-
-            <div style={{ marginBottom: "20px" }}>
-              <span style={{ fontSize: "36px", fontWeight: 700, color: "#0f172a" }}>$0</span>
-              <span style={{ fontSize: "14px", color: "#94a3b8" }}> /forever</span>
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "var(--text-lg)",
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                }}
+              >
+                Free
+              </h2>
+              <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                Get started with the basics
+              </p>
             </div>
-
+            <div style={{ marginBottom: "var(--space-5)" }}>
+              <span style={{ fontSize: "var(--text-3xl)", fontWeight: 700, color: "var(--color-text)" }}>$0</span>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--color-subtle)" }}> /forever</span>
+            </div>
             <button
               type="button"
               onClick={() => handleSelectPlan("Free")}
               disabled={!isPro}
               style={{
                 width: "100%",
-                padding: "12px",
-                fontSize: "14px",
+                padding: "var(--space-3)",
+                fontSize: "var(--text-sm)",
                 fontWeight: 600,
-                border: "1px solid #e2e8f0",
-                borderRadius: "10px",
-                background: !isPro ? "#f1f5f9" : "#fff",
-                color: !isPro ? "#94a3b8" : "#0f172a",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-md)",
+                background: !isPro ? "var(--color-surface-strong)" : "var(--color-surface)",
+                color: !isPro ? "var(--color-subtle)" : "var(--color-text)",
                 cursor: !isPro ? "default" : "pointer",
-                marginBottom: "24px",
+                marginBottom: "var(--space-6)",
               }}
             >
-              {!isPro ? "Current Plan" : "Downgrade"}
+              {!isPro ? "Current plan" : "Downgrade"}
             </button>
-
-            <div style={{ fontSize: "13px", color: "#64748b" }}>
-              <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "12px" }}>What's included:</div>
-              {["Unlimited audits", "Readiness checklist", "One-click fixes", "Basic analytics"].map((feature) => (
-                <div key={feature} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  {feature}
-                </div>
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
+              {freeFeatures.map((f) => (
+                <li
+                  key={f}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    padding: "var(--space-2) 0",
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  <span style={{ color: "var(--color-success)", flexShrink: 0 }}>
+                    <Check />
+                  </span>
+                  {f}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
-          {/* Pro Plan */}
+          {/* Pro */}
           <div
             style={{
-              background: "#fff",
-              borderRadius: "16px",
-              padding: "28px",
-              border: "2px solid #6366f1",
+              background: "var(--color-surface)",
+              borderRadius: "var(--radius-xl)",
+              padding: "var(--space-6)",
+              border: "2px solid var(--color-primary)",
               position: "relative",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             <div
               style={{
                 position: "absolute",
-                top: "-11px",
+                top: "-10px",
                 left: "50%",
                 transform: "translateX(-50%)",
                 padding: "4px 12px",
-                fontSize: "11px",
+                fontSize: "var(--text-xs)",
                 fontWeight: 600,
-                borderRadius: "6px",
-                background: "#6366f1",
+                borderRadius: "var(--radius-full)",
+                background: "var(--color-primary)",
                 color: "#fff",
-                textTransform: "uppercase",
-                letterSpacing: "0.03em",
+                letterSpacing: "0.02em",
               }}
             >
-              Most Popular
+              Most popular
             </div>
-
-            <h3
-              style={{
-                margin: "0 0 8px",
-                fontSize: "18px",
-                fontWeight: 600,
-                color: "#0f172a",
-              }}
-            >
-              Pro
-            </h3>
-            <p
-              style={{
-                margin: "0 0 20px",
-                fontSize: "13px",
-                color: "#64748b",
-                lineHeight: 1.5,
-              }}
-            >
-              Everything to launch faster
-            </p>
-
-            <div style={{ marginBottom: "20px" }}>
-              <span style={{ fontSize: "36px", fontWeight: 700, color: "#0f172a" }}>
+            <div style={{ marginBottom: "var(--space-4)" }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "var(--text-lg)",
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                }}
+              >
+                Pro
+              </h2>
+              <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                Everything to launch faster
+              </p>
+            </div>
+            <div style={{ marginBottom: "var(--space-5)" }}>
+              <span style={{ fontSize: "var(--text-3xl)", fontWeight: 700, color: "var(--color-text)" }}>
                 ${billingInterval === "yearly" ? yearlyMonthly : monthlyPrice}
               </span>
-              <span style={{ fontSize: "14px", color: "#94a3b8" }}> /month</span>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--color-subtle)" }}> /month</span>
               {billingInterval === "yearly" && (
-                <div style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>
-                  <span style={{ textDecoration: "line-through", color: "#94a3b8" }}>${monthlyPrice * 12}</span> $
-                  {yearlyPrice}/year
+                <div style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", marginTop: "var(--space-1)" }}>
+                  <span style={{ textDecoration: "line-through", color: "var(--color-subtle)" }}>${monthlyPrice * 12}</span>{" "}
+                  ${yearlyPrice}/year
                 </div>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={() => handleSelectPlan("Pro")}
-              disabled={isPro}
-              style={{
-                width: "100%",
-                padding: "12px",
-                fontSize: "14px",
-                fontWeight: 600,
-                border: "none",
-                borderRadius: "10px",
-                background: isPro ? "#f1f5f9" : "#6366f1",
-                color: isPro ? "#94a3b8" : "#fff",
-                cursor: isPro ? "default" : "pointer",
-                marginBottom: "24px",
-              }}
-            >
-              {isPro ? "Current Plan" : "Start for free"}
-            </button>
-
-            <div style={{ fontSize: "13px", color: "#64748b" }}>
-              <div style={{ fontWeight: 600, color: "#0f172a", marginBottom: "12px" }}>Everything in Free +</div>
-              {[
-                "AI content generation",
-                "Brand voice settings",
-                "Bulk AI fixes",
-                "30-day version history",
-                "Priority support",
-              ].map((feature) => (
-                <div key={feature} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 0" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  {feature}
-                </div>
+            {isPro ? (
+              <button
+                type="button"
+                disabled
+                style={{
+                  width: "100%",
+                  padding: "var(--space-3)",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--color-surface-strong)",
+                  color: "var(--color-subtle)",
+                  cursor: "default",
+                  marginBottom: "var(--space-6)",
+                }}
+              >
+                Current plan
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={upgrading}
+                onClick={handleUpgrade}
+                style={{
+                  width: "100%",
+                  padding: "var(--space-3)",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--color-primary)",
+                  color: "#fff",
+                  cursor: upgrading ? "wait" : "pointer",
+                  marginBottom: "var(--space-6)",
+                }}
+              >
+                {upgrading ? "Redirecting…" : "Start free trial"}
+              </button>
+            )}
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, flex: 1 }}>
+              {proFeatures.map((f) => (
+                <li
+                  key={f}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    padding: "var(--space-2) 0",
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  <span style={{ color: "var(--color-primary)", flexShrink: 0 }}>
+                    <Check />
+                  </span>
+                  {f}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </div>
 
-        {/* Footer */}
         <p
           style={{
             textAlign: "center",
-            marginTop: "28px",
-            fontSize: "13px",
-            color: "#94a3b8",
+            marginTop: "var(--space-8)",
+            fontSize: "var(--text-sm)",
+            color: "var(--color-subtle)",
           }}
         >
           7-day free trial · Cancel anytime
