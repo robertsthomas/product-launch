@@ -35,12 +35,13 @@ function getProStoreAllowlist(): Set<string> {
   return new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean))
 }
 
-/** True if this shop is in the PRO_STORE_DOMAINS env allowlist. Only used in production; in dev, BILLING_DEV_PLAN takes precedence. */
+/** True if this shop is in the PRO_STORE_DOMAINS env allowlist. Skipped only when NODE_ENV is "development" so BILLING_DEV_PLAN takes precedence locally. */
 export function isProStoreByEnv(shopDomain: string): boolean {
-  if (process.env.NODE_ENV !== "production") return false
+  if (process.env.NODE_ENV === "development") return false
+  const allowlist = getProStoreAllowlist()
+  if (allowlist.size === 0) return false
   const normalized = shopDomain.trim().toLowerCase()
   const handle = normalized.replace(".myshopify.com", "")
-  const allowlist = getProStoreAllowlist()
   return allowlist.has(normalized) || allowlist.has(handle)
 }
 
