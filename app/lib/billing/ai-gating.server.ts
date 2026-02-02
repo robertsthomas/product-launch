@@ -2,8 +2,7 @@ import { eq } from "drizzle-orm"
 import { db } from "~/db"
 import { shops } from "~/db/schema"
 import { isUsingOwnOpenAIKey } from "../services/shop.server"
-import { isInTrial } from "./billing.server"
-import { isProStoreByEnv } from "./guards.server"
+import { getShopPlanStatus } from "./guards.server"
 import { BILLING_ERRORS, PLANS, PLAN_CONFIG, type PlanType } from "./constants"
 
 /**
@@ -40,7 +39,14 @@ interface AIGateResult {
  * - Pro without own key: 100 credits/month, then locked
  */
 export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
-  const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
+  // Prod override for testing credits (AI_CREDITS_OVERRIDE=50 or AI_CREDITS_OVERRIDE=unlimited)
+  const creditsOverride = process.env.AI_CREDITS_OVERRIDE?.toLowerCase().trim()
+  if (creditsOverride === "unlimited" || creditsOverride === "infinity") {
+    return { allowed: true, creditsRemaining: Infinity, creditsLimit: Infinity, usingOwnKey: false, ownKeyCreditsUsed: 0 }
+  }
+
+  // Use centralized plan status (respects BILLING_DEV_PLAN, PRO_STORE_DOMAINS, and DB)
+  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain)
 
   if (!shop) {
     return {
@@ -50,13 +56,8 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
     }
   }
 
-  // Dev-only plan override + PRO_STORE_DOMAINS allowlist
-  const forcedPlan = getDevPlanOverride()
-  const envPro = isProStoreByEnv(shopDomain) ? PLANS.PRO : null
-  const plan = (forcedPlan ?? envPro ?? shop.plan) as PlanType
-
-  // Dev stores get unlimited Pro access (unless overridden for testing).
-  if (!forcedPlan && shop.isDevStore) {
+  // Dev stores get unlimited Pro access
+  if (isDevStore) {
     return { allowed: true }
   }
 
@@ -73,8 +74,10 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
   }
 
   // Pro plan: use app credits first, then own key
-  const inTrial = isInTrial(shop)
-  const limit = inTrial ? PLAN_CONFIG[PLANS.PRO].trialAiCredits : PLAN_CONFIG[PLANS.PRO].aiCredits
+  const baseLimit = inTrial ? PLAN_CONFIG[PLANS.PRO].trialAiCredits : PLAN_CONFIG[PLANS.PRO].aiCredits
+  // Allow override via env var (number or "unlimited")
+  const overrideNum = creditsOverride ? parseInt(creditsOverride, 10) : NaN
+  const limit = !isNaN(overrideNum) ? overrideNum : baseLimit
 
   // Check if credits need reset
   const now = new Date()
@@ -100,6 +103,9 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
   }
 
   const creditsRemaining = Math.max(0, limit - shop.aiCreditsUsed)
+
+  // Debug logging in production
+  console.log(`[AI Gate] shop=${shopDomain} plan=${plan} used=${shop.aiCreditsUsed} limit=${limit} remaining=${creditsRemaining} hasOwnKey=${hasOwnKey}`)
 
   // App credits still available
   if (creditsRemaining > 0) {
@@ -148,22 +154,19 @@ export async function consumeAICredit(shopDomain: string): Promise<{
   usingOwnKey: boolean
   ownKeyCreditsUsed: number
 }> {
-  const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
+  // Use centralized plan status
+  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain)
 
   if (!shop) {
     throw new Error("Shop not found")
   }
 
   // Dev stores don't consume credits
-  if (shop.isDevStore) {
+  if (isDevStore) {
     return { creditsRemaining: Infinity, creditsLimit: Infinity, usingOwnKey: false, ownKeyCreditsUsed: 0 }
   }
 
-  const forcedPlan = getDevPlanOverride()
-  const envPro = isProStoreByEnv(shopDomain) ? PLANS.PRO : null
-  const plan = (forcedPlan ?? envPro ?? shop.plan) as PlanType
   const hasOwnKey = await isUsingOwnOpenAIKey(shopDomain)
-  const inTrial = isInTrial(shop)
   const limit = inTrial ? PLAN_CONFIG[PLANS.PRO].trialAiCredits : PLAN_CONFIG[PLANS.PRO].aiCredits
 
   // Free plan: AI not available
@@ -242,7 +245,8 @@ export async function getAICreditStatus(shopDomain: string): Promise<{
   inTrial: boolean
   resetsAt: Date | null
 }> {
-  const [shop] = await db.select().from(shops).where(eq(shops.shopDomain, shopDomain)).limit(1)
+  // Use centralized plan status
+  const { shop, plan, inTrial, isDevStore } = await getShopPlanStatus(shopDomain)
 
   if (!shop) {
     return {
@@ -259,15 +263,11 @@ export async function getAICreditStatus(shopDomain: string): Promise<{
     }
   }
 
-  const forcedPlan = getDevPlanOverride()
-  const envPro = isProStoreByEnv(shopDomain) ? PLANS.PRO : null
-  const plan = (forcedPlan ?? envPro ?? shop.plan) as PlanType
   const hasOwnKey = await isUsingOwnOpenAIKey(shopDomain)
-  const inTrial = isInTrial(shop)
   const limit =
     plan === PLANS.PRO ? (inTrial ? PLAN_CONFIG[PLANS.PRO].trialAiCredits : PLAN_CONFIG[PLANS.PRO].aiCredits) : 0
 
-  if (shop.isDevStore) {
+  if (isDevStore) {
     return {
       allowed: true,
       plan,
@@ -335,12 +335,4 @@ export async function getAICreditStatus(shopDomain: string): Promise<{
 function getNextMonthReset(): Date {
   const now = new Date()
   return new Date(now.getFullYear(), now.getMonth() + 1, 1)
-}
-
-function getDevPlanOverride(): PlanType | null {
-  if (process.env.NODE_ENV === "production") return null
-  const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim()
-  if (raw === "free" || raw === "pro") return raw as PlanType
-  // Dev with no override: allow Pro so AI works without syncing plan first
-  return PLANS.PRO
 }

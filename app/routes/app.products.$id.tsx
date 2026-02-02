@@ -869,14 +869,14 @@ function AIUpsellModal({
   const handleUpgrade = async () => {
     setUpgrading(true)
     try {
-      const res = await fetch(`/api/billing/upgrade?plan=pro&interval=${billingInterval}`, {
+      const res = await fetch("/api/billing/upgrade?plan=pro", {
         method: "POST",
         credentials: "same-origin",
       })
       if (!res.ok) return
-      const data = (await res.json()) as { confirmationUrl?: string; success?: boolean }
-      if (data.confirmationUrl) {
-        window.top!.location.href = data.confirmationUrl
+      const data = (await res.json()) as { redirectUrl?: string }
+      if (data.redirectUrl) {
+        window.top!.location.href = data.redirectUrl
         return
       }
       onClose()
