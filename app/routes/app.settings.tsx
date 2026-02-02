@@ -531,12 +531,13 @@ export default function Settings() {
         <div
           style={{
             display: "flex",
-            gap: "8px",
+            gap: "4px",
             padding: "6px",
-            background: "transparent",
+            background: "var(--color-surface-strong)",
             borderRadius: "12px",
             marginBottom: "32px",
             width: "fit-content",
+            border: "1px solid var(--color-border)",
           }}
         >
           {TABS.map((tab) => (
@@ -779,141 +780,215 @@ export default function Settings() {
           {activeTab === "ai" && (
             <div className="animate-fade-in-up">
               <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-                {/* Plan Badge */}
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span
-                    style={{
-                      padding: "6px 14px",
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 600,
-                      borderRadius: "var(--radius-full)",
-                      background: shop.plan === "pro" ? "var(--color-primary-soft)" : "var(--color-surface-strong)",
-                      color: shop.plan === "pro" ? "var(--color-primary)" : "var(--color-muted)",
-                      border: `1px solid ${shop.plan === "pro" ? "var(--color-primary)" : "var(--color-border)"}`,
-                    }}
-                  >
-                    {shop.plan === "pro" ? "Pro Plan" : "Free Plan"}
-                  </span>
+                {/* Plan Badge & CTA */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "16px 20px",
+                    background: shop.plan === "pro" 
+                      ? "linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(99,102,241,0.05) 100%)"
+                      : "linear-gradient(135deg, rgba(75,85,99,0.05) 0%, rgba(75,85,99,0.02) 100%)",
+                    borderRadius: "12px",
+                    border: `1.5px solid ${shop.plan === "pro" ? "var(--color-primary)" : "var(--color-border)"}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "var(--text-sm)",
+                          fontWeight: 600,
+                          color: "var(--color-text)",
+                        }}
+                      >
+                        {shop.plan === "pro" ? "Pro Plan" : "Free Plan"}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "var(--text-xs)",
+                          color: "var(--color-muted)",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {shop.plan === "pro" ? "Full access to AI features" : "Limited AI usage"}
+                      </div>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => navigate("/app/plans")}
                     style={{
-                      background: "none",
-                      border: "none",
+                      background: shop.plan === "pro" ? "transparent" : "var(--color-primary)",
+                      border: shop.plan === "pro" ? "1.5px solid var(--color-primary)" : "none",
+                      borderRadius: "8px",
+                      padding: "8px 16px",
                       fontSize: "var(--text-sm)",
-                      color: "var(--color-primary)",
+                      color: shop.plan === "pro" ? "var(--color-primary)" : "white",
                       cursor: "pointer",
-                      fontWeight: 500,
-                      textDecoration: "underline",
-                      textUnderlineOffset: "2px",
+                      fontWeight: 600,
+                      transition: "all var(--transition-fast)",
                     }}
                   >
-                    {shop.plan === "pro" ? "Manage" : "Upgrade"}
+                    {shop.plan === "pro" ? "Manage Plan" : "Upgrade Now"}
                   </button>
                 </div>
 
                 {/* AI Credits Section */}
-                {aiCredits.plan === "pro" && (
-                  <div>
-                    <h2
-                      style={{
-                        margin: "0 0 8px",
-                        fontFamily: "var(--font-heading)",
-                        fontSize: "var(--text-lg)",
-                        fontWeight: 600,
-                        color: "var(--color-text)",
-                      }}
-                    >
-                      AI Credits
-                    </h2>
-                    <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                      Track your monthly AI credit usage. Credits reset on the 1st of each month.
-                    </p>
-                    <div className="card" style={{ padding: "24px" }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                        {/* Progress bar */}
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
-                              {aiCredits.appCreditsUsed} / {aiCredits.appCreditsLimit} credits used
-                            </span>
-                            {aiCredits.resetsAt && (
-                              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                                Resets{" "}
-                                {new Date(aiCredits.resetsAt).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </span>
-                            )}
-                          </div>
-                          <div
+                {shop.plan === "pro" && (
+                  <div
+                    style={{
+                      background: "var(--color-surface)",
+                      border: "1.5px solid var(--color-border)",
+                      borderRadius: "14px",
+                      padding: "28px",
+                      transition: "all var(--transition-fast)",
+                    }}
+                  >
+                    <div style={{ marginBottom: "24px" }}>
+                      <h2
+                        style={{
+                          margin: "0 0 6px",
+                          fontFamily: "var(--font-heading)",
+                          fontSize: "var(--text-lg)",
+                          fontWeight: 700,
+                          color: "var(--color-text)",
+                        }}
+                      >
+                        AI Credits
+                      </h2>
+                      <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
+                        Your monthly AI generation allowance resets on the 1st of each month.
+                      </p>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                      {/* Progress Section */}
+                      <div
+                        style={{
+                          background: "var(--color-surface-strong)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "12px",
+                          padding: "20px",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                          <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text)" }}>
+                            {aiCredits.appCreditsUsed} / {aiCredits.appCreditsLimit} credits used
+                          </span>
+                          <span
                             style={{
-                              height: "12px",
-                              borderRadius: "6px",
-                              backgroundColor: "var(--color-surface-strong)",
-                              overflow: "hidden",
-                              border: "1px solid var(--color-border)",
+                              fontSize: "var(--text-sm)",
+                              fontWeight: 600,
+                              color:
+                                aiCredits.appCreditsRemaining <= 0
+                                  ? "#dc2626"
+                                  : aiCredits.appCreditsRemaining <= 10
+                                    ? "#f59e0b"
+                                    : "var(--color-primary)",
                             }}
                           >
-                            <div
-                              style={{
-                                width: `${Math.min(100, (aiCredits.appCreditsUsed / aiCredits.appCreditsLimit) * 100)}%`,
-                                height: "100%",
-                                backgroundColor: aiCredits.appCreditsRemaining <= 10 ? "#ef4444" : "#6366f1",
-                                transition: "width 0.5s ease",
-                              }}
-                            />
-                          </div>
+                            {aiCredits.appCreditsRemaining} remaining
+                          </span>
                         </div>
-
-                        {/* Status */}
                         <div
                           style={{
-                            padding: "12px 16px",
-                            borderRadius: "var(--radius-md)",
-                            backgroundColor: aiCredits.currentlyUsingOwnKey
-                              ? "rgba(34, 197, 94, 0.1)"
-                              : aiCredits.appCreditsRemaining <= 10
-                                ? "rgba(239, 68, 68, 0.1)"
-                                : "var(--color-primary-soft)",
+                            height: "8px",
+                            borderRadius: "4px",
+                            backgroundColor: "var(--color-surface)",
+                            overflow: "hidden",
+                            border: "1px solid var(--color-border)",
                           }}
                         >
-                          <p
+                          <div
                             style={{
-                              margin: 0,
-                              fontSize: "var(--text-sm)",
-                              color: aiCredits.currentlyUsingOwnKey
-                                ? "#16a34a"
-                                : aiCredits.appCreditsRemaining <= 10
-                                  ? "#dc2626"
-                                  : "var(--color-primary)",
-                              fontWeight: 500,
+                              width: `${Math.min(100, (aiCredits.appCreditsUsed / aiCredits.appCreditsLimit) * 100)}%`,
+                              height: "100%",
+                              backgroundColor:
+                                aiCredits.appCreditsRemaining <= 0
+                                  ? "#ef4444"
+                                  : aiCredits.appCreditsRemaining <= 10
+                                    ? "#f59e0b"
+                                    : "var(--color-primary)",
+                              transition: "width 0.5s ease",
                             }}
-                          >
-                            {aiCredits.currentlyUsingOwnKey ? (
-                              <>✓ Using your API key — unlimited generations</>
-                            ) : aiCredits.appCreditsRemaining <= 0 ? (
-                              <>No credits remaining. Add your API key for unlimited access.</>
-                            ) : aiCredits.appCreditsRemaining <= 10 ? (
-                              <>Only {aiCredits.appCreditsRemaining} credits left this month.</>
-                            ) : (
-                              <>{aiCredits.appCreditsRemaining} credits remaining this month.</>
-                            )}
-                          </p>
+                          />
                         </div>
+                      </div>
+
+                      {/* Status Box */}
+                      <div
+                        style={{
+                          padding: "16px 20px",
+                          borderRadius: "12px",
+                          border: `1.5px solid ${
+                            aiCredits.currentlyUsingOwnKey
+                              ? "#22c55e"
+                              : aiCredits.appCreditsRemaining <= 0
+                                ? "#ef4444"
+                                : aiCredits.appCreditsRemaining <= 10
+                                  ? "#f59e0b"
+                                  : "var(--color-primary)"
+                          }`,
+                          backgroundColor: aiCredits.currentlyUsingOwnKey
+                            ? "rgba(34, 197, 94, 0.08)"
+                            : aiCredits.appCreditsRemaining <= 0
+                              ? "rgba(239, 68, 68, 0.08)"
+                              : aiCredits.appCreditsRemaining <= 10
+                                ? "rgba(245, 158, 11, 0.08)"
+                                : "rgba(99, 102, 241, 0.08)",
+                        }}
+                      >
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "var(--text-sm)",
+                            color: aiCredits.currentlyUsingOwnKey
+                              ? "#16a34a"
+                              : aiCredits.appCreditsRemaining <= 0
+                                ? "#dc2626"
+                                : aiCredits.appCreditsRemaining <= 10
+                                  ? "#d97706"
+                                  : "var(--color-primary)",
+                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          {aiCredits.currentlyUsingOwnKey ? (
+                            <>
+                              <span>✓</span>
+                              <span>Using your API key — unlimited generations</span>
+                            </>
+                          ) : aiCredits.appCreditsRemaining <= 0 ? (
+                            <>
+                              <span>⚠️</span>
+                              <span>No credits remaining. Add your API key for unlimited access.</span>
+                            </>
+                          ) : aiCredits.appCreditsRemaining <= 10 ? (
+                            <>
+                              <span>⚠️</span>
+                              <span>Only {aiCredits.appCreditsRemaining} credits left this month.</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>✓</span>
+                              <span>{aiCredits.appCreditsRemaining} credits remaining this month.</span>
+                            </>
+                          )}
+                        </p>
                       </div>
                     </div>
                   </div>
                 )}
-
-                {/* How AI Credits Work Guide */}
                 <div
                   style={{
                     marginBottom: "24px",
                     background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-lg)",
+                    border: "1.5px solid var(--color-border)",
+                    borderRadius: "14px",
                     overflow: "hidden",
                     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                     width: "100%",
@@ -924,7 +999,7 @@ export default function Settings() {
                     onClick={() => setShowAICreditsGuide(!showAICreditsGuide)}
                     style={{
                       width: "100%",
-                      padding: "16px 20px",
+                      padding: "20px",
                       background: "transparent",
                       border: "none",
                       cursor: "pointer",
@@ -932,10 +1007,17 @@ export default function Settings() {
                       alignItems: "center",
                       justifyContent: "space-between",
                       color: "var(--color-text)",
+                      transition: "background var(--transition-fast)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-strong)"
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent"
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text)" }}>
                         How AI Credits Work
                       </span>
                     </div>

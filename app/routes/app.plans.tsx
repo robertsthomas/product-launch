@@ -1,7 +1,7 @@
 import { boundary } from "@shopify/shopify-app-react-router/server"
 import { useState } from "react"
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router"
-import { useLoaderData, useRevalidator } from "react-router"
+import { useLoaderData, useNavigate, useRevalidator } from "react-router"
 import { getCurrentSubscription } from "../lib/billing/billing.server"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { getOrCreateShop } from "../lib/services/shop.server"
@@ -38,6 +38,7 @@ const Check = () => (
 
 export default function PlansPage() {
   const { isPro, isYearly: initialIsYearly, pricingUrl } = useLoaderData<typeof loader>()
+  const navigate = useNavigate()
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(initialIsYearly ? "yearly" : "monthly")
   const [upgrading, setUpgrading] = useState(false)
   const revalidate = useRevalidator()
@@ -86,29 +87,63 @@ export default function PlansPage() {
       }}
     >
       <div style={{ maxWidth: "880px", margin: "0 auto" }}>
-        <header style={{ textAlign: "center", marginBottom: "var(--space-10)" }}>
-          <h1
+        <header style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "var(--space-10)" }}>
+          <button
+            type="button"
+            onClick={() => navigate("/app/settings")}
             style={{
-              margin: 0,
-              fontSize: "var(--text-2xl)",
-              fontWeight: 600,
-              color: "var(--color-text)",
-              letterSpacing: "-0.02em",
-              lineHeight: 1.25,
-            }}
-          >
-            Plans
-          </h1>
-          <p
-            style={{
-              margin: "var(--space-2) 0 0",
-              fontSize: "var(--text-base)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "36px",
+              height: "36px",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--color-border)",
+              background: "var(--color-surface)",
               color: "var(--color-muted)",
+              cursor: "pointer",
+              transition: "all var(--transition-fast)",
+              flexShrink: 0,
             }}
+            title="Back to settings"
           >
-            Start free, upgrade when you need more.
-          </p>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div style={{ textAlign: "left" }}>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "var(--text-2xl)",
+                fontWeight: 600,
+                color: "var(--color-text)",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.25,
+              }}
+            >
+              Plans
+            </h1>
+          </div>
         </header>
+        <p
+          style={{
+            margin: "var(--space-2) 0 0",
+            fontSize: "var(--text-base)",
+            color: "var(--color-muted)",
+          }}
+        >
+          Start free, upgrade when you need more.
+        </p>
 
         <div
           style={{

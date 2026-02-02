@@ -899,6 +899,51 @@ export default function Dashboard() {
                   </svg>
                   {isScanning ? "Syncing..." : "Sync"}
                 </button>
+
+                {/* Remove Button - Shows when items selected */}
+                {selectedProducts.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Remove ${selectedProducts.size} product(s) from the synced list? (Products will not be deleted)`)) {
+                        selectedProducts.forEach((productId) => {
+                          autofixFetcher.submit(
+                            { productId },
+                            { method: "POST", action: "/api/audit/remove" }
+                          )
+                        })
+                        clearSelection()
+                      }
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      padding: "6px 12px",
+                      background: "#fef2f2",
+                      color: "#b53d3d",
+                      border: "1px solid #fecaca",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#fee2e2"
+                      e.currentTarget.style.borderColor = "#fca5a5"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "#fef2f2"
+                      e.currentTarget.style.borderColor = "#fecaca"
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h12zM10 11v6M14 11v6" />
+                    </svg>
+                    Remove
+                  </button>
+                )}
               </div>
             </div>
 
