@@ -3,6 +3,7 @@ import type { LoaderFunctionArgs } from "react-router"
 import { db } from "~/db"
 import { shops } from "~/db/schema"
 import { PLAN_CONFIG, type PlanType, isInTrial } from "~/lib/billing"
+import { getShopPlanStatus } from "~/lib/billing/guards.server"
 import { authenticate } from "~/shopify.server"
 
 /**
@@ -19,11 +20,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return Response.json({ error: "Shop not found" }, { status: 404 })
   }
 
-  // Dev-only plan override to quickly test UI/feature gates.
-  // Set: BILLING_DEV_PLAN=free|pro (only honored outside production)
-  const forcedPlan = getDevPlanOverride()
-  const plan = (forcedPlan ?? shop.plan) as keyof typeof PLAN_CONFIG
-  const config = PLAN_CONFIG[plan]
+  // Use centralized plan logic (respects BILLING_DEV_PLAN in dev, PRO_STORE_DOMAINS in prod)
+  const { plan } = await getShopPlanStatus(session.shop)
+  const config = PLAN_CONFIG[plan as keyof typeof PLAN_CONFIG]
   const inTrial = isInTrial(shop)
 
   // Calculate AI credits remaining
@@ -44,7 +43,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   return Response.json({
-    plan: (forcedPlan ?? shop.plan) as PlanType,
+    plan: plan as PlanType,
     planName: config.name,
     subscriptionStatus: shop.subscriptionStatus,
     isDevStore: shop.isDevStore,
@@ -75,18 +74,4 @@ export async function loader({ request }: LoaderFunctionArgs) {
           }
         : null,
   })
-}
-
-function getDevPlanOverride(): PlanType | null {
-  console.log("BILLING STATUS getDevPlanOverride - NODE_ENV:", process.env.NODE_ENV)
-  console.log("BILLING STATUS getDevPlanOverride - BILLING_DEV_PLAN:", process.env.BILLING_DEV_PLAN)
-  if (process.env.NODE_ENV === "production") return null
-  const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim()
-  console.log("BILLING STATUS getDevPlanOverride - raw:", raw)
-  if (raw === "free" || raw === "pro") {
-    console.log("BILLING STATUS getDevPlanOverride - returning:", raw)
-    return raw as PlanType
-  }
-  console.log("BILLING STATUS getDevPlanOverride - returning null")
-  return null
 }

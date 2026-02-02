@@ -1,23 +1,49 @@
+import { eq } from "drizzle-orm"
 import type { ActionFunctionArgs } from "react-router"
+import { db } from "~/db"
+import { shops } from "~/db/schema"
+import { getCurrentSubscription } from "~/lib/billing"
+import { PLANS } from "~/lib/billing/constants"
 import { authenticate } from "~/shopify.server"
 
 /**
  * POST /api/billing/cancel
  *
- * With managed pricing, subscription cancellation is handled through Shopify's admin.
- * This endpoint just provides info on how to cancel.
+ * Cancels the active subscription using Shopify's Billing API.
  */
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request)
+  const { admin, session, billing } = await authenticate.admin(request)
 
-  // With Shopify managed pricing, merchants cancel through Shopify admin
-  // Navigate to: Settings > Apps and sales channels > [App] > Cancel subscription
-  const appHandle = process.env.SHOPIFY_APP_HANDLE || "launch-ready"
-  const manageSubscriptionUrl = `https://admin.shopify.com/store/${session.shop.replace(".myshopify.com", "")}/charges/${appHandle}/pricing_plans`
+  try {
+    const subscription = await getCurrentSubscription(admin)
 
-  return Response.json({
-    success: true,
-    message: "To cancel your subscription, please visit the Shopify admin.",
-    redirectUrl: manageSubscriptionUrl,
-  })
+    if (!subscription) {
+      return Response.json({ error: "No active subscription found" }, { status: 400 })
+    }
+
+    // Cancel via Shopify billing API
+    await billing.cancel({
+      subscriptionId: subscription.id,
+      prorate: true,
+    })
+
+    // Update local DB
+    await db
+      .update(shops)
+      .set({
+        plan: PLANS.FREE,
+        subscriptionId: null,
+        subscriptionStatus: "cancelled",
+        updatedAt: new Date(),
+      })
+      .where(eq(shops.shopDomain, session.shop))
+
+    return Response.json({ success: true, message: "Subscription cancelled" })
+  } catch (error) {
+    console.error("Cancel subscription failed:", error)
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Failed to cancel subscription" },
+      { status: 500 }
+    )
+  }
 }

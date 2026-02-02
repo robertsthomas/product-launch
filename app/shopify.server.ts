@@ -1,6 +1,13 @@
 import "@shopify/shopify-app-react-router/adapters/node"
+import { BillingInterval } from "@shopify/shopify-api"
 import { ApiVersion, AppDistribution, shopifyApp } from "@shopify/shopify-app-react-router/server"
 import { sessionStorage } from "./db/session-storage"
+
+// Plan names must match exactly when calling billing.request()
+export const BILLING_PLANS = {
+  PRO_MONTHLY: "Pro Monthly",
+  PRO_YEARLY: "Pro Yearly",
+} as const
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -12,6 +19,28 @@ const shopify = shopifyApp({
   sessionStorage: sessionStorage as any,
   distribution: AppDistribution.AppStore,
   ...(process.env.SHOP_CUSTOM_DOMAIN ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] } : {}),
+  billing: {
+    [BILLING_PLANS.PRO_MONTHLY]: {
+      lineItems: [
+        {
+          amount: 19.0,
+          currencyCode: "USD",
+          interval: BillingInterval.Every30Days,
+        },
+      ],
+      trialDays: 7,
+    },
+    [BILLING_PLANS.PRO_YEARLY]: {
+      lineItems: [
+        {
+          amount: 180.0, // ~$15/mo, 2 months free
+          currencyCode: "USD",
+          interval: BillingInterval.Annual,
+        },
+      ],
+      trialDays: 7,
+    },
+  },
 })
 
 export default shopify

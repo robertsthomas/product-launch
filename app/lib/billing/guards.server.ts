@@ -26,7 +26,7 @@ function getDevPlanOverride(): PlanType | null {
   if (process.env.NODE_ENV === "production") return null
   const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim()
   if (raw === "free" || raw === "pro") return raw as PlanType
-  return PLANS.PRO
+  return null
 }
 
 // Comma-separated list of store handles or domains (e.g. PRO_STORE_DOMAINS=store1,store2 or store1.myshopify.com)

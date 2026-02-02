@@ -54,16 +54,17 @@ export default function PlansPage() {
   const handleUpgrade = async () => {
     setUpgrading(true)
     try {
-      const res = await fetch("/api/billing/upgrade?plan=pro", {
+      const res = await fetch(`/api/billing/upgrade?plan=pro&interval=${billingInterval}`, {
         method: "POST",
         credentials: "same-origin",
       })
       if (!res.ok) return
-      const data = (await res.json()) as { redirectUrl?: string }
-      if (data.redirectUrl) {
-        window.top!.location.href = data.redirectUrl
+      const data = (await res.json()) as { confirmationUrl?: string; success?: boolean }
+      if (data.confirmationUrl) {
+        window.top!.location.href = data.confirmationUrl
         return
       }
+      // Dev store - just refresh
       revalidate.revalidate()
     } finally {
       setUpgrading(false)
@@ -71,7 +72,7 @@ export default function PlansPage() {
   }
 
   const monthlyPrice = 19
-  const yearlyPrice = 190
+  const yearlyPrice = 180
   const yearlyMonthly = Math.round(yearlyPrice / 12)
 
   const freeFeatures = ["Unlimited audits", "Readiness checklist", "One-click fixes", "Basic analytics"]

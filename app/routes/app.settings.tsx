@@ -6,6 +6,7 @@ import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "re
 import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-router"
 import { BRAND_VOICE_PROFILES } from "../lib/ai/prompts"
 import { getAICreditStatus } from "../lib/billing/ai-gating.server"
+import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { TEMPLATE_PRESETS } from "../lib/checklist/types"
 import { BRAND_VOICE_PRESETS, type BrandVoicePreset, OPENAI_IMAGE_MODELS, OPENAI_TEXT_MODELS } from "../lib/constants"
 import {
@@ -41,14 +42,6 @@ type VersionHistoryItem = {
 
 type SettingsTab = "automation" | "ai" | "brand-voice" | "version-history" | "checklist" | "monitoring"
 
-// Get dev plan override for local testing
-function getDevPlanOverride(): "free" | "pro" | null {
-  if (process.env.NODE_ENV === "production") return null
-  const raw = (process.env.BILLING_DEV_PLAN || "").toLowerCase().trim()
-  if (raw === "free" || raw === "pro") return raw
-  return null
-}
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request)
   const shop = session.shop
@@ -56,8 +49,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopRecord = await getOrCreateShop(shop)
   const template = shopRecord.checklistTemplates[0]
 
-  // Use dev plan override if set, otherwise use actual plan
-  const effectivePlan = getDevPlanOverride() || shopRecord.plan
+  // Use centralized plan logic (respects BILLING_DEV_PLAN in dev, PRO_STORE_DOMAINS in prod)
+  const { plan: effectivePlan } = await getShopPlanStatus(shop)
 
   const collectionsResponse = await admin.graphql(`#graphql
     query GetCollections {
@@ -846,10 +839,10 @@ export default function Settings() {
                       transition: "all var(--transition-fast)",
                     }}
                   >
-                    <div style={{ marginBottom: "24px" }}>
+                    <div style={{ marginBottom: "20px" }}>
                       <h2
                         style={{
-                          margin: "0 0 6px",
+                          margin: 0,
                           fontFamily: "var(--font-heading)",
                           fontSize: "var(--text-lg)",
                           fontWeight: 700,
@@ -858,9 +851,6 @@ export default function Settings() {
                       >
                         AI Credits
                       </h2>
-                      <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                        Your monthly AI generation allowance resets on the 1st of each month.
-                      </p>
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -881,12 +871,7 @@ export default function Settings() {
                             style={{
                               fontSize: "var(--text-sm)",
                               fontWeight: 600,
-                              color:
-                                aiCredits.appCreditsRemaining <= 0
-                                  ? "#dc2626"
-                                  : aiCredits.appCreditsRemaining <= 10
-                                    ? "#f59e0b"
-                                    : "var(--color-primary)",
+                              color: "var(--color-text)",
                             }}
                           >
                             {aiCredits.appCreditsRemaining} remaining
@@ -905,12 +890,7 @@ export default function Settings() {
                             style={{
                               width: `${Math.min(100, (aiCredits.appCreditsUsed / aiCredits.appCreditsLimit) * 100)}%`,
                               height: "100%",
-                              backgroundColor:
-                                aiCredits.appCreditsRemaining <= 0
-                                  ? "#ef4444"
-                                  : aiCredits.appCreditsRemaining <= 10
-                                    ? "#f59e0b"
-                                    : "var(--color-primary)",
+                              backgroundColor: "var(--color-primary)",
                               transition: "width 0.5s ease",
                             }}
                           />
@@ -922,62 +902,23 @@ export default function Settings() {
                         style={{
                           padding: "16px 20px",
                           borderRadius: "12px",
-                          border: `1.5px solid ${
-                            aiCredits.currentlyUsingOwnKey
-                              ? "#22c55e"
-                              : aiCredits.appCreditsRemaining <= 0
-                                ? "#ef4444"
-                                : aiCredits.appCreditsRemaining <= 10
-                                  ? "#f59e0b"
-                                  : "var(--color-primary)"
-                          }`,
-                          backgroundColor: aiCredits.currentlyUsingOwnKey
-                            ? "rgba(34, 197, 94, 0.08)"
-                            : aiCredits.appCreditsRemaining <= 0
-                              ? "rgba(239, 68, 68, 0.08)"
-                              : aiCredits.appCreditsRemaining <= 10
-                                ? "rgba(245, 158, 11, 0.08)"
-                                : "rgba(99, 102, 241, 0.08)",
+                          border: "1px solid var(--color-border)",
+                          backgroundColor: "var(--color-surface-strong)",
                         }}
                       >
                         <p
                           style={{
                             margin: 0,
                             fontSize: "var(--text-sm)",
-                            color: aiCredits.currentlyUsingOwnKey
-                              ? "#16a34a"
-                              : aiCredits.appCreditsRemaining <= 0
-                                ? "#dc2626"
-                                : aiCredits.appCreditsRemaining <= 10
-                                  ? "#d97706"
-                                  : "var(--color-primary)",
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
+                            color: "var(--color-text)",
+                            fontWeight: 500,
                           }}
                         >
-                          {aiCredits.currentlyUsingOwnKey ? (
-                            <>
-                              <span>✓</span>
-                              <span>Using your API key — unlimited generations</span>
-                            </>
-                          ) : aiCredits.appCreditsRemaining <= 0 ? (
-                            <>
-                              <span>⚠️</span>
-                              <span>No credits remaining. Add your API key for unlimited access.</span>
-                            </>
-                          ) : aiCredits.appCreditsRemaining <= 10 ? (
-                            <>
-                              <span>⚠️</span>
-                              <span>Only {aiCredits.appCreditsRemaining} credits left this month.</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>✓</span>
-                              <span>{aiCredits.appCreditsRemaining} credits remaining this month.</span>
-                            </>
-                          )}
+                          {aiCredits.currentlyUsingOwnKey
+                            ? "Using your API key"
+                            : aiCredits.appCreditsRemaining <= 0
+                              ? "No credits remaining"
+                              : `${aiCredits.appCreditsRemaining} remaining`}
                         </p>
                       </div>
                     </div>

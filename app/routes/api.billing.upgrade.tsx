@@ -1,29 +1,28 @@
 import type { ActionFunctionArgs } from "react-router"
 import { isDevStore, syncPlanFromShopify } from "~/lib/billing"
 import { PLANS } from "~/lib/billing/constants"
-import { authenticate } from "~/shopify.server"
+import { authenticate, BILLING_PLANS } from "~/shopify.server"
 
 /**
- * POST /api/billing/upgrade?plan=pro
+ * POST /api/billing/upgrade?plan=pro&interval=monthly|yearly
  *
- * Returns 200 JSON so fetch clients can read redirectUrl (302 Location is often opaque in embedded/fetch).
- * - BILLING_USE_HOSTED_CHECKOUT=true: return redirectUrl to hosted pricing.
- * - Otherwise: dev store → success + sync Pro; production store → redirectUrl to hosted pricing.
+ * Creates a Shopify subscription using the Billing API.
+ * Returns confirmationUrl for user approval.
  */
-const useHostedCheckout = process.env.BILLING_USE_HOSTED_CHECKOUT === "true"
-
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin, session } = await authenticate.admin(request)
+  const { admin, session, billing } = await authenticate.admin(request)
   const url = new URL(request.url)
   const plan = url.searchParams.get("plan") as "pro"
+  const interval = url.searchParams.get("interval") || "monthly"
 
   if (!plan || plan !== "pro") {
     return Response.json({ error: "Invalid plan. Must be 'pro'" }, { status: 400 })
   }
 
   try {
+    // Dev stores get Pro for free
     const isDev = await isDevStore(admin)
-    if (!useHostedCheckout && isDev) {
+    if (isDev) {
       await syncPlanFromShopify(admin, session.shop)
       return Response.json({
         success: true,
@@ -32,15 +31,21 @@ export async function action({ request }: ActionFunctionArgs) {
       })
     }
 
-    const storeHandle = session.shop.replace(".myshopify.com", "")
-    const appHandle = process.env.SHOPIFY_APP_HANDLE || "launch-ready"
-    const redirectUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${appHandle}/pricing_plans?plan=Pro`
+    // Select plan based on interval
+    const billingPlan = interval === "yearly" ? BILLING_PLANS.PRO_YEARLY : BILLING_PLANS.PRO_MONTHLY
 
-    return Response.json({ success: true, redirectUrl })
+    // Request subscription using Shopify's billing API
+    const { confirmationUrl } = await billing.request({
+      plan: billingPlan,
+      isTest: process.env.NODE_ENV !== "production",
+      returnUrl: `${process.env.SHOPIFY_APP_URL}/api/billing/callback`,
+    })
+
+    return Response.json({ success: true, confirmationUrl })
   } catch (error) {
-    console.error("Billing redirect failed:", error)
+    console.error("Billing request failed:", error)
     return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to redirect to pricing page" },
+      { error: error instanceof Error ? error.message : "Failed to create subscription" },
       { status: 500 }
     )
   }
