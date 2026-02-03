@@ -42,7 +42,13 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
   // Prod override for testing credits (AI_CREDITS_OVERRIDE=50 or AI_CREDITS_OVERRIDE=unlimited)
   const creditsOverride = process.env.AI_CREDITS_OVERRIDE?.toLowerCase().trim()
   if (creditsOverride === "unlimited" || creditsOverride === "infinity") {
-    return { allowed: true, creditsRemaining: Infinity, creditsLimit: Infinity, usingOwnKey: false, ownKeyCreditsUsed: 0 }
+    return {
+      allowed: true,
+      creditsRemaining: Infinity,
+      creditsLimit: Infinity,
+      usingOwnKey: false,
+      ownKeyCreditsUsed: 0,
+    }
   }
 
   // Use centralized plan status (respects BILLING_DEV_PLAN, PRO_STORE_DOMAINS, and DB)
@@ -105,7 +111,9 @@ export async function checkAIGate(shopDomain: string): Promise<AIGateResult> {
   const creditsRemaining = Math.max(0, limit - shop.aiCreditsUsed)
 
   // Debug logging in production
-  console.log(`[AI Gate] shop=${shopDomain} plan=${plan} used=${shop.aiCreditsUsed} limit=${limit} remaining=${creditsRemaining} hasOwnKey=${hasOwnKey}`)
+  console.log(
+    `[AI Gate] shop=${shopDomain} plan=${plan} used=${shop.aiCreditsUsed} limit=${limit} remaining=${creditsRemaining} hasOwnKey=${hasOwnKey}`
+  )
 
   // App credits still available
   if (creditsRemaining > 0) {

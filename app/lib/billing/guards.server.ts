@@ -32,7 +32,12 @@ function getDevPlanOverride(): PlanType | null {
 // Comma-separated list of store handles or domains (e.g. PRO_STORE_DOMAINS=store1,store2 or store1.myshopify.com)
 function getProStoreAllowlist(): Set<string> {
   const raw = process.env.PRO_STORE_DOMAINS || ""
-  return new Set(raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean))
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  )
 }
 
 /** True if this shop is in the PRO_STORE_DOMAINS env allowlist. Skipped only when NODE_ENV is "development" so BILLING_DEV_PLAN takes precedence locally. */

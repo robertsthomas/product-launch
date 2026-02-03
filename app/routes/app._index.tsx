@@ -549,7 +549,7 @@ export default function Dashboard() {
   const dummyAudits = useMemo(() => {
     // Only show dummy data if tour is open AND no real products exist
     if (!isTourOpen || audits.length > 0) return []
-    
+
     return [
       {
         id: "tour-dummy-1",
@@ -905,12 +905,13 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (confirm(`Remove ${selectedProducts.size} product(s) from the synced list? (Products will not be deleted)`)) {
+                      if (
+                        confirm(
+                          `Remove ${selectedProducts.size} product(s) from the synced list? (Products will not be deleted)`
+                        )
+                      ) {
                         selectedProducts.forEach((productId) => {
-                          autofixFetcher.submit(
-                            { productId },
-                            { method: "POST", action: "/api/audit/remove" }
-                          )
+                          autofixFetcher.submit({ productId }, { method: "POST", action: "/api/audit/remove" })
                         })
                         clearSelection()
                       }
@@ -2117,948 +2118,958 @@ export default function Dashboard() {
               height: "100%",
             }}
           >
-              {/* Overall Score Card */}
+            {/* Overall Score Card */}
+            <div
+              style={{
+                position: "relative",
+                background: "#fff",
+                border: "1px solid #e4e4e7",
+                borderRadius: "12px",
+                padding: "24px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              }}
+            >
               <div
                 style={{
-                  position: "relative",
-                  background: "#fff",
-                  border: "1px solid #e4e4e7",
-                  borderRadius: "12px",
-                  padding: "24px",
+                  fontSize: "var(--text-xs)",
+                  fontWeight: 500,
+                  color: "#71717a",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  marginBottom: "20px",
+                }}
+              >
+                Products Health
+              </div>
+
+              {/* Circular Progress Container */}
+              <div
+                onClick={() => animatedPercent === 100 && setShowCelebrationModal(true)}
+                style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                  gap: "16px",
+                  cursor: animatedPercent === 100 ? "pointer" : "default",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: "var(--text-xs)",
-                    fontWeight: 500,
-                    color: "#71717a",
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase",
-                    marginBottom: "20px",
-                  }}
-                >
-                  Products Health
-                </div>
+                <CircularProgress
+                  percent={animatedPercent}
+                  size={160}
+                  strokeWidth={12}
+                  color={
+                    animatedPercent >= 80
+                      ? "var(--color-success)"
+                      : animatedPercent >= 60
+                        ? "var(--color-primary)"
+                        : "var(--color-error)"
+                  }
+                />
 
-                {/* Circular Progress Container */}
-                <div
-                  onClick={() => animatedPercent === 100 && setShowCelebrationModal(true)}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "16px",
-                    cursor: animatedPercent === 100 ? "pointer" : "default",
-                  }}
-                >
-                  <CircularProgress 
-                    percent={animatedPercent} 
-                    size={160} 
-                    strokeWidth={12}
-                    color={animatedPercent >= 80 ? "var(--color-success)" : animatedPercent >= 60 ? "var(--color-primary)" : "var(--color-error)"}
-                  />
-
-                  {/* Label outside the circle */}
-                  <div style={{ textAlign: "center" }}>
-                    <div
-                      style={{
-                        fontSize: "var(--text-sm)",
-                        color: "var(--color-muted)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {stats.totalAudited > 0
-                        ? `${stats.readyCount} of ${stats.totalAudited} products ready`
-                        : "No products synced yet"}
-                    </div>
+                {/* Label outside the circle */}
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--color-muted)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {stats.totalAudited > 0
+                      ? `${stats.readyCount} of ${stats.totalAudited} products ready`
+                      : "No products synced yet"}
                   </div>
                 </div>
+              </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    width: "100%",
-                    marginTop: "24px",
-                    paddingTop: "20px",
-                    borderTop: "1px solid var(--color-border-subtle)",
-                  }}
-                >
-                  {[
-                    {
-                      label: "Ready",
-                      value: stats.readyCount,
-                      color: "var(--color-success)",
-                    },
-                    {
-                      label: "Pending",
-                      value: stats.incompleteCount,
-                      color: "var(--color-accent-strong)",
-                    },
-                    {
-                      label: "Avg. Score",
-                      value: `${stats.avgCompletion}%`,
-                      color: "var(--color-primary)",
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  width: "100%",
+                  marginTop: "24px",
+                  paddingTop: "20px",
+                  borderTop: "1px solid var(--color-border-subtle)",
+                }}
+              >
+                {[
+                  {
+                    label: "Ready",
+                    value: stats.readyCount,
+                    color: "var(--color-success)",
+                  },
+                  {
+                    label: "Pending",
+                    value: stats.incompleteCount,
+                    color: "var(--color-accent-strong)",
+                  },
+                  {
+                    label: "Avg. Score",
+                    value: `${stats.avgCompletion}%`,
+                    color: "var(--color-primary)",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span
                       style={{
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "6px",
+                        fontSize: "10px",
+                        color: "var(--color-subtle)",
+                        fontWeight: 700,
+                        letterSpacing: "0.05em",
+                        textTransform: "uppercase",
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          color: "var(--color-subtle)",
-                          fontWeight: 700,
-                          letterSpacing: "0.05em",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {item.label}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: 700,
-                          color: item.color,
-                        }}
-                      >
-                        {item.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                      {item.label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "18px",
+                        fontWeight: 700,
+                        color: item.color,
+                      }}
+                    >
+                      {item.value}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
-        {selectedProducts.size > 0 && (
+      </div>
+      {selectedProducts.size > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "32px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 100,
+          }}
+        >
           <div
+            data-tour-bulk-actions
             style={{
-              position: "fixed",
-              bottom: "32px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 100,
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "12px 20px",
+              background: "#fff",
+              backdropFilter: "blur(16px)",
+              borderRadius: "10px",
+              border: "1px solid #e4e4e7",
+              boxShadow: "0 10px 24px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.1)",
             }}
           >
+            {/* Selection count */}
             <div
-              data-tour-bulk-actions
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "12px",
-                padding: "12px 20px",
-                background: "#fff",
-                backdropFilter: "blur(16px)",
-                borderRadius: "10px",
-                border: "1px solid #e4e4e7",
-                boxShadow: "0 10px 24px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.1)",
+                gap: "8px",
+                paddingRight: "12px",
+                borderRight: "1px solid #e4e4e7",
               }}
             >
-              {/* Selection count */}
+              <div
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "6px",
+                  background: "#465A54",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+              >
+                {selectedProducts.size}
+              </div>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  color: "#252F2C",
+                }}
+              >
+                selected
+              </span>
+            </div>
+
+            {/* Action buttons */}
+            {isGeneratingBulk ? (
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
-                  paddingRight: "12px",
-                  borderRight: "1px solid #e4e4e7",
+                  gap: "10px",
+                  padding: "8px 16px",
+                  background: "#465A54",
+                  borderRadius: "6px",
+                  color: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 500,
                 }}
               >
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "6px",
+                    width: "14px",
+                    height: "14px",
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "#fff",
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite",
+                  }}
+                />
+                Processing...
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => executeBulkAction("generate_tags")}
+                  style={{
+                    padding: "8px 16px",
                     background: "#465A54",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    color: "#fff",
-                    fontSize: "13px",
-                    fontWeight: 600,
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#3d4e49"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#465A54"
                   }}
                 >
-                  {selectedProducts.size}
-                </div>
-                <span
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                  </svg>
+                  Tags
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => executeBulkAction("apply_collection")}
                   style={{
+                    padding: "8px 16px",
+                    background: "transparent",
+                    border: "1px solid #e4e4e7",
+                    borderRadius: "6px",
                     fontSize: "13px",
                     fontWeight: 500,
                     color: "#252F2C",
-                  }}
-                >
-                  selected
-                </span>
-              </div>
-
-              {/* Action buttons */}
-              {isGeneratingBulk ? (
-                <div
-                  style={{
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
-                    padding: "8px 16px",
-                    background: "#465A54",
-                    borderRadius: "6px",
-                    color: "#fff",
-                    fontSize: "13px",
-                    fontWeight: 500,
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#f4f4f5"
+                    e.currentTarget.style.borderColor = "#d4d4d8"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent"
+                    e.currentTarget.style.borderColor = "#e4e4e7"
                   }}
                 >
-                  <div
-                    style={{
-                      width: "14px",
-                      height: "14px",
-                      border: "2px solid rgba(255,255,255,0.3)",
-                      borderTopColor: "#fff",
-                      borderRadius: "50%",
-                      animation: "spin 1s linear infinite",
-                    }}
-                  />
-                  Processing...
-                </div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => executeBulkAction("generate_tags")}
-                    style={{
-                      padding: "8px 16px",
-                      background: "#465A54",
-                      border: "none",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "#fff",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#3d4e49"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "#465A54"
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                      <line x1="7" y1="7" x2="7.01" y2="7" />
-                    </svg>
-                    Tags
-                  </button>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                  </svg>
+                  Collection
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => executeBulkAction("apply_collection")}
-                    style={{
-                      padding: "8px 16px",
-                      background: "transparent",
-                      border: "1px solid #e4e4e7",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "#252F2C",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#f4f4f5"
-                      e.currentTarget.style.borderColor = "#d4d4d8"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                      e.currentTarget.style.borderColor = "#e4e4e7"
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="14" y="14" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                    </svg>
-                    Collection
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Check which products have 3+ images already
+                    const selectedProductIds = Array.from(selectedProducts)
+                    const skipped: string[] = []
+                    const eligible: string[] = []
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Check which products have 3+ images already
-                      const selectedProductIds = Array.from(selectedProducts)
-                      const skipped: string[] = []
-                      const eligible: string[] = []
-
-                      for (const productId of selectedProductIds) {
-                        const audit = audits.find((a) => a.productId === productId)
-                        // Check min_images item details to extract current image count
-                        const imageItem = audit?.items?.find((i) => i.key === "min_images")
-                        let imageCount = 0
-                        if (imageItem?.details) {
-                          // Parse "Found X image(s)" from details
-                          const match = imageItem.details.match(/Found (\d+) image/)
-                          if (match) {
-                            imageCount = parseInt(match[1], 10)
-                          }
-                        }
-
-                        if (imageCount >= 3) {
-                          skipped.push(audit?.productTitle || productId)
-                        } else {
-                          eligible.push(productId)
+                    for (const productId of selectedProductIds) {
+                      const audit = audits.find((a) => a.productId === productId)
+                      // Check min_images item details to extract current image count
+                      const imageItem = audit?.items?.find((i) => i.key === "min_images")
+                      let imageCount = 0
+                      if (imageItem?.details) {
+                        // Parse "Found X image(s)" from details
+                        const match = imageItem.details.match(/Found (\d+) image/)
+                        if (match) {
+                          imageCount = parseInt(match[1], 10)
                         }
                       }
 
-                      if (skipped.length > 0) {
-                        setSkippedImageProducts(skipped)
-                        setEligibleImageProductIds(eligible)
-                        setShowImageAlert(true)
-                      } else if (eligible.length > 0) {
-                        // All products eligible, proceed directly
-                        executeBulkAction("generate_all", {
-                          selectedFields: [],
-                          fieldOptions: { images: ["image"] },
-                        })
+                      if (imageCount >= 3) {
+                        skipped.push(audit?.productTitle || productId)
+                      } else {
+                        eligible.push(productId)
                       }
-                    }}
-                    style={{
-                      padding: "8px 16px",
-                      background: "transparent",
-                      border: "1px solid #e4e4e7",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "#252F2C",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#f4f4f5"
-                      e.currentTarget.style.borderColor = "#d4d4d8"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                      e.currentTarget.style.borderColor = "#e4e4e7"
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                    Images
-                  </button>
+                    }
 
-                  <button
-                    type="button"
-                    onClick={() => executeBulkAction("generate_seo_desc")}
-                    style={{
-                      padding: "8px 16px",
-                      background: "transparent",
-                      border: "1px solid #e4e4e7",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "#252F2C",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#f4f4f5"
-                      e.currentTarget.style.borderColor = "#d4d4d8"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                      e.currentTarget.style.borderColor = "#e4e4e7"
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.35-4.35" />
-                    </svg>
-                    SEO
-                  </button>
+                    if (skipped.length > 0) {
+                      setSkippedImageProducts(skipped)
+                      setEligibleImageProductIds(eligible)
+                      setShowImageAlert(true)
+                    } else if (eligible.length > 0) {
+                      // All products eligible, proceed directly
+                      executeBulkAction("generate_all", {
+                        selectedFields: [],
+                        fieldOptions: { images: ["image"] },
+                      })
+                    }
+                  }}
+                  style={{
+                    padding: "8px 16px",
+                    background: "transparent",
+                    border: "1px solid #e4e4e7",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#252F2C",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#f4f4f5"
+                    e.currentTarget.style.borderColor = "#d4d4d8"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent"
+                    e.currentTarget.style.borderColor = "#e4e4e7"
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  Images
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Check which products are already 100% ready
-                      const selectedProductIds = Array.from(selectedProducts)
-                      const skipped: string[] = []
-                      const eligible: string[] = []
+                <button
+                  type="button"
+                  onClick={() => executeBulkAction("generate_seo_desc")}
+                  style={{
+                    padding: "8px 16px",
+                    background: "transparent",
+                    border: "1px solid #e4e4e7",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#252F2C",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#f4f4f5"
+                    e.currentTarget.style.borderColor = "#d4d4d8"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent"
+                    e.currentTarget.style.borderColor = "#e4e4e7"
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" />
+                  </svg>
+                  SEO
+                </button>
 
-                      for (const productId of selectedProductIds) {
-                        const audit = audits.find((a) => a.productId === productId)
-                        if (audit?.status === "ready") {
-                          skipped.push(audit.productTitle)
-                        } else {
-                          eligible.push(productId)
-                        }
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Check which products are already 100% ready
+                    const selectedProductIds = Array.from(selectedProducts)
+                    const skipped: string[] = []
+                    const eligible: string[] = []
+
+                    for (const productId of selectedProductIds) {
+                      const audit = audits.find((a) => a.productId === productId)
+                      if (audit?.status === "ready") {
+                        skipped.push(audit.productTitle)
+                      } else {
+                        eligible.push(productId)
                       }
+                    }
 
-                      if (skipped.length > 0 && eligible.length > 0) {
-                        // Some ready, some need fixing - show alert
-                        setSkippedAutofixProducts(skipped)
-                        setEligibleAutofixProductIds(eligible)
-                        setShowAutofixAlert(true)
-                      } else if (skipped.length > 0 && eligible.length === 0) {
-                        // All already ready
-                        shopify.toast.show("All selected products are already 100% ready!")
-                      } else if (eligible.length > 0) {
-                        // All need fixing, proceed directly
-                        runAutofixOnProducts(eligible)
-                      }
-                    }}
-                    style={{
-                      padding: "8px 16px",
-                      background: "transparent",
-                      border: "1px solid #e4e4e7",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "#252F2C",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#f4f4f5"
-                      e.currentTarget.style.borderColor = "#d4d4d8"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                      e.currentTarget.style.borderColor = "#e4e4e7"
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                    </svg>
-                    Autofix
-                  </button>
+                    if (skipped.length > 0 && eligible.length > 0) {
+                      // Some ready, some need fixing - show alert
+                      setSkippedAutofixProducts(skipped)
+                      setEligibleAutofixProductIds(eligible)
+                      setShowAutofixAlert(true)
+                    } else if (skipped.length > 0 && eligible.length === 0) {
+                      // All already ready
+                      shopify.toast.show("All selected products are already 100% ready!")
+                    } else if (eligible.length > 0) {
+                      // All need fixing, proceed directly
+                      runAutofixOnProducts(eligible)
+                    }
+                  }}
+                  style={{
+                    padding: "8px 16px",
+                    background: "transparent",
+                    border: "1px solid #e4e4e7",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#252F2C",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#f4f4f5"
+                    e.currentTarget.style.borderColor = "#d4d4d8"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent"
+                    e.currentTarget.style.borderColor = "#e4e4e7"
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                  </svg>
+                  Autofix
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowGenerateAllModal(true)}
-                    style={{
-                      padding: "8px 16px",
-                      background: "#465A54",
-                      border: "none",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "#fff",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                      whiteSpace: "nowrap",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "#3d4e49"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "#465A54"
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                    </svg>
-                    Generate All
-                  </button>
-                </>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setShowGenerateAllModal(true)}
+                  style={{
+                    padding: "8px 16px",
+                    background: "#465A54",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#3d4e49"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#465A54"
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                  Generate All
+                </button>
+              </>
+            )}
 
-              {/* Close/Clear Button */}
+            {/* Close/Clear Button */}
+            <button
+              type="button"
+              onClick={clearSelection}
+              style={{
+                width: "32px",
+                height: "32px",
+                padding: 0,
+                background: "transparent",
+                border: "1px solid #e4e4e7",
+                borderRadius: "6px",
+                color: "#8B8B8B",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f4f4f5"
+                e.currentTarget.style.borderColor = "#d4d4d8"
+                e.currentTarget.style.color = "#252F2C"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent"
+                e.currentTarget.style.borderColor = "#e4e4e7"
+                e.currentTarget.style.color = "#8B8B8B"
+              }}
+              title="Close"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Monitoring Modal (Pro only) */}
+      {showMonitoringModal && monitoring && (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMonitoringModal(false)
+          }}
+        >
+          <div
+            className="animate-fade-in-up"
+            style={{
+              background: "var(--color-surface)",
+              borderRadius: "var(--radius-xl)",
+              width: "100%",
+              maxWidth: "600px",
+              maxHeight: "80vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "24px",
+                borderBottom: "1px solid var(--color-border-subtle)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "transparent",
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    fontSize: "var(--text-xl)",
+                    fontWeight: 600,
+                    margin: 0,
+                    color: "var(--color-text)",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  Catalog Monitor
+                </h2>
+                <p
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-muted)",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  Last 7 days compliance overview
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={clearSelection}
+                onClick={() => setShowMonitoringModal(false)}
                 style={{
-                  width: "32px",
-                  height: "32px",
-                  padding: 0,
                   background: "transparent",
-                  border: "1px solid #e4e4e7",
-                  borderRadius: "6px",
-                  color: "#8B8B8B",
+                  border: "none",
                   cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "18px",
+                  padding: "8px",
+                  color: "var(--color-muted)",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#f4f4f5"
-                  e.currentTarget.style.borderColor = "#d4d4d8"
-                  e.currentTarget.style.color = "#252F2C"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent"
-                  e.currentTarget.style.borderColor = "#e4e4e7"
-                  e.currentTarget.style.color = "#8B8B8B"
-                }}
-                title="Close"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
             </div>
-          </div>
-        )}
 
-        {/* Monitoring Modal (Pro only) */}
-        {showMonitoringModal && monitoring && (
-          <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowMonitoringModal(false) }}>
-
-            <div
-              className="animate-fade-in-up"
-              style={{
-                background: "var(--color-surface)",
-                borderRadius: "var(--radius-xl)",
-                width: "100%",
-                maxWidth: "600px",
-                maxHeight: "80vh",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {/* Header */}
+            {/* Content */}
+            <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
+              {/* Summary Cards */}
               <div
                 style={{
-                  padding: "24px",
-                  borderBottom: "1px solid var(--color-border-subtle)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "transparent",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "12px",
+                  marginBottom: "24px",
                 }}
               >
-                <div>
-                  <h2
-                    style={{
-                      fontSize: "var(--text-xl)",
-                      fontWeight: 600,
-                      margin: 0,
-                      color: "var(--color-text)",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    Catalog Monitor
-                  </h2>
-                  <p
-                    style={{
-                      fontSize: "var(--text-sm)",
-                      color: "var(--color-muted)",
-                      margin: "4px 0 0",
-                    }}
-                  >
-                    Last 7 days compliance overview
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowMonitoringModal(false)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "8px",
-                    color: "var(--color-muted)",
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Content */}
-              <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
-                {/* Summary Cards */}
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
-                    gap: "12px",
-                    marginBottom: "24px",
+                    padding: "16px",
+                    background: "var(--color-surface-secondary)",
+                    borderRadius: "var(--radius-md)",
+                    textAlign: "center",
                   }}
                 >
                   <div
                     style={{
-                      padding: "16px",
-                      background: "var(--color-surface-secondary)",
-                      borderRadius: "var(--radius-md)",
-                      textAlign: "center",
+                      fontSize: "28px",
+                      fontWeight: 600,
+                      color: "var(--color-text)",
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: "28px",
-                        fontWeight: 600,
-                        color: "var(--color-text)",
-                      }}
-                    >
-                      {monitoring.driftsThisWeek}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--color-muted)",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Drifts This Week
-                    </div>
+                    {monitoring.driftsThisWeek}
                   </div>
                   <div
                     style={{
-                      padding: "16px",
-                      background:
-                        monitoring.unresolvedDrifts > 0 ? "var(--color-warning-soft)" : "var(--color-success-soft)",
-                      borderRadius: "var(--radius-md)",
-                      textAlign: "center",
+                      fontSize: "11px",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: "28px",
-                        fontWeight: 600,
-                        color: monitoring.unresolvedDrifts > 0 ? "var(--color-warning)" : "var(--color-success)",
-                      }}
-                    >
-                      {monitoring.unresolvedDrifts}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--color-muted)",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Unresolved
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      padding: "16px",
-                      background: "var(--color-surface-secondary)",
-                      borderRadius: "var(--radius-md)",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "28px",
-                        fontWeight: 600,
-                        color: "var(--color-text)",
-                      }}
-                    >
-                      {monitoring.productsAffected}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--color-muted)",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Products Affected
-                    </div>
+                    Drifts This Week
                   </div>
                 </div>
+                <div
+                  style={{
+                    padding: "16px",
+                    background:
+                      monitoring.unresolvedDrifts > 0 ? "var(--color-warning-soft)" : "var(--color-success-soft)",
+                    borderRadius: "var(--radius-md)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 600,
+                      color: monitoring.unresolvedDrifts > 0 ? "var(--color-warning)" : "var(--color-success)",
+                    }}
+                  >
+                    {monitoring.unresolvedDrifts}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Unresolved
+                  </div>
+                </div>
+                <div
+                  style={{
+                    padding: "16px",
+                    background: "var(--color-surface-secondary)",
+                    borderRadius: "var(--radius-md)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                    }}
+                  >
+                    {monitoring.productsAffected}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Products Affected
+                  </div>
+                </div>
+              </div>
 
-                {/* Issues by Type */}
-                {Object.keys(monitoring.byType).length > 0 && (
-                  <div style={{ marginBottom: "24px" }}>
-                    <h3
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        marginBottom: "12px",
-                      }}
-                    >
-                      Issues by Type
-                    </h3>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "8px",
-                      }}
-                    >
-                      {Object.entries(monitoring.byType).map(([type, count]) => (
-                        <div
-                          key={type}
+              {/* Issues by Type */}
+              {Object.keys(monitoring.byType).length > 0 && (
+                <div style={{ marginBottom: "24px" }}>
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Issues by Type
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    {Object.entries(monitoring.byType).map(([type, count]) => (
+                      <div
+                        key={type}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 14px",
+                          background: "var(--color-surface-secondary)",
+                          borderRadius: "var(--radius-sm)",
+                        }}
+                      >
+                        <span
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "10px 14px",
-                            background: "var(--color-surface-secondary)",
-                            borderRadius: "var(--radius-sm)",
+                            fontSize: "13px",
+                            color: "var(--color-text)",
                           }}
                         >
-                          <span
+                          {type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "var(--color-warning)",
+                            background: "var(--color-warning-soft)",
+                            padding: "2px 8px",
+                            borderRadius: "var(--radius-full)",
+                          }}
+                        >
+                          {count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Drifts */}
+              {monitoring.recentDrifts.length > 0 && (
+                <div>
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Recent Issues
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    {monitoring.recentDrifts.slice(0, 5).map((drift) => (
+                      <button
+                        key={drift.id}
+                        type="button"
+                        onClick={() => {
+                          setShowMonitoringModal(false)
+                          const numericId = drift.productId.split("/").pop()
+                          navigate(`/app/products/${numericId}`)
+                        }}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "12px 14px",
+                          background: "var(--color-surface)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: "var(--radius-sm)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        <div>
+                          <div
                             style={{
                               fontSize: "13px",
+                              fontWeight: 500,
                               color: "var(--color-text)",
                             }}
                           >
-                            {type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "13px",
-                              fontWeight: 600,
-                              color: "var(--color-warning)",
-                              background: "var(--color-warning-soft)",
-                              padding: "2px 8px",
-                              borderRadius: "var(--radius-full)",
-                            }}
-                          >
-                            {count}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Drifts */}
-                {monitoring.recentDrifts.length > 0 && (
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        marginBottom: "12px",
-                      }}
-                    >
-                      Recent Issues
-                    </h3>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "8px",
-                      }}
-                    >
-                      {monitoring.recentDrifts.slice(0, 5).map((drift) => (
-                        <button
-                          key={drift.id}
-                          type="button"
-                          onClick={() => {
-                            setShowMonitoringModal(false)
-                            const numericId = drift.productId.split("/").pop()
-                            navigate(`/app/products/${numericId}`)
-                          }}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "12px 14px",
-                            background: "var(--color-surface)",
-                            border: "1px solid var(--color-border)",
-                            borderRadius: "var(--radius-sm)",
-                            cursor: "pointer",
-                            textAlign: "left",
-                          }}
-                        >
-                          <div>
-                            <div
-                              style={{
-                                fontSize: "13px",
-                                fontWeight: 500,
-                                color: "var(--color-text)",
-                              }}
-                            >
-                              {drift.productTitle}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: "11px",
-                                color: "var(--color-muted)",
-                              }}
-                            >
-                              {drift.driftType.replace(/_/g, " ")}
-                            </div>
+                            {drift.productTitle}
                           </div>
                           <div
                             style={{
-                              padding: "4px 8px",
-                              borderRadius: "var(--radius-full)",
-                              fontSize: "10px",
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                              background:
-                                drift.severity === "high"
-                                  ? "var(--color-danger-soft)"
-                                  : drift.severity === "medium"
-                                    ? "var(--color-warning-soft)"
-                                    : "var(--color-surface-strong)",
-                              color:
-                                drift.severity === "high"
-                                  ? "var(--color-danger)"
-                                  : drift.severity === "medium"
-                                    ? "var(--color-warning)"
-                                    : "var(--color-muted)",
+                              fontSize: "11px",
+                              color: "var(--color-muted)",
                             }}
                           >
-                            {drift.severity}
+                            {drift.driftType.replace(/_/g, " ")}
                           </div>
-                        </button>
-                      ))}
-                    </div>
+                        </div>
+                        <div
+                          style={{
+                            padding: "4px 8px",
+                            borderRadius: "var(--radius-full)",
+                            fontSize: "10px",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            background:
+                              drift.severity === "high"
+                                ? "var(--color-danger-soft)"
+                                : drift.severity === "medium"
+                                  ? "var(--color-warning-soft)"
+                                  : "var(--color-surface-strong)",
+                            color:
+                              drift.severity === "high"
+                                ? "var(--color-danger)"
+                                : drift.severity === "medium"
+                                  ? "var(--color-warning)"
+                                  : "var(--color-muted)",
+                          }}
+                        >
+                          {drift.severity}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                )}
-
-                {/* Empty state */}
-                {monitoring.driftsThisWeek === 0 && (
-                  <div style={{ textAlign: "center", padding: "32px" }}>
-                    <div
-                      style={{
-                        width: "64px",
-                        height: "64px",
-                        borderRadius: "50%",
-                        background: "var(--color-success-soft)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        margin: "0 auto 16px",
-                      }}
-                    >
-                      <svg
-                        width="28"
-                        height="28"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="var(--color-success)"
-                        strokeWidth="2"
-                      >
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                    </div>
-                    <h3
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: 600,
-                        marginBottom: "8px",
-                      }}
-                    >
-                      All Clear!
-                    </h3>
-                    <p style={{ fontSize: "13px", color: "var(--color-muted)" }}>
-                      No compliance drifts detected in the last 7 days.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div
-                style={{
-                  padding: "20px 24px",
-                  borderTop: "1px solid var(--color-border-subtle)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "transparent",
-                }}
-              >
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/app/standards")}
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--color-border)",
-                      background: "transparent",
-                      cursor: "pointer",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Manage Standards
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMonitoringModal(false)
-                      navigate("/app/monitoring")
-                    }}
-                    style={{
-                      padding: "10px 16px",
-                      borderRadius: "var(--radius-sm)",
-                      border: "none",
-                      background: "var(--color-primary)",
-                      color: "#fff",
-                      cursor: "pointer",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    View Full Report
-                  </button>
                 </div>
+              )}
+
+              {/* Empty state */}
+              {monitoring.driftsThisWeek === 0 && (
+                <div style={{ textAlign: "center", padding: "32px" }}>
+                  <div
+                    style={{
+                      width: "64px",
+                      height: "64px",
+                      borderRadius: "50%",
+                      background: "var(--color-success-soft)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 16px",
+                    }}
+                  >
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="var(--color-success)"
+                      strokeWidth="2"
+                    >
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 600,
+                      marginBottom: "8px",
+                    }}
+                  >
+                    All Clear!
+                  </h3>
+                  <p style={{ fontSize: "13px", color: "var(--color-muted)" }}>
+                    No compliance drifts detected in the last 7 days.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: "20px 24px",
+                borderTop: "1px solid var(--color-border-subtle)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "transparent",
+              }}
+            >
+              <div style={{ display: "flex", gap: "12px" }}>
                 <button
                   type="button"
-                  onClick={() => setShowMonitoringModal(false)}
+                  onClick={() => navigate("/app/standards")}
                   style={{
-                    padding: "10px 20px",
+                    padding: "10px 16px",
                     borderRadius: "var(--radius-sm)",
-                    border: "none",
-                    background: "var(--color-text)",
-                    color: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    background: "transparent",
                     cursor: "pointer",
                     fontSize: "13px",
                     fontWeight: 500,
                   }}
                 >
-                  Done
+                  Manage Standards
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMonitoringModal(false)
+                    navigate("/app/monitoring")
+                  }}
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "none",
+                    background: "var(--color-primary)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                  }}
+                >
+                  View Full Report
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowMonitoringModal(false)}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "none",
+                  background: "var(--color-text)",
+                  color: "var(--color-surface)",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                }}
+              >
+                Done
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Dashboard Tour */}
-        <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
+      {/* Dashboard Tour */}
+      <DashboardTour isOpen={isTourOpen} onClose={completeTour} />
 
-        {/* Bulk Progress Modal */}
+      {/* Bulk Progress Modal */}
       <BulkProgressModal
         isOpen={showBulkProgressModal}
         actionType={bulkActionType}
@@ -3334,27 +3345,27 @@ export default function Dashboard() {
 
       {/* 100% Celebration Modal */}
       {showCelebrationModal && (
-        <div 
-          className="modal-backdrop" 
+        <div
+          className="modal-backdrop"
           onClick={() => setShowCelebrationModal(false)}
-          style={{ 
+          style={{
             zIndex: 10005,
             background: "rgba(15, 23, 42, 0.4)",
-            backdropFilter: "blur(8px)"
+            backdropFilter: "blur(8px)",
           }}
         >
-          <div 
-            className="modal-container" 
-            style={{ 
-              maxWidth: "400px", 
-              padding: "40px 32px", 
-              textAlign: "center", 
+          <div
+            className="modal-container"
+            style={{
+              maxWidth: "400px",
+              padding: "40px 32px",
+              textAlign: "center",
               background: "var(--color-surface)",
               borderRadius: "12px",
               border: "1px solid var(--color-border-subtle)",
               boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.12)",
-              animation: "celebrationPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
-            }} 
+              animation: "celebrationPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
@@ -3380,22 +3391,49 @@ export default function Dashboard() {
                   justifyContent: "center",
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
             </div>
 
-            <h2 style={{ margin: "0 0 8px", fontFamily: "var(--font-heading)", fontSize: "24px", fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.02em" }}>
+            <h2
+              style={{
+                margin: "0 0 8px",
+                fontFamily: "var(--font-heading)",
+                fontSize: "24px",
+                fontWeight: 700,
+                color: "var(--color-text)",
+                letterSpacing: "-0.02em",
+              }}
+            >
               You did it!
             </h2>
-            <p style={{ margin: "0 0 12px", fontSize: "13px", color: "var(--color-success)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <p
+              style={{
+                margin: "0 0 12px",
+                fontSize: "13px",
+                color: "var(--color-success)",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
               100% Product Health
             </p>
             <p style={{ margin: "0 0 32px", fontSize: "15px", color: "var(--color-muted)", lineHeight: 1.6 }}>
               All your products are launch-ready. Your catalog is in perfect shape.
             </p>
-            
+
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <button
                 type="button"
@@ -3411,7 +3449,7 @@ export default function Dashboard() {
                   cursor: "pointer",
                   transition: "all 0.2s ease",
                   width: "100%",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = "translateY(-1px)"
@@ -3424,7 +3462,7 @@ export default function Dashboard() {
               >
                 Awesome
               </button>
-              
+
               {isPro && (
                 <button
                   type="button"

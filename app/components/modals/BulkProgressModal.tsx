@@ -1,4 +1,4 @@
-
+import BaseModal from "../common/BaseModal"
 import { CircularProgress } from "../dashboard/CircularProgress"
 
 // ============================================
@@ -20,8 +20,6 @@ export function BulkProgressModal({
   currentProductTitle: string | null
   onStop: () => void
 }) {
-  if (!isOpen) return null
-
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
   const remainingCount = totalCount - completedCount
 
@@ -35,32 +33,49 @@ export function BulkProgressModal({
   const label = actionLabels[actionType] || "Processing Catalog"
 
   return (
-    <div className="modal-backdrop">
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onStop}
+      footer={
+        <button
+          type="button"
+          onClick={onStop}
+          className="btn-secondary"
+          style={{
+            width: "100%",
+            padding: "14px",
+            fontSize: "14px",
+            fontWeight: 600,
+            borderRadius: "12px",
+          }}
+        >
+          Cancel Operation
+        </button>
+      }
+    >
       <div
-        className="modal-container animate-scale-in"
         style={{
-          width: "440px",
-          padding: "40px 32px",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           textAlign: "center",
           gap: "24px",
+          padding: "20px 10px",
         }}
       >
         {/* Progress Visualization */}
         <div style={{ position: "relative", marginBottom: "8px" }}>
           <CircularProgress percent={progress} size={160} strokeWidth={10} />
-          
+
           {/* Subtle Glow Effect behind the circle */}
-          <div 
-            style={{ 
-              position: "absolute", 
-              inset: "-20px", 
+          <div
+            style={{
+              position: "absolute",
+              inset: "-20px",
               background: "radial-gradient(circle, var(--color-primary-soft) 0%, transparent 70%)",
               zIndex: -1,
-              opacity: 0.5
-            }} 
+              opacity: 0.5,
+            }}
           />
         </div>
 
@@ -105,9 +120,7 @@ export function BulkProgressModal({
             alignItems: "center",
           }}
         >
-          <span style={{ fontSize: "12px", color: "var(--color-muted)", fontWeight: 500 }}>
-            CURRENTLY PROCESSING
-          </span>
+          <span style={{ fontSize: "12px", color: "var(--color-muted)", fontWeight: 500 }}>CURRENTLY PROCESSING</span>
           <div
             style={{
               fontSize: "14px",
@@ -147,24 +160,7 @@ export function BulkProgressModal({
             {remainingCount} items remaining
           </span>
         </div>
-
-        {/* Action Button */}
-        <button
-          type="button"
-          onClick={onStop}
-          className="btn-secondary"
-          style={{
-            width: "100%",
-            padding: "14px",
-            fontSize: "14px",
-            fontWeight: 600,
-            borderRadius: "12px",
-            marginTop: "8px",
-          }}
-        >
-          Cancel Operation
-        </button>
       </div>
-    </div>
+    </BaseModal>
   )
 }

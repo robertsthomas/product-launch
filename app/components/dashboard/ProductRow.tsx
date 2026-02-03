@@ -221,11 +221,12 @@ export function ProductRow({
                 style={{
                   width: `${progressPercent}%`,
                   height: "100%",
-                  background: audit.status === "ready" 
-                    ? "var(--color-success)" 
-                    : progressPercent >= 70 
-                      ? "var(--color-primary)" 
-                      : "var(--color-accent)",
+                  background:
+                    audit.status === "ready"
+                      ? "var(--color-success)"
+                      : progressPercent >= 70
+                        ? "var(--color-primary)"
+                        : "var(--color-accent)",
                   borderRadius: "10px",
                   transition: "width 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
                   boxShadow: progressPercent > 0 ? "0 0 8px rgba(0,0,0,0.1) inset" : "none",

@@ -134,10 +134,10 @@ function AppNavigation({
       {navItems.map(({ to, label, isActive, dataAttr }, index) => {
         const isHighlighted = tourStep === index
         const isHovered = hoveredLabel === label
-        
+
         return (
-          <div 
-            key={to} 
+          <div
+            key={to}
             style={{ position: "relative" }}
             onMouseEnter={() => setHoveredLabel(label)}
             onMouseLeave={() => setHoveredLabel(null)}
@@ -181,7 +181,7 @@ function AppNavigation({
                 </svg>
               )}
             </Link>
-            
+
             {/* Custom Tooltip */}
             {isHovered && (
               <div
@@ -298,14 +298,14 @@ function NavigationTour({
   return (
     <>
       {/* Overlay - Transparent to keep background visible */}
-      <div 
-        onClick={onClose} 
-        style={{ 
-          position: "fixed", 
-          inset: 0, 
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
           zIndex: 10001,
-          background: "transparent"
-        }} 
+          background: "transparent",
+        }}
       />
 
       {/* Tooltip positioned next to nav */}

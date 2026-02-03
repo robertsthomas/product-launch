@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react"
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { useBlocker, useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router"
 import { ProductChecklistCard, ProductInfoCard, ProductMediaCard, ProductSeoCard } from "../components/product"
+import BaseModal from "../components/common/BaseModal"
 import { isAIAvailable } from "../lib/ai"
 import { PRODUCT_QUERY, type Product } from "../lib/checklist"
 import {
@@ -891,249 +892,330 @@ function AIUpsellModal({
   const isPlanLimit = errorCode === "AI_FEATURE_LOCKED"
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault()
-          onClose()
-        }
-      }}
-      tabIndex={-1}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ai-upsell-title"
-    >
-      <div
-        className="modal-container animate-scale-in"
+    <BaseModal isOpen={isOpen} onClose={onClose}>
+      {/* Close button */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
         style={{
-          maxWidth: "600px",
-          borderRadius: "var(--radius-lg)",
-          overflow: "hidden",
-          boxShadow: "0 30px 60px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)",
-          backgroundColor: "var(--color-surface)",
-          position: "relative",
+          position: "absolute",
+          top: "var(--space-6)",
+          right: "var(--space-6)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "var(--space-2)",
+          borderRadius: "var(--radius-md)",
+          color: "var(--color-muted)",
+          zIndex: 10,
+          transition: "all 0.2s ease",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = "var(--color-text)"
+          e.currentTarget.style.background = "var(--color-surface-strong)"
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = "var(--color-muted)"
+          e.currentTarget.style.background = "transparent"
+        }}
       >
-        {/* Close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          style={{
-            position: "absolute",
-            top: "var(--space-6)",
-            right: "var(--space-6)",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: "var(--space-2)",
-            borderRadius: "var(--radius-md)",
-            color: "var(--color-muted)",
-            zIndex: 10,
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = "var(--color-text)"
-            e.currentTarget.style.background = "var(--color-surface-strong)"
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "var(--color-muted)"
-            e.currentTarget.style.background = "transparent"
-          }}
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
 
-        {/* Header */}
-        <div style={{ padding: "var(--space-12) var(--space-12) var(--space-8)", textAlign: "center" }}>
-          {/* Logo/Icon */}
-          <div
-            style={{
-              width: "64px",
-              height: "64px",
-              margin: "0 auto var(--space-6)",
-              borderRadius: "20px",
-              background: "linear-gradient(135deg, #465A54 0%, #3d4e49 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 12px 24px -6px rgba(70, 90, 84, 0.4)",
-            }}
-          >
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
-          </div>
-          
-          <h2
-            id="ai-upsell-title"
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-heading)",
-              fontSize: "32px",
-              fontWeight: 800,
-              color: "var(--color-text)",
-              letterSpacing: "-0.04em",
-              lineHeight: 1.1,
-            }}
-          >
-            {isPlanLimit ? "Upgrade to Pro!" : "AI credits used"}
-          </h2>
-          <p style={{ margin: "var(--space-4) 0 var(--space-8)", fontSize: "16px", color: "var(--color-muted)", maxWidth: "420px", marginInline: "auto", lineHeight: 1.6, fontWeight: 500, fontFamily: "var(--font-body)" }}>
-            {isPlanLimit
-              ? "Please upgrade your account to pro so as to continue using after your free trial ends."
-              : "You've reached your monthly limit. Upgrade to continue using AI features."}
-          </p>
-
-          {/* Billing Toggle */}
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ display: "inline-flex", background: "var(--color-surface-strong)", borderRadius: "12px", padding: "4px", border: "1px solid var(--color-border)" }}>
-              <button
-                type="button"
-                onClick={() => setBillingInterval("monthly")}
-                style={{
-                  padding: "8px 24px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  border: "none",
-                  borderRadius: "8px",
-                  background: billingInterval === "monthly" ? "#465A54" : "transparent",
-                  color: billingInterval === "monthly" ? "#fff" : "var(--color-muted)",
-                  cursor: "pointer",
-                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                  fontFamily: "var(--font-body)",
-                }}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingInterval("yearly")}
-                style={{
-                  padding: "8px 24px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  border: "none",
-                  borderRadius: "8px",
-                  background: billingInterval === "yearly" ? "#465A54" : "transparent",
-                  color: billingInterval === "yearly" ? "#fff" : "var(--color-muted)",
-                  cursor: "pointer",
-                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                  position: "relative",
-                  fontFamily: "var(--font-body)",
-                }}
-              >
-                Annually
-                <span style={{ position: "absolute", top: "-14px", right: "-10px", background: "#10b981", color: "#fff", fontSize: "10px", padding: "3px 8px", borderRadius: "20px", fontWeight: 800, border: "2px solid #fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>-17%</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Features */}
-        <div style={{ padding: "0 var(--space-12) var(--space-12)" }}>
-          <p style={{ margin: "0 0 var(--space-5)", fontSize: "17px", fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.02em" }}>
-            What you will get
-          </p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "var(--space-4) var(--space-10)",
-            }}
-          >
-            {PRO_FEATURES.map((feature) => (
-              <div key={feature} style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-                <div style={{ width: "22px", height: "22px", borderRadius: "50%", border: "2px solid var(--color-border-subtle)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "#fff" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#465A54" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <span style={{ fontSize: "15px", color: "var(--color-text-secondary)", fontWeight: 600, fontFamily: "var(--font-body)" }}>{feature}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer */}
+      {/* Header */}
+      <div style={{ padding: "var(--space-12) var(--space-12) var(--space-8)", textAlign: "center" }}>
+        {/* Logo/Icon */}
         <div
           style={{
-            padding: "var(--space-6) var(--space-10)",
-            borderTop: "1px solid var(--color-border-subtle)",
+            width: "64px",
+            height: "64px",
+            margin: "0 auto var(--space-6)",
+            borderRadius: "20px",
+            background: "linear-gradient(135deg, #465A54 0%, #3d4e49 100%)",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: "var(--space-6)",
-            flexWrap: "wrap",
-            background: "var(--color-surface-strong)",
+            justifyContent: "center",
+            boxShadow: "0 12px 24px -6px rgba(70, 90, 84, 0.4)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-            <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.04em", fontFamily: "var(--font-heading)" }}>
-              ${billingInterval === "monthly" ? "19" : "15"}
-            </span>
-            <span style={{ fontSize: "14px", color: "var(--color-muted)", fontWeight: 500, fontFamily: "var(--font-body)" }}>/month</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+          </svg>
+        </div>
+
+        <h2
+          id="ai-upsell-title"
+          style={{
+            margin: 0,
+            fontFamily: "var(--font-heading)",
+            fontSize: "32px",
+            fontWeight: 800,
+            color: "var(--color-text)",
+            letterSpacing: "-0.04em",
+            lineHeight: 1.1,
+          }}
+        >
+          {isPlanLimit ? "Upgrade to Pro!" : "AI credits used"}
+        </h2>
+        <p
+          style={{
+            margin: "var(--space-4) 0 var(--space-8)",
+            fontSize: "16px",
+            color: "var(--color-muted)",
+            maxWidth: "420px",
+            marginInline: "auto",
+            lineHeight: 1.6,
+            fontWeight: 500,
+            fontFamily: "var(--font-body)",
+          }}
+        >
+          {isPlanLimit
+            ? "Please upgrade your account to pro so as to continue using after your free trial ends."
+            : "You've reached your monthly limit. Upgrade to continue using AI features."}
+        </p>
+
+        {/* Billing Toggle */}
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <div
+            style={{
+              display: "inline-flex",
+              background: "var(--color-surface-strong)",
+              borderRadius: "12px",
+              padding: "4px",
+              border: "1px solid var(--color-border)",
+            }}
+          >
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => setBillingInterval("monthly")}
               style={{
-                background: "none",
-                border: "none",
+                padding: "8px 24px",
                 fontSize: "13px",
-                fontWeight: 500,
-                color: "var(--color-muted)",
+                fontWeight: 600,
+                border: "none",
+                borderRadius: "8px",
+                background: billingInterval === "monthly" ? "#465A54" : "transparent",
+                color: billingInterval === "monthly" ? "#fff" : "var(--color-muted)",
                 cursor: "pointer",
-                padding: "4px 8px",
-                transition: "color 0.2s ease",
+                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                 fontFamily: "var(--font-body)",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-text)" }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)" }}
             >
-              Maybe later
+              Monthly
             </button>
             <button
               type="button"
-              disabled={upgrading}
-              onClick={handleUpgrade}
+              onClick={() => setBillingInterval("yearly")}
               style={{
-                padding: "8px 20px",
+                padding: "8px 24px",
                 fontSize: "13px",
                 fontWeight: 600,
-                whiteSpace: "nowrap",
                 border: "none",
-                borderRadius: "var(--radius-md)",
-                background: "#465A54",
-                color: "#fff",
-                cursor: upgrading ? "wait" : "pointer",
-                boxShadow: "0 4px 12px -2px rgba(70, 90, 84, 0.25)",
-                transition: "all 0.2s ease",
+                borderRadius: "8px",
+                background: billingInterval === "yearly" ? "#465A54" : "transparent",
+                color: billingInterval === "yearly" ? "#fff" : "var(--color-muted)",
+                cursor: "pointer",
+                transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                position: "relative",
                 fontFamily: "var(--font-body)",
-                opacity: upgrading ? 0.8 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (upgrading) return
-                e.currentTarget.style.background = "#3d4e49"
-                e.currentTarget.style.boxShadow = "0 6px 14px -2px rgba(70, 90, 84, 0.35)"
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#465A54"
-                e.currentTarget.style.boxShadow = "0 4px 12px -2px rgba(70, 90, 84, 0.25)"
               }}
             >
-              {upgrading ? "Redirecting…" : "Upgrade now"}
+              Annually
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-14px",
+                  right: "-10px",
+                  background: "#10b981",
+                  color: "#fff",
+                  fontSize: "10px",
+                  padding: "3px 8px",
+                  borderRadius: "20px",
+                  fontWeight: 800,
+                  border: "2px solid #fff",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                }}
+              >
+                -17%
+              </span>
             </button>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Features */}
+      <div style={{ padding: "0 var(--space-12) var(--space-12)" }}>
+        <p
+          style={{
+            margin: "0 0 var(--space-5)",
+            fontSize: "17px",
+            fontWeight: 800,
+            color: "var(--color-text)",
+            letterSpacing: "-0.02em",
+          }}
+        >
+          What you will get
+        </p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "var(--space-4) var(--space-10)",
+          }}
+        >
+          {PRO_FEATURES.map((feature) => (
+            <div key={feature} style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+              <div
+                style={{
+                  width: "22px",
+                  height: "22px",
+                  borderRadius: "50%",
+                  border: "2px solid var(--color-border-subtle)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  background: "#fff",
+                }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#465A54"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span
+                style={{
+                  fontSize: "15px",
+                  color: "var(--color-text-secondary)",
+                  fontWeight: 600,
+                  fontFamily: "var(--font-body)",
+                }}
+              >
+                {feature}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          padding: "var(--space-6) var(--space-10)",
+          borderTop: "1px solid var(--color-border-subtle)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "var(--space-6)",
+          flexWrap: "wrap",
+          background: "var(--color-surface-strong)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+          <span
+            style={{
+              fontSize: "28px",
+              fontWeight: 800,
+              color: "var(--color-text)",
+              letterSpacing: "-0.04em",
+              fontFamily: "var(--font-heading)",
+            }}
+          >
+            ${billingInterval === "monthly" ? "19" : "15"}
+          </span>
+          <span
+            style={{ fontSize: "14px", color: "var(--color-muted)", fontWeight: 500, fontFamily: "var(--font-body)" }}
+          >
+            /month
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "13px",
+              fontWeight: 500,
+              color: "var(--color-muted)",
+              cursor: "pointer",
+              padding: "4px 8px",
+              transition: "color 0.2s ease",
+              fontFamily: "var(--font-body)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--color-text)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--color-muted)"
+            }}
+          >
+            Maybe later
+          </button>
+          <button
+            type="button"
+            disabled={upgrading}
+            onClick={handleUpgrade}
+            style={{
+              padding: "8px 20px",
+              fontSize: "13px",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              border: "none",
+              borderRadius: "var(--radius-md)",
+              background: "#465A54",
+              color: "#fff",
+              cursor: upgrading ? "wait" : "pointer",
+              boxShadow: "0 4px 12px -2px rgba(70, 90, 84, 0.25)",
+              transition: "all 0.2s ease",
+              fontFamily: "var(--font-body)",
+              opacity: upgrading ? 0.8 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (upgrading) return
+              e.currentTarget.style.background = "#3d4e49"
+              e.currentTarget.style.boxShadow = "0 6px 14px -2px rgba(70, 90, 84, 0.35)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#465A54"
+              e.currentTarget.style.boxShadow = "0 4px 12px -2px rgba(70, 90, 84, 0.25)"
+            }}
+          >
+            {upgrading ? "Redirecting…" : "Upgrade now"}
+          </button>
+        </div>
+      </div>
+    </BaseModal>
   )
 }
 
@@ -1189,367 +1271,205 @@ function GenerateAllModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose} tabIndex={-1} role="presentation">
-      <div
-        className="animate-scale-in"
-        style={{
-          backgroundColor: "#ffffff",
-          borderRadius: "24px",
-          width: "100%",
-          maxWidth: "520px",
-          maxHeight: "70vh",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: "28px 28px 24px",
-            borderBottom: "1px solid #f1f5f9",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            background: "#ffffff",
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "20px",
-              fontWeight: 600,
-              color: "#0f172a",
-              letterSpacing: "-0.025em",
-            }}
-          >
-            Generate All Fields
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "8px",
-              borderRadius: "10px",
-              color: "#94a3b8",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#f1f5f9"
-              e.currentTarget.style.color = "#64748b"
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "none"
-              e.currentTarget.style.color = "#94a3b8"
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content - Scrollable list */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0" }}>
-          {fields.map((field, idx) => (
-            <div key={field.key}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (field.hasOptions) {
-                    toggleExpand(field.key)
-                    // Auto-select all options when expanding for the first time
-                    if (!fieldOptions[field.key] && field.options) {
-                      setFieldOptions((prev) => ({
-                        ...prev,
-                        [field.key]: field.options?.map((opt) => opt.key) || [],
-                      }))
-                    }
-                  } else {
-                    onFieldToggle(field.key)
+    <BaseModal isOpen={isOpen} onClose={onClose} title="Generate All Fields">
+      <div style={{ maxHeight: "50vh", overflowY: "auto", padding: "0" }}>
+        {fields.map((field, idx) => (
+          <div key={field.key}>
+            <button
+              type="button"
+              onClick={() => {
+                if (field.hasOptions) {
+                  toggleExpand(field.key)
+                  // Auto-select all options when expanding for the first time
+                  if (!fieldOptions[field.key] && field.options) {
+                    setFieldOptions((prev) => ({
+                      ...prev,
+                      [field.key]: field.options?.map((opt) => opt.key) || [],
+                    }))
                   }
-                }}
+                } else {
+                  onFieldToggle(field.key)
+                }
+              }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "16px 20px",
+                border: "none",
+                borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
+                background: (
+                  field.hasOptions
+                    ? (fieldOptions[field.key]?.length || 0) > 0
+                    : selectedFields.includes(field.key)
+                )
+                  ? "var(--color-primary-soft)"
+                  : "transparent",
+                cursor: "pointer",
+                transition: "all var(--transition-fast)",
+              }}
+              onMouseEnter={(e) => {
+                const isSelected = field.hasOptions
+                  ? (fieldOptions[field.key]?.length || 0) > 0
+                  : selectedFields.includes(field.key)
+                if (!isSelected) {
+                  e.currentTarget.style.background = "var(--color-surface-strong)"
+                }
+              }}
+              onMouseLeave={(e) => {
+                const isSelected = field.hasOptions
+                  ? (fieldOptions[field.key]?.length || 0) > 0
+                  : selectedFields.includes(field.key)
+                e.currentTarget.style.background = isSelected ? "var(--color-primary-soft)" : "transparent"
+              }}
+            >
+              <div
                 style={{
-                  width: "100%",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "16px 20px",
-                  border: "none",
-                  borderBottom: idx < fields.length - 1 ? "1px solid var(--color-border)" : "none",
-                  background: (
-                    field.hasOptions
-                      ? (fieldOptions[field.key]?.length || 0) > 0
-                      : selectedFields.includes(field.key)
-                  )
-                    ? "var(--color-primary-soft)"
-                    : "transparent",
-                  cursor: "pointer",
-                  transition: "all var(--transition-fast)",
+                  gap: "12px",
+                  flex: 1,
+                  textAlign: "left",
                 }}
-                onMouseEnter={(e) => {
-                  const isSelected = field.hasOptions
-                    ? (fieldOptions[field.key]?.length || 0) > 0
-                    : selectedFields.includes(field.key)
-                  if (!isSelected) {
-                    e.currentTarget.style.background = "var(--color-surface-strong)"
+              >
+                <input
+                  type="checkbox"
+                  checked={
+                    field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)
                   }
-                }}
-                onMouseLeave={(e) => {
-                  const isSelected = field.hasOptions
-                    ? (fieldOptions[field.key]?.length || 0) > 0
-                    : selectedFields.includes(field.key)
-                  e.currentTarget.style.background = isSelected ? "var(--color-primary-soft)" : "transparent"
+                  onChange={(e) => {
+                    e.stopPropagation()
+                    if (field.hasOptions) {
+                      // For fields with options, checkbox controls the options selection
+                      const currentOptions = fieldOptions[field.key] || []
+                      const allOptions = field.options?.map((opt) => opt.key) || []
+                      if (currentOptions.length > 0) {
+                        // If any options are selected, deselect all
+                        setFieldOptions((prev) => ({
+                          ...prev,
+                          [field.key]: [],
+                        }))
+                      } else {
+                        // If no options are selected, select all
+                        setFieldOptions((prev) => ({
+                          ...prev,
+                          [field.key]: allOptions,
+                        }))
+                      }
+                    } else {
+                      onFieldToggle(field.key)
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    accentColor: "var(--color-primary)",
+                    cursor: "pointer",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    color: "var(--color-text)",
+                  }}
+                >
+                  {field.label}
+                </span>
+              </div>
+              {field.hasOptions && (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{
+                    transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform var(--transition-fast)",
+                    color: "var(--color-muted)",
+                  }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              )}
+            </button>
+
+            {/* Expanded options for fields with multiple choices */}
+            {expandedFields[field.key] && field.hasOptions && field.options && (
+              <div
+                style={{
+                  padding: "12px 20px 16px 48px",
+                  backgroundColor: "var(--color-surface-strong)",
+                  borderBottom: "1px solid var(--color-border)",
                 }}
               >
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    flex: 1,
-                    textAlign: "left",
+                    marginBottom: "8px",
+                    fontSize: "var(--text-xs)",
+                    fontWeight: 500,
+                    color: "var(--color-muted)",
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={
-                      field.hasOptions ? (fieldOptions[field.key]?.length || 0) > 0 : selectedFields.includes(field.key)
-                    }
-                    onChange={(e) => {
-                      e.stopPropagation()
-                      if (field.hasOptions) {
-                        // For fields with options, checkbox controls the options selection
-                        const currentOptions = fieldOptions[field.key] || []
-                        const allOptions = field.options?.map((opt) => opt.key) || []
-                        if (currentOptions.length > 0) {
-                          // If any options are selected, deselect all
-                          setFieldOptions((prev) => ({
-                            ...prev,
-                            [field.key]: [],
-                          }))
-                        } else {
-                          // If no options are selected, select all
-                          setFieldOptions((prev) => ({
-                            ...prev,
-                            [field.key]: allOptions,
-                          }))
-                        }
-                      } else {
-                        onFieldToggle(field.key)
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      width: "16px",
-                      height: "16px",
-                      accentColor: "var(--color-primary)",
-                      cursor: "pointer",
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 500,
-                      color: "var(--color-text)",
-                    }}
-                  >
-                    {field.label}
-                  </span>
+                  Choose what to generate:
                 </div>
-                {field.hasOptions && (
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    style={{
-                      transform: expandedFields[field.key] ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform var(--transition-fast)",
-                      color: "var(--color-muted)",
-                    }}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Expanded options for fields with multiple choices */}
-              {expandedFields[field.key] && field.hasOptions && field.options && (
                 <div
                   style={{
-                    padding: "12px 20px 16px 48px",
-                    backgroundColor: "var(--color-surface-strong)",
-                    borderBottom: "1px solid var(--color-border)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
                   }}
                 >
-                  <div
-                    style={{
-                      marginBottom: "8px",
-                      fontSize: "var(--text-xs)",
-                      fontWeight: 500,
-                      color: "var(--color-muted)",
-                    }}
-                  >
-                    Choose what to generate:
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {field.options.map((option) => (
-                      <label
-                        key={option.key}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          cursor: "pointer",
-                          fontSize: "var(--text-sm)",
-                          color: "var(--color-text)",
+                  {field.options.map((option) => (
+                    <label
+                      key={option.key}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        cursor: "pointer",
+                        fontSize: "var(--text-sm)",
+                        color: "var(--color-text)",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={fieldOptions[field.key]?.includes(option.key) || false}
+                        onChange={(e) => {
+                          const currentOptions = fieldOptions[field.key] || []
+                          if (e.target.checked) {
+                            setFieldOptions((prev) => ({
+                              ...prev,
+                              [field.key]: [...currentOptions, option.key],
+                            }))
+                          } else {
+                            setFieldOptions((prev) => ({
+                              ...prev,
+                              [field.key]: currentOptions.filter((opt) => opt !== option.key),
+                            }))
+                          }
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={fieldOptions[field.key]?.includes(option.key) || false}
-                          onChange={(e) => {
-                            const currentOptions = fieldOptions[field.key] || []
-                            if (e.target.checked) {
-                              setFieldOptions((prev) => ({
-                                ...prev,
-                                [field.key]: [...currentOptions, option.key],
-                              }))
-                            } else {
-                              setFieldOptions((prev) => ({
-                                ...prev,
-                                [field.key]: currentOptions.filter((opt) => opt !== option.key),
-                              }))
-                            }
-                          }}
-                          style={{
-                            width: "14px",
-                            height: "14px",
-                            accentColor: "var(--color-primary)",
-                            cursor: "pointer",
-                          }}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
+                        style={{
+                          width: "14px",
+                          height: "14px",
+                          accentColor: "var(--color-primary)",
+                          cursor: "pointer",
+                        }}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            padding: "20px 24px",
-            borderTop: "1px solid var(--color-border-subtle)",
-            display: "flex",
-            gap: "12px",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: "transparent",
-          }}
-        >
-          {/* Select All / Deselect All */}
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedFields.length === fields.length) {
-                selectedFields.forEach((key) => onFieldToggle(key))
-              } else {
-                fields.forEach((field) => {
-                  if (!selectedFields.includes(field.key)) {
-                    onFieldToggle(field.key)
-                  }
-                })
-              }
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 16px",
-              fontSize: "var(--text-sm)",
-              fontWeight: 500,
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text)",
-              cursor: "pointer",
-              transition: "all var(--transition-fast)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-surface)"
-            }}
-          >
-            {selectedFields.length === fields.length ? "Deselect All" : "Select All"}
-          </button>
-
-          <div style={{ display: "flex", gap: "12px" }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isGenerating}
-              style={{
-                padding: "10px 20px",
-                fontSize: "var(--text-sm)",
-                fontWeight: 500,
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-md)",
-                backgroundColor: "var(--color-surface)",
-                color: "var(--color-text)",
-                cursor: isGenerating ? "not-allowed" : "pointer",
-                opacity: isGenerating ? 0.5 : 1,
-                transition: "all var(--transition-fast)",
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={isGenerating || selectedFields.length === 0}
-              style={{
-                padding: "10px 20px",
-                fontSize: "var(--text-sm)",
-                fontWeight: 600,
-                border: "none",
-                borderRadius: "var(--radius-md)",
-                background:
-                  isGenerating || selectedFields.length === 0 ? "var(--color-subtle)" : "var(--gradient-primary)",
-                color: "#fff",
-                cursor: isGenerating || selectedFields.length === 0 ? "not-allowed" : "pointer",
-                boxShadow: isGenerating || selectedFields.length === 0 ? "none" : "var(--shadow-primary-glow)",
-                transition: "all var(--transition-fast)",
-              }}
-            >
-              {isGenerating ? "Generating..." : "Generate"}
-            </button>
+              </div>
+            )}
           </div>
-        </div>
+        ))}
       </div>
-    </div>
+    </BaseModal>
   )
 }
 
@@ -4414,227 +4334,152 @@ export default function ProductEditor() {
       />
 
       {/* Image Prompt Modal */}
-      {imagePromptModal.isOpen && (
-        <div className="modal-backdrop" onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeImagePromptModal()
-            }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              e.preventDefault()
-              closeImagePromptModal()
-            }
-          }}
-          tabIndex={-1}
-          role="presentation"
-        >
-          <div
-            className="animate-scale-in"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              borderRadius: "var(--radius-xl)",
-              boxShadow: "var(--shadow-elevated)",
-              border: "1px solid var(--color-border)",
-              width: "100%",
-              maxWidth: "500px",
-              overflow: "hidden",
-            }}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            {/* Header */}
-            <div
+      <BaseModal
+        isOpen={imagePromptModal.isOpen}
+        onClose={closeImagePromptModal}
+        title="Customize Image Generation"
+        subtitle="Describe your desired style, or leave blank for defaults."
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={closeImagePromptModal}
               style={{
-                padding: "20px 24px",
-                borderBottom: "1px solid var(--color-border)",
-                background: "var(--color-surface-strong)",
+                padding: "10px 18px",
+                fontSize: "14px",
+                fontWeight: 500,
+                border: "1px solid #e2e8f0",
+                borderRadius: "10px",
+                backgroundColor: "#fff",
+                color: "#475569",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#f8fafc"
+                e.currentTarget.style.borderColor = "#cbd5e1"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#fff"
+                e.currentTarget.style.borderColor = "#e2e8f0"
               }}
             >
-              <h3
-                style={{
-                  margin: 0,
-                  fontFamily: "var(--font-heading)",
-                  fontSize: "var(--text-xl)",
-                  fontWeight: 500,
-                  color: "var(--color-text)",
-                }}
-              >
-                Customize Image Generation
-              </h3>
-            </div>
+              Cancel
+            </button>
 
-            {/* Content */}
-            <div style={{ padding: "24px" }}>
-              <p
-                style={{
-                  margin: "0 0 20px 0",
-                  fontSize: "var(--text-sm)",
-                  color: "var(--color-muted)",
-                  lineHeight: 1.5,
-                }}
-              >
-                Describe your desired style, or leave blank for defaults.
-              </p>
-
-              <textarea
-                value={imagePromptModal.customPrompt}
-                onChange={(e) =>
-                  setImagePromptModal((prev) => ({
-                    ...prev,
-                    customPrompt: e.target.value,
-                  }))
+            <button
+              type="button"
+              onClick={() => {
+                closeImagePromptModal()
+                handleGenerateImages()
+              }}
+              disabled={generatingImage}
+              style={{
+                padding: "10px 20px",
+                fontSize: "14px",
+                fontWeight: 600,
+                border: "none",
+                borderRadius: "10px",
+                background: generatingImage ? "#e2e8f0" : "#6366f1",
+                color: generatingImage ? "#94a3b8" : "#fff",
+                cursor: generatingImage ? "not-allowed" : "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (!generatingImage) {
+                  e.currentTarget.style.backgroundColor = "#4f46e5"
                 }
-                placeholder="Optional: e.g., vibrant colors, minimalist style, dramatic lighting, warm tones, etc."
-                style={{
-                  width: "100%",
-                  minHeight: "100px",
-                  padding: "12px",
-                  fontSize: "var(--text-sm)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  resize: "vertical",
-                  fontFamily: "inherit",
-                  marginBottom: "16px",
-                }}
-              />
-
-              {/* Generate Alt Text Checkbox */}
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  cursor: "pointer",
-                  padding: "12px",
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: "var(--color-surface-strong)",
-                  border: "1px solid var(--color-border)",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={imagePromptModal.generateAlt}
-                  onChange={(e) =>
-                    setImagePromptModal((prev) => ({
-                      ...prev,
-                      generateAlt: e.target.checked,
-                    }))
-                  }
-                  style={{
-                    width: "18px",
-                    height: "18px",
-                    accentColor: "var(--color-primary)",
-                    cursor: "pointer",
-                  }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 500,
-                      color: "var(--color-text)",
-                      marginBottom: "2px",
-                    }}
-                  >
-                    Generate alt text with image
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "var(--text-xs)",
-                      color: "var(--color-muted)",
-                    }}
-                  >
-                    Improves SEO and accessibility
-                  </div>
-                </div>
-              </label>
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                padding: "16px 24px",
-                borderTop: "1px solid var(--color-border)",
-                display: "flex",
-                gap: "12px",
-                justifyContent: "space-between",
-                background: "var(--color-surface-strong)",
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#6366f1"
               }}
             >
-              <button
-                type="button"
-                onClick={closeImagePromptModal}
-                style={{
-                  padding: "10px 20px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  cursor: "pointer",
-                  transition: "all var(--transition-fast)",
-                }}
-              >
-                Cancel
-              </button>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImagePromptModal((prev) => ({
-                      ...prev,
-                      customPrompt: "",
-                    }))
-                    closeImagePromptModal()
-                    handleGenerateImages()
-                  }}
-                  disabled={generatingImage}
-                  style={{
-                    padding: "10px 20px",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "var(--radius-md)",
-                    backgroundColor: "var(--color-surface)",
-                    color: "var(--color-text)",
-                    cursor: generatingImage ? "not-allowed" : "pointer",
-                    transition: "all var(--transition-fast)",
-                  }}
-                >
-                  Use Default
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeImagePromptModal()
-                    handleGenerateImages()
-                  }}
-                  disabled={generatingImage}
-                  style={{
-                    padding: "10px 20px",
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 600,
-                    border: "none",
-                    borderRadius: "var(--radius-md)",
-                    background: generatingImage ? "var(--color-surface-strong)" : "var(--gradient-primary)",
-                    color: generatingImage ? "var(--color-subtle)" : "#fff",
-                    cursor: generatingImage ? "not-allowed" : "pointer",
-                    transition: "all var(--transition-fast)",
-                    boxShadow: generatingImage ? "none" : "var(--shadow-primary-glow)",
-                  }}
-                >
-                  {generatingImage ? "Generating..." : "Generate"}
-                </button>
-              </div>
+              {generatingImage ? "Generating..." : "Generate"}
+            </button>
+          </>
+        }
+      >
+        <textarea
+          value={imagePromptModal.customPrompt}
+          onChange={(e) =>
+            setImagePromptModal((prev) => ({
+              ...prev,
+              customPrompt: e.target.value,
+            }))
+          }
+          placeholder="e.g., vibrant colors, minimalist style, dramatic lighting, warm tones..."
+          style={{
+            width: "100%",
+            minHeight: "100px",
+            padding: "14px 16px",
+            fontSize: "14px",
+            border: "1px solid #e2e8f0",
+            borderRadius: "12px",
+            backgroundColor: "#f8fafc",
+            color: "#0f172a",
+            resize: "vertical",
+            fontFamily: "inherit",
+            marginBottom: "16px",
+            transition: "all 0.15s ease",
+            outline: "none",
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "#6366f1"
+            e.currentTarget.style.backgroundColor = "#fff"
+            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(99, 102, 241, 0.1)"
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "#e2e8f0"
+            e.currentTarget.style.backgroundColor = "#f8fafc"
+            e.currentTarget.style.boxShadow = "none"
+          }}
+        />
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            cursor: "pointer",
+            padding: "14px 16px",
+            borderRadius: "12px",
+            backgroundColor: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "#f1f5f9"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "#f8fafc"
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={imagePromptModal.generateAlt}
+            onChange={(e) =>
+              setImagePromptModal((prev) => ({
+                ...prev,
+                generateAlt: e.target.checked,
+              }))
+            }
+            style={{
+              width: "18px",
+              height: "18px",
+              accentColor: "#6366f1",
+              cursor: "pointer",
+            }}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "14px", fontWeight: 500, color: "#0f172a" }}>
+              Generate alt text with image
+            </div>
+            <div style={{ fontSize: "13px", color: "#64748b", marginTop: "2px" }}>
+              Improves SEO and accessibility
             </div>
           </div>
-        </div>
-      )}
+        </label>
+      </BaseModal>
 
       {/* Generate All Modal */}
       <GenerateAllModal
@@ -4662,222 +4507,150 @@ export default function ProductEditor() {
       />
 
       {/* Collection Picker Modal */}
-      {collectionPickerOpen && (
-        <div className="modal-backdrop" onClick={() => setCollectionPickerOpen(false)}>
+      <BaseModal
+        isOpen={collectionPickerOpen}
+        onClose={() => setCollectionPickerOpen(false)}
+        title="Choose Default Collection"
+      >
+        <p
+          style={{
+            margin: "0 0 16px 0",
+            fontSize: "var(--text-sm)",
+            color: "var(--color-muted)",
+          }}
+        >
+          Select a collection for auto-fix. You can change this in Settings.
+        </p>
 
-          <div
-            className="animate-scale-in"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              borderRadius: "var(--radius-xl)",
-              width: "100%",
-              maxWidth: "500px",
-              maxHeight: "70vh",
-              boxShadow: "var(--shadow-elevated)",
-              border: "1px solid var(--color-border)",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
+        <div
+          style={{ maxHeight: "50vh", overflowY: "auto", marginLeft: "-22px", marginRight: "-22px", padding: "8px 0" }}
+        >
+          {/* Create New Collection Button */}
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const activity = await shopify.intents?.invoke?.("create:shopify/Collection")
+                const response = await activity?.complete
+                if (response?.code === "ok") {
+                  shopify.toast.show("Collection created! Refresh to see it.")
+                  revalidator.revalidate()
+                }
+              } catch (error) {
+                console.error("Failed to create collection:", error)
+              }
             }}
-            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              padding: "14px 24px",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              transition: "background var(--transition-fast)",
+              borderBottom: "1px solid var(--color-border-subtle)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-surface-strong)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent"
+            }}
           >
-            {/* Header */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span
+              style={{
+                fontSize: "var(--text-sm)",
+                fontWeight: 500,
+                color: "var(--color-primary)",
+              }}
+            >
+              Create New Collection
+            </span>
+          </button>
+
+          {collections.length === 0 ? (
             <div
               style={{
                 padding: "24px",
-                borderBottom: "1px solid var(--color-border-subtle)",
-                background: "transparent",
+                textAlign: "center",
+                color: "var(--color-muted)",
               }}
             >
-              <h2
-                style={{
-                  margin: 0,
-                  fontFamily: "var(--font-heading)",
-                  fontSize: "var(--text-xl)",
-                  fontWeight: 600,
-                  color: "var(--color-text)",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Choose Default Collection
-              </h2>
-              <p
-                style={{
-                  margin: "6px 0 0",
-                  fontSize: "var(--text-sm)",
-                  color: "var(--color-muted)",
-                }}
-              >
-                Select a collection for auto-fix. You can change this in Settings.
-              </p>
+              No collections found.
             </div>
-
-            {/* Collection List */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
-              {/* Create New Collection Button */}
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const activity = await shopify.intents?.invoke?.("create:shopify/Collection")
-                    const response = await activity?.complete
-                    if (response?.code === "ok") {
-                      shopify.toast.show("Collection created! Refresh to see it.")
-                      revalidator.revalidate()
+          ) : (
+            collections.map(
+              (collection: {
+                id: string
+                title: string
+                productsCount: number
+              }) => (
+                <button
+                  key={collection.id}
+                  type="button"
+                  onClick={() => {
+                    setCurrentDefaultCollectionId(collection.id)
+                    fetcher.submit(
+                      {
+                        intent: "set_default_collection",
+                        collectionId: collection.id,
+                      },
+                      { method: "POST" }
+                    )
+                    setCollectionPickerOpen(false)
+                    shopify.toast.show(`Default collection set to "${collection.title}"`)
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "14px 24px",
+                    border: "none",
+                    background:
+                      currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    transition: "background var(--transition-fast)",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentDefaultCollectionId !== collection.id) {
+                      e.currentTarget.style.background = "var(--color-surface-strong)"
                     }
-                  } catch (error) {
-                    console.error("Failed to create collection:", error)
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  padding: "14px 24px",
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  transition: "background var(--transition-fast)",
-                  borderBottom: "1px solid var(--color-border-subtle)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--color-surface-strong)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent"
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--color-primary)"
-                  strokeWidth="2"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span
-                  style={{
-                    fontSize: "var(--text-sm)",
-                    fontWeight: 500,
-                    color: "var(--color-primary)",
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent"
                   }}
                 >
-                  Create New Collection
-                </span>
-              </button>
-
-              {collections.length === 0 ? (
-                <div
-                  style={{
-                    padding: "24px",
-                    textAlign: "center",
-                    color: "var(--color-muted)",
-                  }}
-                >
-                  No collections found.
-                </div>
-              ) : (
-                collections.map(
-                  (collection: {
-                    id: string
-                    title: string
-                    productsCount: number
-                  }) => (
-                    <button
-                      key={collection.id}
-                      type="button"
-                      onClick={() => {
-                        setCurrentDefaultCollectionId(collection.id)
-                        fetcher.submit(
-                          {
-                            intent: "set_default_collection",
-                            collectionId: collection.id,
-                          },
-                          { method: "POST" }
-                        )
-                        setCollectionPickerOpen(false)
-                        shopify.toast.show(`Default collection set to "${collection.title}"`)
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "14px 24px",
-                        border: "none",
-                        background:
-                          currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        transition: "background var(--transition-fast)",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (currentDefaultCollectionId !== collection.id) {
-                          e.currentTarget.style.background = "var(--color-surface-strong)"
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background =
-                          currentDefaultCollectionId === collection.id ? "var(--color-primary-soft)" : "transparent"
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "var(--text-sm)",
-                          fontWeight: 500,
-                          color: "var(--color-text)",
-                        }}
-                      >
-                        {collection.title}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "var(--text-xs)",
-                          color: "var(--color-muted)",
-                        }}
-                      >
-                        {collection.productsCount} products
-                      </span>
-                    </button>
-                  )
-                )
-              )}
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                padding: "20px 24px",
-                borderTop: "1px solid var(--color-border-subtle)",
-                display: "flex",
-                justifyContent: "flex-end",
-                background: "transparent",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setCollectionPickerOpen(false)}
-                style={{
-                  padding: "10px 20px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 500,
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-md)",
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  cursor: "pointer",
-                  transition: "all var(--transition-fast)",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+                  <span
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      fontWeight: 500,
+                      color: "var(--color-text)",
+                    }}
+                  >
+                    {collection.title}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "var(--text-xs)",
+                      color: "var(--color-muted)",
+                    }}
+                  >
+                    {collection.productsCount} products
+                  </span>
+                </button>
+              )
+            )
+          )}
         </div>
-      )}
+      </BaseModal>
     </div>
   )
 }

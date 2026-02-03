@@ -1,5 +1,3 @@
-
-
 // ============================================
 // Circular Progress Component
 // ============================================
@@ -21,7 +19,7 @@ export function CircularProgress({
   const circumference = radius * 2 * Math.PI
   const offset = circumference - (percent / 100) * circumference
   const isComplete = percent === 100
-  
+
   // Determine color based on percent or prop
   const activeColor = color || (isComplete ? "var(--color-success)" : "var(--color-primary)")
 
@@ -34,14 +32,7 @@ export function CircularProgress({
         className="absolute inset-0 pointer-events-none"
         style={{ filter: "blur(4px)", opacity: 0.15 }}
       >
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={activeColor}
-          strokeWidth={strokeWidth}
-        />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={activeColor} strokeWidth={strokeWidth} />
       </svg>
 
       {/* Main progress ring */}

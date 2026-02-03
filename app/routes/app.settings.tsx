@@ -780,9 +780,10 @@ export default function Settings() {
                     alignItems: "center",
                     justifyContent: "space-between",
                     padding: "16px 20px",
-                    background: shop.plan === "pro" 
-                      ? "linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(99,102,241,0.05) 100%)"
-                      : "linear-gradient(135deg, rgba(75,85,99,0.05) 0%, rgba(75,85,99,0.02) 100%)",
+                    background:
+                      shop.plan === "pro"
+                        ? "linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(99,102,241,0.05) 100%)"
+                        : "linear-gradient(135deg, rgba(75,85,99,0.05) 0%, rgba(75,85,99,0.02) 100%)",
                     borderRadius: "12px",
                     border: `1.5px solid ${shop.plan === "pro" ? "var(--color-primary)" : "var(--color-border)"}`,
                   }}
@@ -951,10 +952,10 @@ export default function Settings() {
                       transition: "background var(--transition-fast)",
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-strong)"
+                      ;(e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-strong)"
                     }}
                     onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                      ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -2444,9 +2445,16 @@ function ProductHistoryModal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-container animate-scale-in" style={{ maxWidth: "600px", maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-container animate-scale-in"
+        style={{ maxWidth: "600px", maxHeight: "80vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="modal-header" style={{ padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div
+          className="modal-header"
+          style={{ padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+        >
           <div>
             <h2
               style={{
@@ -2460,9 +2468,7 @@ function ProductHistoryModal({
             >
               {productTitle}
             </h2>
-            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
-              Version history for this product
-            </p>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>Version history for this product</p>
           </div>
           <button
             type="button"

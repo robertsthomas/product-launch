@@ -31,7 +31,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 }
 
 const Check = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="20 6 9 17 4 12" />
   </svg>
 )
@@ -76,7 +85,13 @@ export default function PlansPage() {
   const yearlyMonthly = Math.round(yearlyPrice / 12)
 
   const freeFeatures = ["Unlimited audits", "Readiness checklist", "One-click fixes", "Basic analytics"]
-  const proFeatures = ["AI content generation", "Brand voice settings", "Bulk AI fixes (up to 100)", "30-day version history", "Priority support"]
+  const proFeatures = [
+    "AI content generation",
+    "Brand voice settings",
+    "Bulk AI fixes (up to 100)",
+    "30-day version history",
+    "Priority support",
+  ]
 
   return (
     <div
@@ -347,7 +362,9 @@ export default function PlansPage() {
               <span style={{ fontSize: "var(--text-sm)", color: "var(--color-subtle)" }}> /month</span>
               {billingInterval === "yearly" && (
                 <div style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", marginTop: "var(--space-1)" }}>
-                  <span style={{ textDecoration: "line-through", color: "var(--color-subtle)" }}>${monthlyPrice * 12}</span>{" "}
+                  <span style={{ textDecoration: "line-through", color: "var(--color-subtle)" }}>
+                    ${monthlyPrice * 12}
+                  </span>{" "}
                   ${yearlyPrice}/year
                 </div>
               )}

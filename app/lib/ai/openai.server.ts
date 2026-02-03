@@ -385,13 +385,13 @@ export async function generateImageAltText(
 // ============================================
 
 export async function generateProductImage(product: ProductContext, options?: GenerationOptions): Promise<string> {
-  // Use OpenRouter FLUX models if available (preferred - cheapest and fast)
+  // Use OpenRouter FLUX models if available (preferred - prioritize quality first)
   if (isImageGenAvailable()) {
-    console.log("[AI Image Generation] Using OpenRouter FLUX models")
-    return generateProductImageWithOpenRouter(product, "fast")
+    console.log("[AI Image Generation] Using OpenRouter FLUX models (preferring quality)")
+    return generateProductImageWithOpenRouter(product, "quality")
   }
 
-  // Fall back to DALL-E if user has their own OpenAI key
+  // Fall back to DALL-E if OpenRouter not available
   console.log("[AI Image Generation] Using DALL-E (OpenRouter not available)")
   console.log("[AI Image Generation] Using custom API key:", !!options?.apiKey)
 
@@ -532,13 +532,13 @@ export async function generateProductImageWithOpenRouter(
     const errorText = await response.text()
     console.error(`[OpenRouter Image] API error: ${response.status}`, errorText)
 
-    // Try fallback to next quality tier
-    if (quality === "fast") {
+    // Fallback chain: quality -> balanced -> fast
+    if (quality === "quality") {
       console.log("[OpenRouter Image] Retrying with balanced model...")
       return generateProductImageWithOpenRouter(product, "balanced")
     } else if (quality === "balanced") {
-      console.log("[OpenRouter Image] Retrying with quality model...")
-      return generateProductImageWithOpenRouter(product, "quality")
+      console.log("[OpenRouter Image] Retrying with fast model...")
+      return generateProductImageWithOpenRouter(product, "fast")
     }
 
     throw new Error(`OpenRouter image API error: ${response.status}`)
@@ -580,7 +580,17 @@ export async function generateProductImageWithOpenRouter(
     }
   }
 
+  // If no image found, attempt fallback chain before failing
   console.error("[OpenRouter Image] Unexpected response format - no image found")
+
+  if (quality === "quality") {
+    console.log("[OpenRouter Image] No image found - retrying with balanced model...")
+    return generateProductImageWithOpenRouter(product, "balanced")
+  } else if (quality === "balanced") {
+    console.log("[OpenRouter Image] No image found - retrying with fast model...")
+    return generateProductImageWithOpenRouter(product, "fast")
+  }
+
   throw new Error("No image found in OpenRouter response")
 }
 
