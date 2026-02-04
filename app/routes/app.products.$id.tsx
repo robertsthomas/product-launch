@@ -25,6 +25,36 @@ function stripHtml(html: string): string {
     .replace(/&amp;/g, "&") // Replace &amp; with &
 }
 
+type ProductFormState = {
+  title: string
+  description: string
+  vendor: string
+  productType: string
+  tags: string[]
+  seoTitle: string
+  seoDescription: string
+}
+
+function buildFormState(product: {
+  title: string
+  descriptionHtml: string
+  vendor: string
+  productType: string
+  tags: string[]
+  seoTitle: string
+  seoDescription: string
+}): ProductFormState {
+  return {
+    title: product.title,
+    description: stripHtml(product.descriptionHtml),
+    vendor: product.vendor,
+    productType: product.productType,
+    tags: product.tags,
+    seoTitle: product.seoTitle,
+    seoDescription: product.seoDescription,
+  }
+}
+
 // Convert ProductImage GID to MediaImage GID for productUpdateMedia mutation
 function toMediaImageId(imageId: string): string {
   if (imageId.includes("ProductImage")) {
@@ -283,12 +313,12 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         }
         if ((currentProduct.seo?.title || "") !== seoTitle) {
           versionPromises.push(
-            saveFieldVersion(shopId, productId, "seo_title", currentProduct.seo?.title || "", "manual_edit")
+            saveFieldVersion(shopId, productId, "seoTitle", currentProduct.seo?.title || "", "manual_edit")
           )
         }
         if ((currentProduct.seo?.description || "") !== seoDescription) {
           versionPromises.push(
-            saveFieldVersion(shopId, productId, "seo_description", currentProduct.seo?.description || "", "manual_edit")
+            saveFieldVersion(shopId, productId, "seoDescription", currentProduct.seo?.description || "", "manual_edit")
           )
         }
         const currentTags = currentProduct.tags?.join(",") || ""
@@ -3381,15 +3411,8 @@ export default function ProductEditor() {
   const shopify = useAppBridge()
   const revalidator = useRevalidator()
 
-  const [form, setForm] = useState({
-    title: product.title,
-    description: product.descriptionHtml.replace(/<[^>]*>/g, ""),
-    vendor: product.vendor,
-    productType: product.productType,
-    tags: product.tags,
-    seoTitle: product.seoTitle,
-    seoDescription: product.seoDescription,
-  })
+  const [form, setForm] = useState<ProductFormState>(() => buildFormState(product))
+  const [lastSavedForm, setLastSavedForm] = useState<ProductFormState>(() => buildFormState(product))
 
   const [generating, setGenerating] = useState<Set<string>>(new Set())
   const [generatingModes, setGeneratingModes] = useState<Record<string, AIGenerateMode>>({})
@@ -3425,6 +3448,17 @@ export default function ProductEditor() {
     generateAlt: true,
   })
 
+  const saveRequestedRef = useRef(false)
+
+  useEffect(() => {
+    const nextForm = buildFormState(product)
+    setForm(nextForm)
+    setLastSavedForm(nextForm)
+    setAltTextChanges({})
+    setPreGenerationValues({})
+    setAiGeneratedFields(new Set())
+  }, [product.id])
+
   const openImagePromptModal = useCallback(() => {
     setImagePromptModal((prev) => ({ ...prev, isOpen: true }))
   }, [])
@@ -3443,17 +3477,28 @@ export default function ProductEditor() {
   const [generatingBulkAlt, setGeneratingBulkAlt] = useState(false)
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false)
 
+  const loadFieldVersions = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/versions`)
+      if (response.ok) {
+        const data = await response.json()
+        setFieldVersions(data.versions || {})
+      }
+    } catch (error) {
+      console.error("Failed to load field versions:", error)
+    }
+  }, [product.id])
+
   // Detect changes
   useEffect(() => {
-    const originalDesc = product.descriptionHtml.replace(/<[^>]*>/g, "")
     const formChanged =
-      form.title !== product.title ||
-      form.description !== originalDesc ||
-      form.vendor !== product.vendor ||
-      form.productType !== product.productType ||
-      form.tags.join(",") !== product.tags.join(",") ||
-      form.seoTitle !== product.seoTitle ||
-      form.seoDescription !== product.seoDescription
+      form.title !== lastSavedForm.title ||
+      form.description !== lastSavedForm.description ||
+      form.vendor !== lastSavedForm.vendor ||
+      form.productType !== lastSavedForm.productType ||
+      form.tags.join(",") !== lastSavedForm.tags.join(",") ||
+      form.seoTitle !== lastSavedForm.seoTitle ||
+      form.seoDescription !== lastSavedForm.seoDescription
 
     const altTextChanged = Object.keys(altTextChanges).some((imageId) => {
       const originalAlt =
@@ -3462,7 +3507,7 @@ export default function ProductEditor() {
     })
 
     setHasChanges(formChanged || altTextChanged)
-  }, [form, product, altTextChanges])
+  }, [form, lastSavedForm, product.images, altTextChanges])
 
   // Warn user before leaving page with unsaved changes
   useEffect(() => {
@@ -3505,21 +3550,30 @@ export default function ProductEditor() {
     }
   }, [fetcher.data, shopify])
 
+  useEffect(() => {
+    if (!saveRequestedRef.current || fetcher.state !== "idle") return
+
+    if (fetcher.data?.error) {
+      saveRequestedRef.current = false
+      return
+    }
+
+    if (fetcher.data?.success) {
+      setLastSavedForm({
+        ...form,
+        tags: [...form.tags],
+      })
+      setHasChanges(false)
+      void loadFieldVersions()
+    }
+
+    saveRequestedRef.current = false
+  }, [fetcher.data, fetcher.state, form, loadFieldVersions])
+
   // Load field versions on mount
   useEffect(() => {
-    const loadVersions = async () => {
-      try {
-        const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/versions`)
-        if (response.ok) {
-          const data = await response.json()
-          setFieldVersions(data.versions || {})
-        }
-      } catch (error) {
-        console.error("Failed to load field versions:", error)
-      }
-    }
-    loadVersions()
-  }, [product.id])
+    void loadFieldVersions()
+  }, [loadFieldVersions])
 
   const updateField = useCallback((field: string, value: string | string[]) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -3701,19 +3755,6 @@ export default function ProductEditor() {
     product.id,
     revalidator,
   ])
-
-  // Load field versions
-  const loadFieldVersions = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/products/${encodeURIComponent(product.id)}/versions`)
-      if (response.ok) {
-        const data = await response.json()
-        setFieldVersions(data.versions || {})
-      }
-    } catch (error) {
-      console.error("Failed to load field versions:", error)
-    }
-  }, [product.id])
 
   // Handle reverting to a previous version
   const handleRevert = useCallback(
@@ -3901,6 +3942,7 @@ export default function ProductEditor() {
       formData.append("altTextUpdates", JSON.stringify({ imageId, altText }))
     })
 
+    saveRequestedRef.current = true
     fetcher.submit(formData, { method: "POST" })
   }
 

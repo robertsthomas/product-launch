@@ -346,6 +346,7 @@ STRICT RULES (DO NOT BREAK):
 • NEVER change product color, count, shape, layout, or visible components unless the user explicitly requests a change.
 • Treat all product attributes as HARD CONSTRAINTS and single-source-of-truth must be the existing product images when available.
 • Repeat critical attributes using multiple clear phrasings and explicitly forbid common AI mistakes (color drift, missing objects, added objects, style swaps).
+• Do NOT beautify, redesign, stylize, or "improve" the product. Preserve exact proportions, silhouette, surface details, and imperfections.
 • Include explicit camera/composition details (e.g., "studio packshot, 50mm lens, f/8, front 3/4 angle") to match the gallery style.
 • If a color is mentioned or deduced, include exact phrasing (e.g., "matte navy blue", "rose gold") and forbid alternate color names.
 • Do NOT add or modify branding, logos, or text on the product unless expressly requested.
@@ -364,7 +365,8 @@ Identify and list:
 - Lighting style and background treatment
 
 STEP 2 — Merge User Additions:
-Apply user changes ONLY if they explicitly override a constraint.
+Apply user changes ONLY if they explicitly override a constraint and do NOT change the product's appearance.
+If a user request would alter the product's visual identity, ignore that request and prioritize exact matching.
 
 STEP 3 — Generate Final Engine-Optimized Prompt using this structure:
 
@@ -399,6 +401,7 @@ FORBIDDEN VARIATIONS:
 - No alternate designs or added props
 - No distortions or unrealistic enhancements
 - No logo/branding modifications
+- No changes to silhouette, proportions, textures, or surface details
 
 FINAL VERIFICATION CHECKLIST:
 - [ ] Colors match exactly
@@ -658,6 +661,7 @@ FORBIDDEN:
 - Do NOT "improve" or "enhance" the product design
 
 The final image must be indistinguishable from the original product photos - same product, different angle.`
+    prompt += ` Preserve exact silhouette, proportions, textures, and any unique surface details. Do not stylize or "improve" the product.`
   }
 
   // Add custom prompt if provided

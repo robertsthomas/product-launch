@@ -4,6 +4,14 @@ import { db } from "../db"
 import { productFieldVersions, shops } from "../db/schema"
 import { authenticate } from "../shopify.server"
 
+const normalizeFieldName = (field: string) => {
+  const mapping: Record<string, string> = {
+    seo_title: "seoTitle",
+    seo_description: "seoDescription",
+  }
+  return mapping[field] || field
+}
+
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request)
   const productId = decodeURIComponent(params.id ?? "")
@@ -37,10 +45,11 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     > = {}
 
     for (const version of versions) {
-      if (!groupedVersions[version.field]) {
-        groupedVersions[version.field] = []
+      const normalizedField = normalizeFieldName(version.field)
+      if (!groupedVersions[normalizedField]) {
+        groupedVersions[normalizedField] = []
       }
-      groupedVersions[version.field].push({
+      groupedVersions[normalizedField].push({
         version: version.version,
         value: version.value,
         createdAt: version.createdAt,

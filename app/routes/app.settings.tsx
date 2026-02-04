@@ -4,8 +4,10 @@ import { formatDistanceToNow } from "date-fns"
 import { useCallback, useEffect, useState } from "react"
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-router"
+import BaseModal from "../components/common/BaseModal"
 import { BRAND_VOICE_PROFILES } from "../lib/ai/prompts"
 import { getAICreditStatus } from "../lib/billing/ai-gating.server"
+import { PLAN_CONFIG } from "../lib/billing/constants"
 import { getShopPlanStatus } from "../lib/billing/guards.server"
 import { TEMPLATE_PRESETS } from "../lib/checklist/types"
 import { BRAND_VOICE_PRESETS, type BrandVoicePreset, OPENAI_IMAGE_MODELS, OPENAI_TEXT_MODELS } from "../lib/constants"
@@ -38,6 +40,14 @@ type VersionHistoryItem = {
   version: number
   source: string
   createdAt: string
+}
+
+type RevertedInfo = {
+  id: string
+  productId: string
+  field: string
+  version: number
+  revertedAt: string
 }
 
 type SettingsTab = "automation" | "ai" | "brand-voice" | "version-history" | "checklist" | "monitoring"
@@ -337,12 +347,10 @@ export default function Settings() {
 
   // Get retention period based on plan
   const getRetentionText = () => {
-    switch (shop.plan) {
-      case "pro":
-        return "30 days"
-      default:
-        return "Not available on Free plan"
-    }
+    const retentionDays = PLAN_CONFIG[shop.plan].versionHistoryDays
+    if (retentionDays <= 0) return "Not available"
+    if (retentionDays === 1) return "24 hours"
+    return `${retentionDays} days`
   }
 
   // Version history state
@@ -352,6 +360,7 @@ export default function Settings() {
   const [selectedProductHistory, setSelectedProductHistory] = useState<{ productId: string; title: string } | null>(
     null
   )
+  const [lastReverted, setLastReverted] = useState<RevertedInfo | null>(null)
 
   // Format relative time using date-fns
   const formatTimeAgo = (dateStr: string) => {
@@ -371,6 +380,12 @@ export default function Settings() {
     },
     {} as Record<string, { title: string; versions: VersionHistoryItem[] }>
   )
+
+  const selectedProductVersions = selectedProductHistory
+    ? groupedVersions[selectedProductHistory.productId]?.versions ?? []
+    : []
+  const selectedRecentRevert =
+    selectedProductHistory && lastReverted?.productId === selectedProductHistory.productId ? lastReverted : null
 
   const loadVersionHistory = useCallback(() => {
     setVersionsLoading(true)
@@ -410,8 +425,12 @@ export default function Settings() {
   // Handle revert response
   useEffect(() => {
     if (versionFetcher.state === "idle" && versionFetcher.data?.success) {
-      shopify.toast.show("Reverted successfully")
+      const confirmed = versionFetcher.data?.confirmed !== false
+      shopify.toast.show(versionFetcher.data?.message || (confirmed ? "Reverted successfully" : "Revert completed"))
       setReverting(null)
+      if (confirmed && versionFetcher.data?.reverted) {
+        setLastReverted(versionFetcher.data.reverted as RevertedInfo)
+      }
       loadVersionHistory() // Refresh the list
     } else if (versionFetcher.state === "idle" && versionFetcher.data?.error) {
       shopify.toast.show(versionFetcher.data.error)
@@ -425,6 +444,8 @@ export default function Settings() {
       description: "Description",
       seoTitle: "SEO Title",
       seoDescription: "SEO Description",
+      seo_title: "SEO Title",
+      seo_description: "SEO Description",
       tags: "Tags",
     }
     return names[field] || field
@@ -447,6 +468,7 @@ export default function Settings() {
 
   return (
     <div
+      className="settings-page"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -1827,76 +1849,24 @@ export default function Settings() {
                 >
                   Version History
                 </h2>
-                {shop.plan === "pro" && (
-                  <span
-                    style={{
-                      padding: "4px 12px",
-                      borderRadius: "var(--radius-full)",
-                      backgroundColor: "var(--color-primary-soft)",
-                      color: "var(--color-primary)",
-                      fontSize: "12px",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Retention: {getRetentionText()}
-                  </span>
-                )}
+                <span
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "var(--radius-full)",
+                    backgroundColor: "var(--color-primary-soft)",
+                    color: "var(--color-primary)",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                  }}
+                >
+                  Retention: {getRetentionText()}
+                </span>
               </div>
               <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                View and restore previous versions of AI-generated content.
+                View and restore previous versions of your product fields.
               </p>
 
-              {shop.plan === "free" ? (
-                <div className="card" style={{ padding: "32px", textAlign: "center" }}>
-                  <div
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      borderRadius: "50%",
-                      backgroundColor: "var(--color-surface-strong)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 16px",
-                    }}
-                  >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="var(--color-muted)"
-                      strokeWidth="2"
-                    >
-                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                      <path d="M3 3v5h5" />
-                    </svg>
-                  </div>
-                  <h3
-                    style={{
-                      margin: "0 0 8px",
-                      fontSize: "var(--text-lg)",
-                      fontWeight: 600,
-                      color: "var(--color-text)",
-                    }}
-                  >
-                    Version History Unavailable
-                  </h3>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "var(--text-sm)",
-                      color: "var(--color-muted)",
-                      maxWidth: "400px",
-                      marginLeft: "auto",
-                      marginRight: "auto",
-                    }}
-                  >
-                    Upgrade to Pro for 30 day retention to save and restore previous versions of your product fields.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   {/* Toggle */}
                   <div className="card" style={{ padding: "16px 20px" }}>
                     <label
@@ -1916,10 +1886,10 @@ export default function Settings() {
                             display: "block",
                           }}
                         >
-                          Save version history for AI-generated fields
+                          Save version history for product fields
                         </span>
                         <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                          When enabled, previous values are saved before AI changes are applied.
+                          When enabled, previous values are saved before changes are applied.
                         </span>
                       </div>
                       <input
@@ -2073,8 +2043,7 @@ export default function Settings() {
                     </svg>
                     {versionsLoading ? "Loading..." : "Refresh"}
                   </button>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -2404,7 +2373,8 @@ export default function Settings() {
           isOpen={!!selectedProductHistory}
           onClose={() => setSelectedProductHistory(null)}
           productTitle={selectedProductHistory?.title || ""}
-          versions={selectedProductHistory ? groupedVersions[selectedProductHistory.productId].versions : []}
+          versions={selectedProductVersions}
+          recentRevert={selectedRecentRevert}
           onRevert={revertVersion}
           revertingId={reverting}
           formatFieldName={formatFieldName}
@@ -2425,6 +2395,7 @@ function ProductHistoryModal({
   onClose,
   productTitle,
   versions,
+  recentRevert,
   onRevert,
   revertingId,
   formatFieldName,
@@ -2435,213 +2406,182 @@ function ProductHistoryModal({
   onClose: () => void
   productTitle: string
   versions: VersionHistoryItem[]
+  recentRevert: RevertedInfo | null
   onRevert: (version: VersionHistoryItem) => void
   revertingId: string | null
   formatFieldName: (field: string) => string
   formatSource: (source: string) => string
   formatTimeAgo: (date: string) => string
 }) {
-  if (!isOpen) return null
-
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal-container animate-scale-in"
-        style={{ maxWidth: "600px", maxHeight: "80vh" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div
-          className="modal-header"
-          style={{ padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}
-        >
-          <div>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-heading)",
-                fontSize: "20px",
-                fontWeight: 600,
-                color: "#1e293b",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {productTitle}
-            </h2>
-            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>Version history for this product</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "8px",
-              borderRadius: "10px",
-              color: "#94a3b8",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#f1f5f9"
-              e.currentTarget.style.color = "#64748b"
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent"
-              e.currentTarget.style.color = "#94a3b8"
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 28px" }}>
-          {versions.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8" }}>
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                style={{ margin: "0 auto 12px", opacity: 0.5 }}
-              >
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-              <p style={{ margin: 0 }}>No version history found for this product</p>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {versions.map((version) => (
-                <div
-                  key={version.id}
-                  style={{
-                    padding: "16px 20px",
-                    borderRadius: "16px",
-                    background: "#f8fafc",
-                    border: "1px solid #f1f5f9",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: "16px",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                      <span
-                        style={{
-                          padding: "3px 10px",
-                          borderRadius: "var(--radius-full)",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          backgroundColor: "var(--color-primary-soft)",
-                          color: "var(--color-primary)",
-                        }}
-                      >
-                        {formatFieldName(version.field)}
-                      </span>
-                      <span style={{ fontSize: "11px", color: "var(--color-muted)" }}>
-                        {formatSource(version.source)}
-                      </span>
-                      <span style={{ fontSize: "11px", color: "var(--color-muted)", marginLeft: "auto" }}>
-                        {formatTimeAgo(version.createdAt)}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "var(--text-sm)",
-                        color: "var(--color-text)",
-                        lineHeight: 1.5,
-                        background: "var(--color-surface-strong)",
-                        padding: "10px 12px",
-                        borderRadius: "var(--radius-md)",
-                        overflowX: "auto",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        maxHeight: "120px",
-                        overflowY: "auto",
-                      }}
-                    >
-                      {version.field === "description" || version.field === "descriptionHtml"
-                        ? stripHtml(version.value)
-                        : version.value}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onRevert(version)}
-                    disabled={revertingId === version.id}
-                    style={{
-                      padding: "10px 18px",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      borderRadius: "10px",
-                      border: "1px solid #e2e8f0",
-                      background: "#fff",
-                      color: "#475569",
-                      cursor: revertingId === version.id ? "not-allowed" : "pointer",
-                      opacity: revertingId === version.id ? 0.5 : 1,
-                      transition: "all 0.2s ease",
-                      flexShrink: 0,
-                      whiteSpace: "nowrap",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (revertingId !== version.id) {
-                        e.currentTarget.style.backgroundColor = "#f8fafc"
-                        e.currentTarget.style.borderColor = "#3b82f6"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "#fff"
-                      e.currentTarget.style.borderColor = "#e2e8f0"
-                    }}
-                  >
-                    {revertingId === version.id ? "Reverting..." : "Revert"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
+    <BaseModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={productTitle}
+      subtitle="Version history for this product"
+      size="lg"
+      footer={
+        <button
+          type="button"
+          onClick={onClose}
           style={{
-            padding: "20px 28px",
-            borderTop: "1px solid #f1f5f9",
-            display: "flex",
-            justifyContent: "flex-end",
-            background: "transparent",
+            padding: "10px 18px",
+            fontSize: "14px",
+            fontWeight: 500,
+            border: "1px solid #e2e8f0",
+            borderRadius: "10px",
+            backgroundColor: "#fff",
+            color: "#475569",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "#f8fafc"
+            e.currentTarget.style.borderColor = "#cbd5e1"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "#fff"
+            e.currentTarget.style.borderColor = "#e2e8f0"
           }}
         >
-          <button
-            type="button"
-            onClick={onClose}
+          Close
+        </button>
+      }
+    >
+      <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+        {recentRevert && (
+          <div
             style={{
-              padding: "12px 24px",
-              fontSize: "14px",
-              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              padding: "10px 12px",
+              marginBottom: "12px",
+              borderRadius: "10px",
+              background: "#f8fafc",
               border: "1px solid #e2e8f0",
-              borderRadius: "12px",
-              backgroundColor: "#fff",
               color: "#475569",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
+              fontSize: "12px",
+              fontWeight: 600,
             }}
           >
-            Close
-          </button>
-        </div>
+            <span>
+              Reverted to version {recentRevert.version} • {formatFieldName(recentRevert.field)}
+            </span>
+            <span style={{ fontWeight: 500, color: "#64748b" }}>{formatTimeAgo(recentRevert.revertedAt)}</span>
+          </div>
+        )}
+        {versions.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "28px 12px", color: "#94a3b8" }}>
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              style={{ margin: "0 auto 12px", opacity: 0.5 }}
+            >
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            <p style={{ margin: 0 }}>No version history found for this product</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {versions.map((version) => (
+              <div
+                key={version.id}
+                style={{
+                  padding: "16px 18px",
+                  borderRadius: "14px",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                    <span
+                      style={{
+                        padding: "3px 10px",
+                        borderRadius: "var(--radius-full)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        backgroundColor: "var(--color-primary-soft)",
+                        color: "var(--color-primary)",
+                      }}
+                    >
+                      {formatFieldName(version.field)}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--color-muted)" }}>
+                      {formatSource(version.source)}
+                    </span>
+                    <span style={{ fontSize: "11px", color: "var(--color-muted)", marginLeft: "auto" }}>
+                      {formatTimeAgo(version.createdAt)}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-sm)",
+                      color: "var(--color-text)",
+                      lineHeight: 1.5,
+                      background: "#fff",
+                      padding: "10px 12px",
+                      borderRadius: "10px",
+                      overflowX: "auto",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      maxHeight: "120px",
+                      overflowY: "auto",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    {version.field === "description" || version.field === "descriptionHtml"
+                      ? stripHtml(version.value)
+                      : version.value}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRevert(version)}
+                  disabled={revertingId === version.id}
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    borderRadius: "8px",
+                    border: "1px solid #e2e8f0",
+                    background: revertingId === version.id ? "#f1f5f9" : "#fff",
+                    color: revertingId === version.id ? "#94a3b8" : "#475569",
+                    cursor: revertingId === version.id ? "not-allowed" : "pointer",
+                    transition: "all 0.15s ease",
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (revertingId !== version.id) {
+                      e.currentTarget.style.backgroundColor = "#f8fafc"
+                      e.currentTarget.style.borderColor = "#cbd5e1"
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = revertingId === version.id ? "#f1f5f9" : "#fff"
+                    e.currentTarget.style.borderColor = "#e2e8f0"
+                  }}
+                >
+                  {revertingId === version.id ? "Reverting..." : "Revert"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </BaseModal>
   )
 }
 

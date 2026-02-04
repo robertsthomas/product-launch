@@ -68,11 +68,15 @@ const OPENROUTER_IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL || DEFAULT_IMA
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 const OPENAI_MODEL = process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL
 
-// OpenRouter Image Generation Models (cheapest to highest quality)
+// OpenRouter Image Generation Model (Gemini 3 Pro Image Preview / "Nano Banana Pro")
+const DEFAULT_OPENROUTER_IMAGE_GEN_MODEL = "google/gemini-3-pro-image-preview"
+const OPENROUTER_IMAGE_GEN_MODEL = process.env.OPENROUTER_IMAGE_GEN_MODEL || DEFAULT_OPENROUTER_IMAGE_GEN_MODEL
+
+// Quality tiers map to the same Gemini model (overrideable via env)
 const OPENROUTER_IMAGE_MODELS = {
-  fast: "black-forest-labs/flux.2-klein-4b", // ~$0.014/MP - fastest/cheapest
-  balanced: "black-forest-labs/flux.2-pro", // ~$0.03/MP - good balance
-  quality: "black-forest-labs/flux.2-max", // ~$0.07/MP - highest quality
+  fast: OPENROUTER_IMAGE_GEN_MODEL,
+  balanced: OPENROUTER_IMAGE_GEN_MODEL,
+  quality: OPENROUTER_IMAGE_GEN_MODEL,
 }
 
 // ============================================
@@ -385,9 +389,9 @@ export async function generateImageAltText(
 // ============================================
 
 export async function generateProductImage(product: ProductContext, options?: GenerationOptions): Promise<string> {
-  // Use OpenRouter FLUX models if available (preferred - prioritize quality first)
+  // Use OpenRouter Gemini image model if available (preferred)
   if (isImageGenAvailable()) {
-    console.log("[AI Image Generation] Using OpenRouter FLUX models (preferring quality)")
+    console.log("[AI Image Generation] Using OpenRouter Gemini image model")
     return generateProductImageWithOpenRouter(product, "quality")
   }
 
@@ -464,13 +468,13 @@ export async function generateProductImage(product: ProductContext, options?: Ge
 }
 
 // ============================================
-// OpenRouter FLUX Image Generation
+// OpenRouter Gemini Image Generation
 // ============================================
 
 type ImageQuality = "fast" | "balanced" | "quality"
 
 /**
- * Generate an image using OpenRouter's FLUX models via chat completions
+ * Generate an image using OpenRouter's Gemini model via chat completions
  * Uses modalities: ["image", "text"] to enable image generation
  */
 export async function generateProductImageWithOpenRouter(
@@ -497,6 +501,7 @@ export async function generateProductImageWithOpenRouter(
   )
 
   const model = OPENROUTER_IMAGE_MODELS[quality]
+  const nextQuality = quality === "quality" ? "balanced" : quality === "balanced" ? "fast" : null
 
   console.log(`[OpenRouter Image] Generating image for: ${product.title}`)
   console.log(`[OpenRouter Image] Using model: ${model} (${quality})`)
@@ -532,13 +537,10 @@ export async function generateProductImageWithOpenRouter(
     const errorText = await response.text()
     console.error(`[OpenRouter Image] API error: ${response.status}`, errorText)
 
-    // Fallback chain: quality -> balanced -> fast
-    if (quality === "quality") {
-      console.log("[OpenRouter Image] Retrying with balanced model...")
-      return generateProductImageWithOpenRouter(product, "balanced")
-    } else if (quality === "balanced") {
-      console.log("[OpenRouter Image] Retrying with fast model...")
-      return generateProductImageWithOpenRouter(product, "fast")
+    // Fallback chain: quality -> balanced -> fast (only if model differs)
+    if (nextQuality && OPENROUTER_IMAGE_MODELS[nextQuality] !== model) {
+      console.log(`[OpenRouter Image] Retrying with ${nextQuality} model...`)
+      return generateProductImageWithOpenRouter(product, nextQuality)
     }
 
     throw new Error(`OpenRouter image API error: ${response.status}`)
@@ -553,7 +555,7 @@ export async function generateProductImageWithOpenRouter(
     throw new Error(`OpenRouter image error: ${data.error.message}`)
   }
 
-  // Check for image in message.images array (OpenRouter FLUX format)
+  // Check for image in message.images array (OpenRouter image format)
   const images = data.choices?.[0]?.message?.images
   if (images && images.length > 0) {
     const imageUrl = images[0]?.image_url?.url
@@ -583,12 +585,9 @@ export async function generateProductImageWithOpenRouter(
   // If no image found, attempt fallback chain before failing
   console.error("[OpenRouter Image] Unexpected response format - no image found")
 
-  if (quality === "quality") {
-    console.log("[OpenRouter Image] No image found - retrying with balanced model...")
-    return generateProductImageWithOpenRouter(product, "balanced")
-  } else if (quality === "balanced") {
-    console.log("[OpenRouter Image] No image found - retrying with fast model...")
-    return generateProductImageWithOpenRouter(product, "fast")
+  if (nextQuality && OPENROUTER_IMAGE_MODELS[nextQuality] !== model) {
+    console.log(`[OpenRouter Image] No image found - retrying with ${nextQuality} model...`)
+    return generateProductImageWithOpenRouter(product, nextQuality)
   }
 
   throw new Error("No image found in OpenRouter response")

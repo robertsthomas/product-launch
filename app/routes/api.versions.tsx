@@ -82,7 +82,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const productId = formData.get("productId") as string
   const field = formData.get("field") as string
 
-  if (!versionId || !productId || !field) {
+  if (!versionId || !productId) {
     return Response.json({ error: "Missing required fields" }, { status: 400 })
   }
 
@@ -98,6 +98,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return Response.json({ error: "Version not found" }, { status: 404 })
     }
 
+    const normalizeFieldName = (rawField: string) => {
+      const mapping: Record<string, string> = {
+        seo_title: "seoTitle",
+        seo_description: "seoDescription",
+      }
+      return mapping[rawField] || rawField
+    }
+
+    const normalizedField = normalizeFieldName(field || version.field)
+
     // Map field names to GraphQL mutation fields
     const _fieldMap: Record<string, string> = {
       title: "title",
@@ -111,7 +121,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     let mutation: string
     let variables: Record<string, unknown>
 
-    if (field === "tags") {
+    if (normalizedField === "tags") {
       const tags = JSON.parse(version.value)
       mutation = `#graphql
         mutation UpdateProductTags($id: ID!, $tags: [String!]!) {
@@ -122,7 +132,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       `
       variables = { id: productId, tags }
-    } else if (field === "seoTitle") {
+    } else if (normalizedField === "seoTitle") {
       mutation = `#graphql
         mutation UpdateProductSeoTitle($id: ID!, $seoTitle: String!) {
           productUpdate(product: { id: $id, seo: { title: $seoTitle } }) {
@@ -132,7 +142,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       `
       variables = { id: productId, seoTitle: version.value }
-    } else if (field === "seoDescription") {
+    } else if (normalizedField === "seoDescription") {
       mutation = `#graphql
         mutation UpdateProductSeoDescription($id: ID!, $seoDescription: String!) {
           productUpdate(product: { id: $id, seo: { description: $seoDescription } }) {
@@ -142,7 +152,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       `
       variables = { id: productId, seoDescription: version.value }
-    } else if (field === "description") {
+    } else if (normalizedField === "description") {
       mutation = `#graphql
         mutation UpdateProductDescription($id: ID!, $descriptionHtml: String!) {
           productUpdate(product: { id: $id, descriptionHtml: $descriptionHtml }) {
@@ -172,7 +182,68 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return Response.json({ error: data.data.productUpdate.userErrors[0].message }, { status: 400 })
     }
 
-    return Response.json({ success: true, message: "Reverted successfully" })
+    // Confirm the update by re-fetching the product field
+    const confirmResponse = await admin.graphql(
+      `#graphql
+        query ConfirmProductField($id: ID!) {
+          product(id: $id) {
+            title
+            descriptionHtml
+            tags
+            seo { title description }
+          }
+        }
+      `,
+      { variables: { id: productId } }
+    )
+    const confirmData = await confirmResponse.json()
+    const confirmedProduct = confirmData.data?.product
+
+    let confirmed = false
+    if (confirmedProduct) {
+      switch (normalizedField) {
+        case "title":
+          confirmed = (confirmedProduct.title || "") === version.value
+          break
+        case "description":
+          confirmed = (confirmedProduct.descriptionHtml || "") === version.value
+          break
+        case "seoTitle":
+          confirmed = (confirmedProduct.seo?.title || "") === version.value
+          break
+        case "seoDescription":
+          confirmed = (confirmedProduct.seo?.description || "") === version.value
+          break
+        case "tags": {
+          const expectedTags = Array.isArray(version.value) ? version.value : JSON.parse(version.value || "[]")
+          const actualTags = Array.isArray(confirmedProduct.tags) ? confirmedProduct.tags : []
+          const normalize = (values: string[]) => values.map((v) => v.trim()).sort()
+          confirmed = JSON.stringify(normalize(expectedTags)) === JSON.stringify(normalize(actualTags))
+          break
+        }
+        default:
+          confirmed = false
+      }
+    }
+
+    if (confirmed) {
+      await db.delete(productFieldVersions).where(eq(productFieldVersions.id, versionId))
+    }
+
+    return Response.json({
+      success: true,
+      confirmed,
+      message: confirmed ? "Reverted successfully" : "Revert applied, but could not confirm the update.",
+      reverted: confirmed
+        ? {
+            id: version.id,
+            productId,
+            field: normalizedField,
+            version: version.version,
+            revertedAt: new Date().toISOString(),
+          }
+        : null,
+    })
   } catch (error) {
     console.error("Revert version error:", error)
     return Response.json({ error: "Failed to revert version" }, { status: 500 })
