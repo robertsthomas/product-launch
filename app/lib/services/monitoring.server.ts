@@ -289,7 +289,10 @@ async function checkCustomRules(
         driftType: "custom_rule_violated",
         severity: rule.severity as "low" | "medium" | "high",
         previousValue: null,
-        currentValue: JSON.stringify({ rule: rule.name, ...currentValue }),
+        currentValue: JSON.stringify({
+          rule: rule.name,
+          ...(typeof currentValue === "object" && currentValue !== null ? currentValue : {}),
+        }),
         ruleId: rule.id,
         detectedAt: now,
       })

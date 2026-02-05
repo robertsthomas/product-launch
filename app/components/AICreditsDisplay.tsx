@@ -12,8 +12,10 @@ export function AICreditsDisplay({ used, limit, inTrial = false }: AICreditsDisp
   const isLow = remaining <= 5
   const isOut = remaining === 0
 
+  const BoxAny = Box as any
+
   return (
-    <Box>
+    <BoxAny>
       <InlineStack gap="200" align="space-between" blockAlign="center">
         <InlineStack gap="100" align="start">
           <Text as="span" variant="bodySm" tone="subdued">
@@ -34,9 +36,13 @@ export function AICreditsDisplay({ used, limit, inTrial = false }: AICreditsDisp
           )}
         </InlineStack>
       </InlineStack>
-      <Box paddingBlockStart="100">
-        <ProgressBar progress={percentage} size="small" tone={isOut ? "critical" : isLow ? "warning" : "primary"} />
-      </Box>
-    </Box>
+      <BoxAny paddingBlockStart="100">
+        <ProgressBar
+          progress={percentage}
+          size="small"
+          tone={(isOut ? "critical" : isLow ? ("warning" as const) : "primary") as any}
+        />
+      </BoxAny>
+    </BoxAny>
   )
 }

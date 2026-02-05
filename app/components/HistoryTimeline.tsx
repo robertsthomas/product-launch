@@ -9,6 +9,8 @@
  * - Bulk operations
  */
 
+import React from "react"
+import type { ReactNode, ReactElement } from "react"
 import { formatDistanceToNow } from "date-fns"
 import type { ChangeType } from "../lib/services/history.server"
 
@@ -106,7 +108,16 @@ interface TimelineEntryProps {
 
 function TimelineEntry({ entry, isFirst, isLast }: TimelineEntryProps) {
   const config = getEntryConfig(entry.changeType)
+  const descriptionText: string = entry.description ?? getDefaultDescription(entry)
   const createdAt = typeof entry.createdAt === "string" ? new Date(entry.createdAt) : entry.createdAt
+
+  const descriptionDiv: any = React.createElement(
+    "div",
+    { style: { fontSize: "var(--text-sm)", color: "var(--color-text)", lineHeight: 1.4 } },
+    String(descriptionText)
+  );
+
+
 
   return (
     <div
@@ -198,15 +209,7 @@ function TimelineEntry({ entry, isFirst, isLast }: TimelineEntryProps) {
             </span>
 
             {/* Description */}
-            <div
-              style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--color-text)",
-                lineHeight: 1.4,
-              }}
-            >
-              {entry.description || getDefaultDescription(entry)}
-            </div>
+            {descriptionDiv}
 
             {/* Changed field indicator */}
             {entry.changedField && (
@@ -235,35 +238,36 @@ function TimelineEntry({ entry, isFirst, isLast }: TimelineEntryProps) {
             )}
 
             {/* AI Model indicator for AI-generated content */}
-            {(entry.changeType === "ai_fix" || entry.metadata?.aiAction) && entry.aiModel && (
-              <div
-                style={{
-                  fontSize: "var(--text-xs)",
-                  color: "var(--color-muted)",
-                  marginTop: "4px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                  <path d="M2 17l10 5 10-5" />
-                  <path d="M2 12l10 5 10-5" />
-                </svg>
-                <code
+            {(entry.changeType === "ai_fix" || (entry.metadata as Record<string, unknown> | null)?.aiAction) &&
+              entry.aiModel && (
+                <div
                   style={{
-                    padding: "1px 5px",
-                    background: "rgba(167, 139, 250, 0.1)",
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: "10px",
-                    color: "#8b5cf6",
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-muted)",
+                    marginTop: "4px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
                   }}
                 >
-                  {formatModelName(entry.aiModel)}
-                </code>
-              </div>
-            )}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                  <code
+                    style={{
+                      padding: "1px 5px",
+                      background: "rgba(167, 139, 250, 0.1)",
+                      borderRadius: "var(--radius-sm)",
+                      fontSize: "10px",
+                      color: "#8b5cf6",
+                    }}
+                  >
+                    {formatModelName(entry.aiModel)}
+                  </code>
+                </div>
+              )}
 
             {/* Score change for audits */}
             {entry.changeType === "audit" && entry.score !== undefined && (

@@ -306,8 +306,8 @@ export async function getAICreditStatus(shopDomain: string): Promise<{
     }
   }
 
-  // Free plan: AI not available
-  if (plan === PLANS.FREE) {
+  // Pro plan: app credits first, then own key
+  if (plan === PLANS.PRO) {
     return {
       allowed: false,
       plan,

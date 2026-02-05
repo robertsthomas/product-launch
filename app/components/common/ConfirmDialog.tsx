@@ -1,5 +1,5 @@
-import BaseModal from './BaseModal'
-import Button from './Button'
+import BaseModal from "./BaseModal"
+import Button from "./Button"
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -11,7 +11,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void
   isLoading?: boolean
   isDangerous?: boolean
-  confirmButtonVariant?: 'primary' | 'danger'
+  confirmButtonVariant?: "primary" | "danger"
 }
 
 export function ConfirmDialog({
@@ -19,15 +19,15 @@ export function ConfirmDialog({
   onClose,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   onConfirm,
   isLoading = false,
   isDangerous = false,
-  confirmButtonVariant = isDangerous ? 'danger' : 'primary',
+  confirmButtonVariant = isDangerous ? "danger" : "primary",
 }: ConfirmDialogProps) {
   const footer = (
-    <div style={{ display: 'flex', gap: 'var(--space-3)', width: '100%' }}>
+    <div style={{ display: "flex", gap: "var(--space-3)", width: "100%" }}>
       <Button variant="secondary" onClick={onClose} disabled={isLoading}>
         {cancelText}
       </Button>
@@ -39,9 +39,9 @@ export function ConfirmDialog({
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} title={title} footer={footer}>
-      <div style={{ marginBottom: 'var(--space-4)' }}>
-        {typeof message === 'string' ? (
-          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}>{message}</p>
+      <div style={{ marginBottom: "var(--space-4)" }}>
+        {typeof message === "string" ? (
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--color-text)" }}>{message}</p>
         ) : (
           message
         )}

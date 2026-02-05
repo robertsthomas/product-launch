@@ -300,7 +300,6 @@ const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
-    pro: true,
   },
 ]
 
@@ -382,7 +381,7 @@ export default function Settings() {
   )
 
   const selectedProductVersions = selectedProductHistory
-    ? groupedVersions[selectedProductHistory.productId]?.versions ?? []
+    ? (groupedVersions[selectedProductHistory.productId]?.versions ?? [])
     : []
   const selectedRecentRevert =
     selectedProductHistory && lastReverted?.productId === selectedProductHistory.productId ? lastReverted : null
@@ -1867,182 +1866,178 @@ export default function Settings() {
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  {/* Toggle */}
-                  <div className="card" style={{ padding: "16px 20px" }}>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <div>
-                        <span
-                          style={{
-                            fontSize: "var(--text-sm)",
-                            fontWeight: 600,
-                            color: "var(--color-text)",
-                            display: "block",
-                          }}
-                        >
-                          Save version history for product fields
-                        </span>
-                        <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                          When enabled, previous values are saved before changes are applied.
-                        </span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={shop.versionHistoryEnabled}
-                        onChange={(e) => updateSetting("versionHistoryEnabled", e.target.checked)}
-                        style={{
-                          width: "18px",
-                          height: "18px",
-                          cursor: "pointer",
-                          accentColor: "var(--color-primary)",
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* Versions List */}
-                  <div className="card" style={{ padding: "0", overflow: "hidden" }}>
-                    {versionsLoading ? (
-                      <div style={{ textAlign: "center", padding: "40px", color: "var(--color-muted)" }}>
-                        Loading...
-                      </div>
-                    ) : versions.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "40px", color: "var(--color-muted)" }}>
-                        <svg
-                          width="32"
-                          height="32"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          style={{ marginBottom: "12px", opacity: 0.5 }}
-                        >
-                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                          <path d="M3 3v5h5" />
-                        </svg>
-                        <p style={{ margin: 0 }}>No version history found</p>
-                      </div>
-                    ) : (
-                      <div>
-                        {Object.entries(groupedVersions).map(
-                          ([productId, { title, versions: productVersions }], idx) => {
-                            return (
-                              <div
-                                key={productId}
-                                style={{ borderTop: idx > 0 ? "1px solid var(--color-border)" : "none" }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedProductHistory({ productId, title })}
-                                  style={{
-                                    width: "100%",
-                                    padding: "16px 20px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: "12px",
-                                    background: "transparent",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    textAlign: "left",
-                                    transition: "background-color var(--transition-fast)",
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = "transparent"
-                                  }}
-                                >
-                                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                    <svg
-                                      width="16"
-                                      height="16"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      style={{ color: "var(--color-muted)" }}
-                                    >
-                                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                                      <path d="M3 3v5h5" />
-                                    </svg>
-                                    <span
-                                      style={{
-                                        fontSize: "var(--text-sm)",
-                                        fontWeight: 600,
-                                        color: "var(--color-text)",
-                                      }}
-                                    >
-                                      {title}
-                                    </span>
-                                  </div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                    <span
-                                      style={{
-                                        padding: "2px 10px",
-                                        borderRadius: "var(--radius-full)",
-                                        fontSize: "11px",
-                                        fontWeight: 500,
-                                        backgroundColor: "var(--color-surface-strong)",
-                                        color: "var(--color-muted)",
-                                      }}
-                                    >
-                                      {productVersions.length} {productVersions.length === 1 ? "version" : "versions"}
-                                    </span>
-                                    <svg
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="var(--color-muted)"
-                                      strokeWidth="2"
-                                    >
-                                      <path d="M9 18l6-6-6-6" />
-                                    </svg>
-                                  </div>
-                                </button>
-                              </div>
-                            )
-                          }
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Refresh button */}
-                  <button
-                    type="button"
-                    onClick={loadVersionHistory}
-                    disabled={versionsLoading}
+                {/* Toggle */}
+                <div className="card" style={{ padding: "16px 20px" }}>
+                  <label
                     style={{
-                      padding: "10px 16px",
-                      fontSize: "var(--text-sm)",
-                      fontWeight: 500,
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-surface)",
-                      color: "var(--color-text)",
-                      cursor: versionsLoading ? "not-allowed" : "pointer",
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                      opacity: versionsLoading ? 0.5 : 1,
+                      justifyContent: "space-between",
+                      cursor: "pointer",
                     }}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                      <path d="M3 3v5h5" />
-                    </svg>
-                    {versionsLoading ? "Loading..." : "Refresh"}
-                  </button>
+                    <div>
+                      <span
+                        style={{
+                          fontSize: "var(--text-sm)",
+                          fontWeight: 600,
+                          color: "var(--color-text)",
+                          display: "block",
+                        }}
+                      >
+                        Save version history for product fields
+                      </span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                        When enabled, previous values are saved before changes are applied.
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={shop.versionHistoryEnabled}
+                      onChange={(e) => updateSetting("versionHistoryEnabled", e.target.checked)}
+                      style={{
+                        width: "18px",
+                        height: "18px",
+                        cursor: "pointer",
+                        accentColor: "var(--color-primary)",
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {/* Versions List */}
+                <div className="card" style={{ padding: "0", overflow: "hidden" }}>
+                  {versionsLoading ? (
+                    <div style={{ textAlign: "center", padding: "40px", color: "var(--color-muted)" }}>Loading...</div>
+                  ) : versions.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "40px", color: "var(--color-muted)" }}>
+                      <svg
+                        width="32"
+                        height="32"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        style={{ marginBottom: "12px", opacity: 0.5 }}
+                      >
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                      </svg>
+                      <p style={{ margin: 0 }}>No version history found</p>
+                    </div>
+                  ) : (
+                    <div>
+                      {Object.entries(groupedVersions).map(([productId, { title, versions: productVersions }], idx) => {
+                        return (
+                          <div
+                            key={productId}
+                            style={{ borderTop: idx > 0 ? "1px solid var(--color-border)" : "none" }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProductHistory({ productId, title })}
+                              style={{
+                                width: "100%",
+                                padding: "16px 20px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "12px",
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                textAlign: "left",
+                                transition: "background-color var(--transition-fast)",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = "var(--color-surface-strong)"
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = "transparent"
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  style={{ color: "var(--color-muted)" }}
+                                >
+                                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                  <path d="M3 3v5h5" />
+                                </svg>
+                                <span
+                                  style={{
+                                    fontSize: "var(--text-sm)",
+                                    fontWeight: 600,
+                                    color: "var(--color-text)",
+                                  }}
+                                >
+                                  {title}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                <span
+                                  style={{
+                                    padding: "2px 10px",
+                                    borderRadius: "var(--radius-full)",
+                                    fontSize: "11px",
+                                    fontWeight: 500,
+                                    backgroundColor: "var(--color-surface-strong)",
+                                    color: "var(--color-muted)",
+                                  }}
+                                >
+                                  {productVersions.length} {productVersions.length === 1 ? "version" : "versions"}
+                                </span>
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="var(--color-muted)"
+                                  strokeWidth="2"
+                                >
+                                  <path d="M9 18l6-6-6-6" />
+                                </svg>
+                              </div>
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Refresh button */}
+                <button
+                  type="button"
+                  onClick={loadVersionHistory}
+                  disabled={versionsLoading}
+                  style={{
+                    padding: "10px 16px",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 500,
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--color-border)",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    cursor: versionsLoading ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    opacity: versionsLoading ? 0.5 : 1,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  {versionsLoading ? "Loading..." : "Refresh"}
+                </button>
               </div>
             </div>
           )}

@@ -8,6 +8,7 @@ import {
   deleteCatalogRule,
   getCatalogRules,
   toggleCatalogRule,
+  updateCatalogRule,
 } from "../lib/services/rules.server"
 import { RULE_DEFINITIONS, RULE_TEMPLATES } from "../lib/services/rules.types"
 import { authenticate } from "../shopify.server"

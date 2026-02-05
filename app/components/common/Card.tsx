@@ -1,4 +1,4 @@
-import type React from 'react'
+import type React from "react"
 
 interface CardProps {
   children: React.ReactNode
@@ -12,13 +12,13 @@ export function Card({ children, style, className, hoverable = false }: CardProp
     <div
       className={className}
       style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-sm)',
-        transition: 'all var(--transition-base)',
-        cursor: hoverable ? 'pointer' : 'auto',
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-lg)",
+        overflow: "hidden",
+        boxShadow: "var(--shadow-sm)",
+        transition: "all var(--transition-base)",
+        cursor: hoverable ? "pointer" : "auto",
         ...style,
       }}
     >
@@ -38,9 +38,9 @@ export function CardHeader({ children, style, className }: CardHeaderProps) {
     <div
       className={className}
       style={{
-        padding: 'var(--space-6)',
-        borderBottom: '1px solid var(--color-border)',
-        background: 'var(--color-surface-strong)',
+        padding: "var(--space-6)",
+        borderBottom: "1px solid var(--color-border)",
+        background: "var(--color-surface-strong)",
         ...style,
       }}
     >
@@ -60,7 +60,7 @@ export function CardBody({ children, style, className }: CardBodyProps) {
     <div
       className={className}
       style={{
-        padding: 'var(--space-6)',
+        padding: "var(--space-6)",
         ...style,
       }}
     >
@@ -80,13 +80,13 @@ export function CardFooter({ children, style, className }: CardFooterProps) {
     <div
       className={className}
       style={{
-        padding: 'var(--space-4) var(--space-6)',
-        borderTop: '1px solid var(--color-border)',
-        background: 'var(--color-surface-strong)',
-        display: 'flex',
-        gap: 'var(--space-3)',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
+        padding: "var(--space-4) var(--space-6)",
+        borderTop: "1px solid var(--color-border)",
+        background: "var(--color-surface-strong)",
+        display: "flex",
+        gap: "var(--space-3)",
+        alignItems: "center",
+        justifyContent: "flex-end",
         ...style,
       }}
     >

@@ -1,0 +1,9 @@
+{
+  "launch_ready": "Launch Ready",
+  "almost_ready": "Almost Ready", 
+  "needs_work": "Needs Work",
+  "show_score": "Show product score",
+  "badge_style": "Badge style",
+  "minimal": "Minimal",
+  "detailed": "Detailed"
+}

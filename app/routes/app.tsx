@@ -5,6 +5,7 @@ import type { HeadersFunction, LoaderFunctionArgs } from "react-router"
 import { Link, Outlet, useLoaderData, useLocation, useRouteError } from "react-router"
 
 import { getShopPlanStatus } from "../lib/billing/guards.server"
+import { initWebVitalsMonitoring } from "../lib/web-vitals"
 import { authenticate } from "../shopify.server"
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -432,6 +433,11 @@ export default function App() {
   const [navTourStep, setNavTourStep] = useState(0)
 
   const totalSteps = isPro ? 3 : 2
+
+  // Initialize Web Vitals monitoring for Built for Shopify compliance
+  useEffect(() => {
+    initWebVitalsMonitoring()
+  }, [])
 
   useEffect(() => {
     const navTourCompleted = localStorage.getItem("navigationTourCompleted") === "true"

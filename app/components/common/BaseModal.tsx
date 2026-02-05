@@ -72,9 +72,7 @@ export default function BaseModal({
                   {title}
                 </h2>
                 {subtitle && (
-                  <p style={{ margin: "6px 0 0", fontSize: "14px", color: "#64748b", lineHeight: 1.5 }}>
-                    {subtitle}
-                  </p>
+                  <p style={{ margin: "6px 0 0", fontSize: "14px", color: "#64748b", lineHeight: 1.5 }}>{subtitle}</p>
                 )}
               </div>
               <button

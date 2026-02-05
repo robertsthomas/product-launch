@@ -1,0 +1,34 @@
+api_version = "2025-01"
+
+[[extensions]]
+name = "Launch Ready Badge"
+handle = "launch-ready-badge"
+type = "theme"
+
+  [[extensions.blocks]]
+  name = "Launch Ready Badge"
+  template = "blocks/badge.liquid"
+  target = "section"
+
+    [extensions.blocks.default]
+    show_score = true
+
+[extensions.settings]
+
+  [extensions.settings.show_score]
+  type = "checkbox"
+  label = "Show product score"
+  default = true
+
+  [extensions.settings.badge_style]
+  type = "select"
+  label = "Badge style"
+  default = "minimal"
+  
+    [[extensions.settings.badge_style.options]]
+    label = "Minimal"
+    value = "minimal"
+
+    [[extensions.settings.badge_style.options]]
+    label = "Detailed"
+    value = "detailed"

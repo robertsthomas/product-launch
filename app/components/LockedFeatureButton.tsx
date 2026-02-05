@@ -28,8 +28,8 @@ export function LockedFeatureButton({
   if (locked) {
     return (
       <Tooltip content="Requires Pro plan">
-        <Button onClick={onLockedClick} variant={variant} icon={LockIcon} disabled={disabled}>
-          {children}
+        <Button onClick={onLockedClick} variant={variant} icon={LockIcon as any} disabled={disabled}>
+          {String(children)}
         </Button>
       </Tooltip>
     )
@@ -37,7 +37,7 @@ export function LockedFeatureButton({
 
   return (
     <Button onClick={onAction} loading={loading} disabled={disabled} variant={variant} tone={tone}>
-      {children}
+      {String(children)}
     </Button>
   )
 }

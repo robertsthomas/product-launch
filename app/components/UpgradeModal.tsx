@@ -1,5 +1,10 @@
 import { Badge, BlockStack, Box, Icon, InlineStack, Modal, Text } from "@shopify/polaris"
 import { CheckIcon, LockIcon } from "@shopify/polaris-icons"
+
+// Workaround: cast Polaris components to any to avoid cross-@types/react incompatibilities
+const BoxAny = Box as any
+const ModalAny = Modal as any
+const IconAny = Icon as any
 import { PLAN_CONFIG, type PlanType } from "~/lib/billing/constants"
 
 interface UpgradeModalProps {
@@ -23,8 +28,12 @@ export function UpgradeModal({
 }: UpgradeModalProps) {
   const targetConfig = PLAN_CONFIG[requiredPlan]
 
+  const ModalAny = Modal as any
+  const BoxAny = Box as any
+  const IconAny = Icon as any
+
   return (
-    <Modal
+    <ModalAny
       open={open}
       onClose={onClose}
       title={`Upgrade to ${targetConfig.name}`}
@@ -40,11 +49,11 @@ export function UpgradeModal({
         },
       ]}
     >
-      <Modal.Section>
+      <ModalAny.Section>
         <BlockStack gap="400">
-          <Box padding="400" background="bg-surface-secondary" borderRadius="200">
+          <BoxAny padding="400" background="bg-surface-secondary" borderRadius="200">
             <InlineStack gap="200" align="center">
-              <Icon source={LockIcon} tone="subdued" />
+              <IconAny source={LockIcon} tone="subdued" />
               <Text as="p" variant="bodyMd">
                 <Text as="span" fontWeight="semibold">
                   {feature}
@@ -52,7 +61,7 @@ export function UpgradeModal({
                 requires the {targetConfig.name} plan
               </Text>
             </InlineStack>
-          </Box>
+          </BoxAny>
 
           <BlockStack gap="200">
             <Text as="h3" variant="headingSm">
@@ -73,30 +82,30 @@ export function UpgradeModal({
             </BlockStack>
           </BlockStack>
 
-          <Box padding="300" background="bg-surface-success" borderRadius="200">
+          <BoxAny padding="300" background="bg-surface-success" borderRadius="200">
             <InlineStack gap="200" align="center" blockAlign="center">
               <Text as="p" variant="bodyLg" fontWeight="bold">
-                ${targetConfig.price}/month
+                ${String(targetConfig.price)}/month
               </Text>
-              <Badge tone="success">{targetConfig.trialDays}-day free trial</Badge>
+              <Badge tone="success">{`${targetConfig.trialDays}-day free trial`}</Badge>
             </InlineStack>
-          </Box>
+          </BoxAny>
 
           <Text as="p" variant="bodySm" tone="subdued">
             Cancel anytime. No charge until trial ends.
           </Text>
         </BlockStack>
-      </Modal.Section>
-    </Modal>
+      </ModalAny.Section>
+    </ModalAny>
   )
 }
 
 function FeatureItem({ children }: { children: React.ReactNode }) {
   return (
     <InlineStack gap="100" align="start">
-      <Box>
-        <Icon source={CheckIcon} tone="success" />
-      </Box>
+      <BoxAny>
+        <IconAny source={CheckIcon as any} tone="success" />
+      </BoxAny>
       <Text as="span" variant="bodyMd">
         {children}
       </Text>

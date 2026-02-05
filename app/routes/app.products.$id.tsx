@@ -304,26 +304,26 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         const versionPromises: Promise<void>[] = []
 
         if (currentProduct.title !== title) {
-          versionPromises.push(saveFieldVersion(shopId, productId, "title", currentProduct.title || "", "manual_edit"))
+          versionPromises.push(saveFieldVersion(shopId, productId, "title", currentProduct.title || "", "manual"))
         }
         if (currentProduct.descriptionHtml !== descriptionHtml) {
           versionPromises.push(
-            saveFieldVersion(shopId, productId, "description", currentProduct.descriptionHtml || "", "manual_edit")
+            saveFieldVersion(shopId, productId, "description", currentProduct.descriptionHtml || "", "manual")
           )
         }
         if ((currentProduct.seo?.title || "") !== seoTitle) {
           versionPromises.push(
-            saveFieldVersion(shopId, productId, "seoTitle", currentProduct.seo?.title || "", "manual_edit")
+            saveFieldVersion(shopId, productId, "seoTitle", currentProduct.seo?.title || "", "manual")
           )
         }
         if ((currentProduct.seo?.description || "") !== seoDescription) {
           versionPromises.push(
-            saveFieldVersion(shopId, productId, "seoDescription", currentProduct.seo?.description || "", "manual_edit")
+            saveFieldVersion(shopId, productId, "seoDescription", currentProduct.seo?.description || "", "manual")
           )
         }
         const currentTags = currentProduct.tags?.join(",") || ""
         if (currentTags !== tags) {
-          versionPromises.push(saveFieldVersion(shopId, productId, "tags", currentProduct.tags || [], "manual_edit"))
+          versionPromises.push(saveFieldVersion(shopId, productId, "tags", currentProduct.tags || [], "manual"))
         }
 
         await Promise.all(versionPromises)
@@ -4513,12 +4513,8 @@ export default function ProductEditor() {
             }}
           />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "14px", fontWeight: 500, color: "#0f172a" }}>
-              Generate alt text with image
-            </div>
-            <div style={{ fontSize: "13px", color: "#64748b", marginTop: "2px" }}>
-              Improves SEO and accessibility
-            </div>
+            <div style={{ fontSize: "14px", fontWeight: 500, color: "#0f172a" }}>Generate alt text with image</div>
+            <div style={{ fontSize: "13px", color: "#64748b", marginTop: "2px" }}>Improves SEO and accessibility</div>
           </div>
         </label>
       </BaseModal>

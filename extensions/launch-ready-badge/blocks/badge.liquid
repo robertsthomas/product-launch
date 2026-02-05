@@ -1,0 +1,80 @@
+{%- comment -%}
+  Launch Ready Badge - Shows product optimization status
+  Uses metafield: product.metafields.product_score.current_score
+{%- endcomment -%}
+
+{%- liquid
+  assign score = product.metafields.product_score.current_score | default: nil
+  assign show_score = block.settings.show_score
+  assign badge_style = block.settings.badge_style
+-%}
+
+{%- if score != blank -%}
+  {%- assign score_num = score | plus: 0 -%}
+  {%- if score_num >= 80 -%}
+    {%- assign status = "ready" -%}
+    {%- assign status_label = "Launch Ready" -%}
+    {%- assign status_color = "#22c55e" -%}
+  {%- elsif score_num >= 50 -%}
+    {%- assign status = "pending" -%}
+    {%- assign status_label = "Almost Ready" -%}
+    {%- assign status_color = "#f59e0b" -%}
+  {%- else -%}
+    {%- assign status = "needs-work" -%}
+    {%- assign status_label = "Needs Work" -%}
+    {%- assign status_color = "#ef4444" -%}
+  {%- endif -%}
+
+  <div class="launch-ready-badge launch-ready-badge--{{ badge_style }}" style="--badge-color: {{ status_color }};">
+    <span class="launch-ready-badge__icon">
+      {%- if status == "ready" -%}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M13.5 4.5L6 12L2.5 8.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      {%- else -%}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      {%- endif -%}
+    </span>
+    <span class="launch-ready-badge__label">{{ status_label }}</span>
+    {%- if show_score and badge_style == "detailed" -%}
+      <span class="launch-ready-badge__score">{{ score_num }}%</span>
+    {%- endif -%}
+  </div>
+
+  <style>
+    .launch-ready-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--badge-color);
+    }
+    .launch-ready-badge--minimal {
+      padding: 4px 8px;
+    }
+    .launch-ready-badge--detailed {
+      padding: 6px 12px;
+      background: color-mix(in srgb, var(--badge-color) 10%, transparent);
+      border-radius: 6px;
+    }
+    .launch-ready-badge__icon {
+      display: flex;
+      align-items: center;
+    }
+    .launch-ready-badge__score {
+      opacity: 0.8;
+      font-size: 11px;
+    }
+  </style>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Launch Ready Badge",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

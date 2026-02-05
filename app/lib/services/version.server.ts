@@ -3,7 +3,7 @@ import { db } from "../../db"
 import { productFieldVersions, shops } from "../../db/schema"
 import { PLAN_CONFIG, type PlanType } from "../billing"
 
-export type VersionSource = "manual_edit" | "ai_generate" | "ai_expand" | "ai_improve" | "ai_replace"
+export type VersionSource = "manual" | "ai_generate" | "ai_expand" | "ai_improve" | "ai_replace"
 
 /**
  * Save a field version before changes are made.

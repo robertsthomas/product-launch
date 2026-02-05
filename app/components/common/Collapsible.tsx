@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ChevronIcon } from './IconButton'
+import { useState } from "react"
+import { ChevronIcon } from "./IconButton"
 
 interface CollapsibleProps {
   title: React.ReactNode
@@ -23,11 +23,11 @@ export function Collapsible({ title, children, defaultOpen = false, onToggle, cl
     <div
       className={className}
       style={{
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
-        transition: 'all var(--transition-base)',
-        background: 'var(--color-surface)',
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-lg)",
+        overflow: "hidden",
+        transition: "all var(--transition-base)",
+        background: "var(--color-surface)",
         ...style,
       }}
     >
@@ -35,26 +35,31 @@ export function Collapsible({ title, children, defaultOpen = false, onToggle, cl
         type="button"
         onClick={handleToggle}
         style={{
-          width: '100%',
-          padding: 'var(--space-4)',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          color: 'var(--color-text)',
-          transition: 'all var(--transition-fast)',
+          width: "100%",
+          padding: "var(--space-4)",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          color: "var(--color-text)",
+          transition: "all var(--transition-fast)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'var(--color-surface-strong)'
+          e.currentTarget.style.background = "var(--color-surface-strong)"
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.background = "transparent"
         }}
       >
-        <div style={{ fontWeight: '500', fontSize: 'var(--text-sm)' }}>{title}</div>
-        <div style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform var(--transition-fast)' }}>
+        <div style={{ fontWeight: "500", fontSize: "var(--text-sm)" }}>{title}</div>
+        <div
+          style={{
+            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform var(--transition-fast)",
+          }}
+        >
           <ChevronIcon direction="down" />
         </div>
       </button>
@@ -62,9 +67,9 @@ export function Collapsible({ title, children, defaultOpen = false, onToggle, cl
       {isOpen && (
         <div
           style={{
-            borderTop: '1px solid var(--color-border)',
-            padding: 'var(--space-4)',
-            animation: 'slideDown 0.2s ease-out',
+            borderTop: "1px solid var(--color-border)",
+            padding: "var(--space-4)",
+            animation: "slideDown 0.2s ease-out",
           }}
         >
           {children}
@@ -102,7 +107,7 @@ export function Accordion({ items, allowMultiple = false, className, style }: Ac
   }
 
   return (
-    <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', ...style }}>
+    <div className={className} style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", ...style }}>
       {items.map((item) => (
         <Collapsible
           key={item.id}

@@ -7,6 +7,10 @@ export default function App() {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
+        {/* Enable Web Vitals debug logging (remove in production if noisy) */}
+        <meta name="shopify-debug" content="web-vitals" />
+        {/* App Bridge CDN for Web Vitals tracking (Built for Shopify requirement) */}
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
