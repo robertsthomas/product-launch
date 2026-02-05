@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm"
 import { db } from "~/db"
 import { shops } from "~/db/schema"
 import { isUsingOwnOpenAIKey } from "../services/shop.server"
-import { getShopPlanStatus } from "./guards.server"
 import { BILLING_ERRORS, PLANS, PLAN_CONFIG, type PlanType } from "./constants"
+import { getShopPlanStatus } from "./guards.server"
 
 /**
  * AI gating and credit accounting (server-side).

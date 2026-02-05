@@ -9,9 +9,9 @@
  * - Bulk operations
  */
 
-import React from "react"
-import type { ReactNode, ReactElement } from "react"
 import { formatDistanceToNow } from "date-fns"
+import React from "react"
+import type {} from "react"
 import type { ChangeType } from "../lib/services/history.server"
 
 interface HistoryEntry {
@@ -115,9 +115,7 @@ function TimelineEntry({ entry, isFirst, isLast }: TimelineEntryProps) {
     "div",
     { style: { fontSize: "var(--text-sm)", color: "var(--color-text)", lineHeight: 1.4 } },
     String(descriptionText)
-  );
-
-
+  )
 
   return (
     <div
